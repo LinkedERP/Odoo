@@ -1,6 +1,6 @@
 {
     'name': 'Project Invoice Currency Setter',
-    'version': '16.0.1.0.0',
+    'version': '18.0.1.0.0',
     'summary': 'Set invoice company & currency from project settings',
     'category': 'Accounting',
     'author': 'JV',
@@ -9,6 +9,6 @@
     'depends': ['account', 'project'],
     'data': [],
     'installable': True,
-    'application': False,
+    'application': True,
     'auto_install': False,
 }
