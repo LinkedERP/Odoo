@@ -5,7 +5,7 @@
     'category': 'Accounting',
     'author': 'JV',
     'website': 'https://Linkederp.com',
-    'license': 'LGPL-3',
+    'license': 'AGPL-3',
     'depends': ['account', 'project'],
     'data': [],
     'installable': True,
