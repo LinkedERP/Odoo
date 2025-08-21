@@ -11,12 +11,12 @@ class AccountAnalyticLine(models.Model):
         current_company = self.env.company  # company chosen in top-right profile switcher
         for record in self:
             if record.project_id and record.project_id.company_id != current_company:
+                record.project_id = False  # clear project selection
                 raise ValidationError(
                     _("You cannot log a timesheet on a project that belongs to another company.\n"
                       "Your current company: %s\nProject company: %s") %
                     (current_company.display_name, record.project_id.company_id.display_name)
                 )
-                self.project_id = False  # clear project selection
                 return {'warning': warning}
 
     @api.onchange('project_id')
