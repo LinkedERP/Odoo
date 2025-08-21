@@ -16,6 +16,8 @@ class AccountAnalyticLine(models.Model):
                       "Your current company: %s\nProject company: %s") %
                     (current_company.display_name, record.project_id.company_id.display_name)
                 )
+                self.project_id = False  # clear project selection
+                return {'warning': warning}
 
     @api.onchange('project_id')
     def _onchange_project_company_vs_current_company(self):
