@@ -1,5 +1,5 @@
 <odoo>
-  <template id="digest_mail_custom" inherit_id="digest.digest_mail" name="Custom Company Weekly Digest Email">
+  <template id="digest_mail_custom" inherit_id="digest.digest_mail_layout" name="Custom Company Weekly Digest Email">
 
     <!-- Custom header -->
     <xpath expr="//div[@class='o_digest_header']" position="replace">
