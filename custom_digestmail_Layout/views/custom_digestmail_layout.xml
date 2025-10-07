@@ -1,75 +1,21 @@
 <odoo>
-  <template id="digest_mail_custom" inherit_id="digest.digest_mail_layout" name="Custom Company Weekly Digest Email">
+  <template id="digest_mail_custom" inherit_id="digest.digest_mail_layout" name="Custom Digest Mail Layout">
 
-    <!-- Custom header -->
-    <xpath expr="//div[@class='o_digest_header']" position="replace">
-      <div style="background-color:#003366; color:white; text-align:center; padding:30px 10px; border-radius:8px 8px 0 0;">
-        <img t-att-src="'/web/image/res.company/%s/logo' % (object.company_id.id)" alt="Company Logo" style="max-height:60px; margin-bottom:10px;"/>
-        <h2 style="margin:0; font-size:22px;">Weekly Business Digest</h2>
-        <p style="margin:5px 0; font-size:14px;">A quick summary of your company’s performance this week</p>
-      </div>
+    <!-- 🎨 Custom Header -->
+    <xpath expr="//td[@class='o_mail_header']" position="replace">
+      <td class="o_mail_header" align="center" style="background-color:#f4f4f4; padding:20px;">
+        <img t-att-src="'/custom_digest/static/src/img/custom_logo.png'"
+             alt="Company Logo" style="max-height:70px;"/><br/>
+        <h2 style="margin-top:10px; color:#2C3E50;">Your Weekly Company Insights</h2>
+      </td>
     </xpath>
 
-    <!-- Add custom summary section -->
-    <xpath expr="//div[contains(@class,'o_digest_body')]" position="before">
-      <div style="padding:20px; background:#f8f9fb; border-bottom:1px solid #ddd;">
-        <h3 style="color:#003366; border-bottom:2px solid #003366; display:inline-block; padding-bottom:4px;">📈 Weekly Summary</h3>
-        <p style="margin-top:10px; font-size:14px; color:#444;">
-          Here’s what happened in your business over the past 7 days.
-        </p>
-      </div>
-    </xpath>
-
-    <!-- Replace KPI area with custom data -->
-    <xpath expr="//div[contains(@class,'o_digest_body')]" position="replace">
-      <div class="o_digest_body" style="padding:25px;">
-        <table style="width:100%; border-collapse:collapse; text-align:center;">
-          <tr style="background-color:#e6f0ff; font-weight:bold;">
-            <td style="padding:10px;">Metric</td>
-            <td style="padding:10px;">This Week</td>
-          </tr>
-          <tr>
-            <td style="padding:10px; border-bottom:1px solid #ddd;">💰 Total Sales Orders Confirmed</td>
-            <td style="padding:10px; border-bottom:1px solid #ddd;">
-              <t t-esc="env['sale.order'].search_count([('state','=','sale'),('create_date','>=',(datetime.datetime.now() - datetime.timedelta(days=7)))])"/>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:10px; border-bottom:1px solid #ddd;">📦 Total Invoices Posted</td>
-            <td style="padding:10px; border-bottom:1px solid #ddd;">
-              <t t-esc="env['account.move'].search_count([('move_type','=','out_invoice'),('state','=','posted'),('invoice_date','>=',(datetime.datetime.now() - datetime.timedelta(days=7)))])"/>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:10px; border-bottom:1px solid #ddd;">🧾 Total Invoice Amount</td>
-            <td style="padding:10px; border-bottom:1px solid #ddd;">
-              ₹<t t-esc="sum(env['account.move'].search([('move_type','=','out_invoice'),('state','=','posted'),('invoice_date','>=',(datetime.datetime.now() - datetime.timedelta(days=7)))]).mapped('amount_total'))"/>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:10px; border-bottom:1px solid #ddd;">🧍 New Customers Added</td>
-            <td style="padding:10px; border-bottom:1px solid #ddd;">
-              <t t-esc="env['res.partner'].search_count([('customer_rank','>',0),('create_date','>=',(datetime.datetime.now() - datetime.timedelta(days=7)))])"/>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:10px;">📧 New Leads (CRM)</td>
-            <td style="padding:10px;">
-              <t t-esc="env['crm.lead'].search_count([('create_date','>=',(datetime.datetime.now() - datetime.timedelta(days=7)))])"/>
-            </td>
-          </tr>
-        </table>
-      </div>
-    </xpath>
-
-    <!-- Add footer -->
-    <xpath expr="//div[@class='o_digest_footer']" position="replace">
-      <div class="o_digest_footer" style="background:#003366; color:white; text-align:center; padding:20px; border-radius:0 0 8px 8px;">
-        <p style="margin:0;">Thank you for being part of our journey 💼</p>
-        <p style="margin:0; font-size:12px; color:#ccc;">
-          © <t t-esc="datetime.date.today().year"/> Your Company Name. All rights reserved.
-        </p>
-      </div>
+    <!-- 🧾 Custom Footer -->
+    <xpath expr="//td[@class='o_mail_footer']" position="replace">
+      <td class="o_mail_footer" align="center" style="padding:20px; background-color:#fafafa; font-size:12px; color:#666;">
+        <p>© <t t-esc="object.company_id.name"/> — All rights reserved</p>
+        <p>Generated on <t t-esc="format_date(datetime.datetime.now())"/></p>
+      </td>
     </xpath>
 
   </template>
