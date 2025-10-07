@@ -4,8 +4,7 @@
     <!-- Custom header -->
     <xpath expr="//div[@class='o_digest_header']" position="replace">
       <div style="background-color:#003366; color:white; text-align:center; padding:30px 10px; border-radius:8px 8px 0 0;">
-        <img src="/web/image/res.company,%(object.company_id.id)s,logo" alt="Company Logo"
-             style="max-height:60px; margin-bottom:10px;"/>
+        <img t-att-src="'/web/image/res.company/%s/logo' % (object.company_id.id)" alt="Company Logo" style="max-height:60px; margin-bottom:10px;"/>
         <h2 style="margin:0; font-size:22px;">Weekly Business Digest</h2>
         <p style="margin:5px 0; font-size:14px;">A quick summary of your company’s performance this week</p>
       </div>
