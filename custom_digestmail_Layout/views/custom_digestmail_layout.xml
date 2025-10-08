@@ -1,22 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
-  <template id="digest_mail_custom" inherit_id="digest.digest_mail_layout" name="Custom Digest Mail Layout">
+    <template id="custom_digest_mail_layout" inherit_id="digest.digest_mail_layout" name="Custom Digest Mail Layout">
+        <!-- Override the full layout -->
+        <xpath expr="." position="replace">
+            <t t-name="digest.digest_mail_layout">
+                <!DOCTYPE html>
+                <html xmlns="http://www.w3.org/1999/xhtml">
+                    <head>
+                        <!-- Your updated styles / colors / logo etc -->
+                        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+                        <style type="text/css">
+                            /* Example: Change header color */
+                            #header {
+                                border-top: 3px solid #4CAF50;
+                            }
+                            .company_name {
+                                color: #4CAF50;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <!-- Custom Header -->
+                        <div style="text-align:center; background-color:#f4f4f4; padding:10px;">
+                            <h2>📅 Weekly Insights</h2>
+                        </div>
 
-    <!-- 🎨 Custom Header -->
-    <xpath expr="//td[@class='o_mail_header']" position="replace">
-      <td class="o_mail_header" align="center" style="background-color:#f4f4f4; padding:20px;">
-        <img t-att-src="'/custom_digest/static/src/img/custom_logo.png'"
-             alt="Company Logo" style="max-height:70px;"/><br/>
-        <h2 style="margin-top:10px; color:#2C3E50;">Your Weekly Company Insights</h2>
-      </td>
-    </xpath>
+                        <!-- Main Digest Body -->
+                        <t t-out="body"/>
 
-    <!-- 🧾 Custom Footer -->
-    <xpath expr="//td[@class='o_mail_footer']" position="replace">
-      <td class="o_mail_footer" align="center" style="padding:20px; background-color:#fafafa; font-size:12px; color:#666;">
-        <p>© <t t-esc="object.company_id.name"/> — All rights reserved</p>
-        <p>Generated on <t t-esc="format_date(datetime.datetime.now())"/></p>
-      </td>
-    </xpath>
-
-  </template>
+                        <!-- Custom Footer -->
+                        <div style="text-align:center; padding:10px; font-size:12px; color:#666;">
+                            <p>Powered by <b>YourCompany</b> | Stay tuned for more updates!</p>
+                        </div>
+                    </body>
+                </html>
+            </t>
+        </xpath>
+    </template>
 </odoo>
