@@ -4,7 +4,7 @@
         <!-- Override the full layout -->
         <xpath expr="." position="replace">
             <t t-name="digest.digest_mail_layout">
-                <!DOCTYPE html>
+                &lt;!DOCTYPE html&gt;
                 <html xmlns="http://www.w3.org/1999/xhtml">
                     <head>
                         <!-- Your updated styles / colors / logo etc -->
