@@ -1,8 +1,10 @@
 {
-    'name': 'Custom Digest Email Layout',
+    'name': 'Custom Digest Email Layout 2',
     'version': '1.0',
-    'depends': ['digest','mail'],
+    'summary': 'Customize Weekly Digest Email Layout and Content',
+    'author': 'LJ',
+    'depends': ['digest', 'sale_management', 'crm', 'account'],
     'data': [
-        'views/custom_digestmail_layout.xml',
+        'views/custom_digestmail_layout_2.xml',
     ],
 }
