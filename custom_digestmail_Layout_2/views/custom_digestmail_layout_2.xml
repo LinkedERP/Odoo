@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="custom_digest_mail_layout" inherit_id="digest.digest_mail_layout" name="Custom Digest Mail Layout">
+        <!-- Override the full layout -->
+        <xpath expr="." position="replace">
+            <t t-name="digest.digest_mail_layout">
+                &lt;!DOCTYPE html&gt;
+                <html xmlns="http://www.w3.org/1999/xhtml">
+                    <head>
+                        <!-- Your updated styles / colors / logo etc -->
+                        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+                        <style type="text/css">
+                            /* Example: Change header color */
+                            #header {
+                                border-top: 3px solid #4CAF50;
+                            }
+                            .company_name {
+                                color: #4CAF50;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <!-- Custom Header -->
+                        <div style="text-align:center; background-color:#f4f4f4; padding:10px;">
+                            <h2>📅 Weekly Insights</h2>
+                        </div>
+
+                        <!-- Main Digest Body -->
+                        <t t-out="body"/>
+
+                        <!-- Custom Footer -->
+                        <div style="text-align:center; padding:10px; font-size:12px; color:#666;">
+                            <p>Powered by <b>YourCompany</b> | Stay tuned for more updates!</p>
+                        </div>
+                    </body>
+                </html>
+            </t>
+        </xpath>
+    </template>
+</odoo>
