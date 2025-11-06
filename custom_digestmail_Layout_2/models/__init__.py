@@ -1,1 +1,1 @@
-from . import digest_inherit
+from . import digestmail_customize

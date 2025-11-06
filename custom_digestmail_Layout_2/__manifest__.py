@@ -7,4 +7,7 @@
     'data': [
         'views/custom_digestmail_layout_2.xml',
     ],
+    'installable': True,
+    'application': False,
+
 }
