@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <data>
+        <record id="report_equipment_service_history" model="ir.actions.report">
+            <field name="name">Service History</field>
+            <field name="model">equipment.details</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">cs_client_equipment.report_service_history</field>
+            <field name="report_file">cs_client_equipment.report_service_history</field>
+            <field name="binding_model_id" ref="model_equipment_details"/>
+            <field name="binding_type">report</field>
+        </record>
+    </data>
+
+    <template id="report_service_history">
+        <t t-call="web.html_container">
+            <t t-call="web.external_layout">
+                <div class="row">
+                    <div>
+                         <t t-if="docs.client">
+                            <div><strong>Client: </strong></div>
+                            <div t-out="docs.client" t-options='{
+                                    "widget": "contact",
+                                    "fields": ["name", "address", "phone", "email"]}'/>
+
+                        </t>
+                        <hr/>
+                        <table class="table table-condensed">
+                            <tr>
+                                <td>
+                                    <strong>Site Contact</strong>
+                                </td>
+                                <td>
+                                    <t t-esc="docs.client.site_contact"/>
+                                </td>
+                                <td>
+                                    <strong>Site Phone</strong>
+                                </td>
+                                <td>
+                                    <t t-esc="docs.client.site_phone"/>
+                                </td>
+                            </tr>
+                        </table>
+                       <t t-foreach="docs" t-as="o">
+                           <table class="table table-condensed">
+                               <tr>
+                                   <td>
+                                       <strong class="text-start">Name: </strong>
+                                       <span t-field="o.name"/>
+                                   </td>
+                                   <td>
+                                       <strong class="text-start">Category:</strong>
+                                       <span t-field="o.category_id"/>
+                                   </td>
+                               </tr>
+                               <tr>
+                                   <td>
+                                       <strong class="text-start">Manufacturer:</strong>
+                                       <span t-field="o.manufacturer_id"/>
+                                   </td>
+                                   <td>
+                                       <strong class="text-start">Model:</strong>
+                                       <span t-field="o.model"/>
+                                   </td>
+                               </tr>
+                               <tr>
+                                   <td>
+                                       <strong class="text-start">Serial No:</strong>
+                                       <span t-field="o.serial_no"/>
+                                   </td>
+                                   <td></td>
+                               </tr>
+                           </table>
+                       </t>
+                    </div>
+                </div>
+
+                <t class="page">
+                    <div class="oe_structure"/>
+                    <div t-attf-class="#{'table-responsive-sm' if report_type != 'pdf' else ''}">
+                        <t t-if="docs.jobs">
+                            <t t-set="service_count" t-value="0"/>
+                            <t t-foreach="docs.jobs" t-as="job">
+                                <t t-set="service_count" t-value="service_count + 1"/>
+                                <p> <h3>Service <t t-esc="service_count"/></h3> </p>
+                                <table class="table table-condensed">
+                                    <tr>
+                                        <td>
+                                            <strong class="text-start">Assignee</strong>
+                                        </td>
+                                        <td>
+                                            <span t-field="job.assignee"/>
+                                        </td>
+                                        <td>
+                                            <strong class="text-start">Serivce Date</strong>
+                                        </td>
+                                        <td>
+                                            <span t-field="job.service_date"/>
+                                        </td>
+                                    </tr>
+
+                                </table>
+                                <strong class="text-start">Issues: </strong> <br/>
+                                <span t-field="job.issues"/> <br/>
+                                <strong class="text-start">Report:</strong> <br/>
+                                <span t-field="job.report"/> <br/>
+                                <hr/>
+                            </t>
+                        </t>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>
