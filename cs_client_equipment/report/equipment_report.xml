@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="report_equipment_details">
+        <t t-call="web.html_container">
+            <t t-call="web.external_layout">
+                <t t-foreach="docs" t-as="o">
+                    <div class="page">
+                        <div class="oe_structure"/>
+                        <h1>Equipment Details</h1>
+                        <p>Title of the equipment is <b><span  t-field="o.name"/> </b></p>
+                        <table class="table table-condensed">
+                            <tr>
+                                <td>
+                                    Client
+                                </td>
+                                <td>
+                                    <span t-field="o.client"/>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td>
+                                    Equipment Category
+                                </td>
+                                <td>
+                                    <span t-field="o.category_id"/>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td>
+                                    Manufacturer
+                                </td>
+                                <td>
+                                    <span t-field="o.manufacturer_id"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Reference
+                                </td>
+                                <td>
+                                    <span t-field="o.ref"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Model
+                                </td>
+                                <td>
+                                    <span t-field="o.model"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Serial No
+                                </td>
+                                <td>
+                                    <span t-field="o.serial_no"/>
+                                </td>
+                            </tr>
+                        </table>
+
+                    </div>
+
+                </t>
+            </t>
+        </t>
+
+    </template>
+</odoo>
