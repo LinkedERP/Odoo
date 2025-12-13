@@ -1,1 +1,2 @@
-# Odoo git commit --allow-empty -m "Commit message"
+# Odoo git commit --allow-empty -m "Retry module update after upgrade"
+git push
