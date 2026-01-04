@@ -1,2 +1,3 @@
-# Odoo git commit --allow-empty -m "Retry module update after upgrade"
+git add .
+git commit -m "Trigger Odoo 19 production upgrade"
 git push
