@@ -1,6 +1,6 @@
 from odoo import models, fields
 
-class MandatoryField(models.Model)
+class MandatoryField(models.Model):
     _name = mandatory.field.rule
     _description = Mandatory Field Rule
 
