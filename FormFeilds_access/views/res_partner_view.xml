@@ -1,0 +1,40 @@
+<odoo>
+    <record id="view_partner_form_dynamic_required" model="ir.ui.view">
+        <field name="name">res.partner.form.dynamic.required</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Configuration section -->
+            <xpath expr="//sheet/notebook" position="before">
+                <group string="Field Requirements" col="3">
+                    <field name="require_phone"/>
+                    <field name="require_email"/>
+                    <field name="require_vat"/>
+                </group>
+            </xpath>
+
+            <!-- Phone field -->
+            <xpath expr="//field[@name='phone']" position="attributes">
+                <attribute name="attrs">
+                    {'required': [('require_phone', '=', True)]}
+                </attribute>
+            </xpath>
+
+            <!-- Email field -->
+            <xpath expr="//field[@name='email']" position="attributes">
+                <attribute name="attrs">
+                    {'required': [('require_email', '=', True)]}
+                </attribute>
+            </xpath>
+
+            <!-- VAT field -->
+            <xpath expr="//field[@name='vat']" position="attributes">
+                <attribute name="attrs">
+                    {'required': [('require_vat', '=', True)]}
+                </attribute>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>
