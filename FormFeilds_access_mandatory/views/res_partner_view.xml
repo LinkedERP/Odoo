@@ -4,9 +4,13 @@
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
+
             <xpath expr="//sheet" position="before">
-                <label string="⚠ Some fields are mandatory based on configuration"/>
+                <div class="alert alert-warning oe_edit_only">
+                    ⚠ Some fields are mandatory based on configuration
+                </div>
             </xpath>
+
         </field>
     </record>
 </odoo>
