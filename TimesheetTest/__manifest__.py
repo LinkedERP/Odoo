@@ -6,7 +6,7 @@
     'author': 'JV',
     'website': 'https://Linkederp.com',
     'license': 'AGPL-3',
-    'depends': ['account', 'project','hr_timesheet'],
+    'depends': ['hr_timesheet'],
     'data': [],
     'installable': True,
     'application': True,
