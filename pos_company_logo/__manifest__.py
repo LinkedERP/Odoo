@@ -8,7 +8,7 @@
             This module allows you to replace the default Odoo logo in the Point of Sale (POS) interface with your own company logo, improving branding and visual identity during POS operations.
     """,
     'author': "Dustin Mimbela",
-    'version': '1.0',
+    'version': '1.0.1',
     'installable': True,
     'depends': ['point_of_sale'],
     'data': [],
