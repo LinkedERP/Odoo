@@ -5,7 +5,7 @@
         <field name="name">res.partner.missing.info.tree</field>
         <field name="model">res.partner</field>
         <field name="arch" type="xml">
-            <tree string="Contacts Missing Email, Phone & Company">
+            <tree string="Contacts Missing Email, Phone &amp; Company">
                 <field name="name"/>
                 <field name="email"/>
                 <field name="phone"/>
@@ -30,7 +30,6 @@
                 ("company_id", "=", False)
             ]
         </field>
-        <field name="context">{}</field>
     </record>
 
     <!-- Menu -->
