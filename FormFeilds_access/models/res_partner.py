@@ -8,6 +8,14 @@ class ResPartner(models.Model):
     require_email = fields.Boolean(string="Require Email")
     require_vat = fields.Boolean(string="Require VAT")
 
+    @api.constrains('name')
+    def _check_name_not_all_caps(self):
+        for partner in self:
+            if partner.name and partner.name.isupper():
+                raise ValidationError(
+                    _("Contact name should not be in ALL CAPITAL letters.")
+                )
+
     @api.constrains('require_phone', 'phone')
     def _check_required_phone(self):
         for rec in self:
