@@ -1,0 +1,43 @@
+<odoo>
+
+    <!-- Tree View -->
+    <record id="view_partner_missing_info_tree" model="ir.ui.view">
+        <field name="name">res.partner.missing.info.tree</field>
+        <field name="model">res.partner</field>
+        <field name="arch" type="xml">
+            <tree string="Contacts Missing Email, Phone & Company">
+                <field name="name"/>
+                <field name="email"/>
+                <field name="phone"/>
+                <field name="mobile"/>
+                <field name="company_id"/>
+                <field name="country_id"/>
+                <field name="create_date"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_partner_missing_info" model="ir.actions.act_window">
+        <field name="name">Contacts Missing Info</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">tree</field>
+        <field name="view_id" ref="view_partner_missing_info_tree"/>
+        <field name="domain">
+            [
+                ("email", "=", False),
+                ("phone", "=", False),
+                ("company_id", "=", False)
+            ]
+        </field>
+        <field name="context">{}</field>
+    </record>
+
+    <!-- Menu -->
+    <menuitem
+        id="menu_partner_missing_info"
+        name="Contacts Missing Info"
+        parent="contacts.menu_contacts"
+        action="action_partner_missing_info"
+        sequence="50"/>
+</odoo>
