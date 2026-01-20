@@ -9,7 +9,7 @@
                 <field name="name"/>
                 <field name="email"/>
                 <field name="phone"/>
-                <field name="mobile"/>
+                <!--<field name="mobile"/>-->
                 <field name="company_id"/>
                 <field name="country_id"/>
                 <field name="create_date"/>
