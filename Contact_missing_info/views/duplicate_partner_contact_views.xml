@@ -1,4 +1,4 @@
-<odoo>
+<!-- <odoo>
 
     <!-- Search View for Duplicate Email Detection -->
     <record id="view_partner_search_duplicate_email" model="ir.ui.view">
@@ -43,4 +43,36 @@
         parent="contacts.menu_contacts"
         action="action_partner_duplicate_info"
         sequence="70"/>
+</odoo>
+ -->
+ <odoo>
+
+    <!-- List View -->
+    <record id="view_duplicate_partner_contact_list" model="ir.ui.view">
+        <field name="name">duplicate.partner.contact.list</field>
+        <field name="model">duplicate.partner.contact</field>
+        <field name="arch" type="xml">
+            <list string="Duplicate Contacts (Email &amp; Phone)">
+                <field name="duplicate_type"/>
+                <field name="value"/>
+                <field name="duplicate_count"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_duplicate_partner_contact" model="ir.actions.act_window">
+        <field name="name">Duplicate Contacts</field>
+        <field name="res_model">duplicate.partner.contact</field>
+        <field name="view_mode">list</field>
+    </record>
+
+    <!-- Menu -->
+    <menuitem
+        id="menu_duplicate_partner_contact"
+        name="Duplicate Contacts"
+        parent="contacts.menu_contacts"
+        action="action_duplicate_partner_contact"
+        sequence="70"/>
+
 </odoo>
