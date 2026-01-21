@@ -37,5 +37,5 @@
         name="Contacts duplicate Info"
         parent="contacts.menu_contacts"
         action="action_partner_duplicate_info"
-        sequence="40"/>
+        sequence="10"/>
 </odoo>
