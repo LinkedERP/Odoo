@@ -23,12 +23,34 @@
         <field name="res_model">res.partner</field>
         <field name="view_mode">list</field>
         <field name="view_id" ref="view_partner_duplicate_info_list"/>
-        <field name="domain">
+        <!-- <field name="domain">
             [
                 ("email", "!=", False),
                 ("email", "in", (SELECT email FROM res_partner WHERE email IS NOT NULL GROUP BY email HAVING COUNT(*) > 1))
             ]
+        </field> -->
+                <field name="arch" type="xml">
+            <search>
+
+                <!-- Filter: Has Email -->
+                <filter
+                    name="has_email"
+                    string="Has Email"
+                    domain="[('email', '!=', False)]"/>
+
+                <separator/>
+
+                <!-- Group By -->
+                <group expand="0" string="Group By">
+                    <filter
+                        name="group_by_email"
+                        string="Email"
+                        context="{'group_by': 'email'}"/>
+                </group>
+
+            </search>
         </field>
+
     </record>
 
     <!-- Menu -->
