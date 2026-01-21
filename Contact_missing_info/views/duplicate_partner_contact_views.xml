@@ -26,6 +26,6 @@
         name="Duplicate Contacts"
         parent="contacts.menu_contacts"
         action="action_duplicate_partner_contact"
-        sequence="65"/>
+        sequence="70"/>
 
 </odoo>
