@@ -6,6 +6,7 @@
     "depends": ["contacts"],
     "data": [
         "views/res_partner_report_views.xml",
+        "views/res_partner_dup_report_views.xml",
     ],
     "installable": True,
 }
