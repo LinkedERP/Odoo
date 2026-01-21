@@ -24,7 +24,7 @@
     </record>
 
 <record id="action_partner_duplicate_info" model="ir.actions.act_window">
-    <field name="name">Contacts Missing Info</field>
+    <field name="name">Contacts duplicate Info</field>
     <field name="res_model">res.partner</field>
     <field name="view_mode">list</field>
     <field name="search_view_id" ref="view_partner_search_duplicate_email"/>
