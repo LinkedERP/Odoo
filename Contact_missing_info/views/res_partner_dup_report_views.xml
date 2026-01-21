@@ -1,31 +1,28 @@
 <odoo>
 
-
+    <!-- Search View for Duplicate Email Detection -->
     <record id="view_partner_search_duplicate_email" model="ir.ui.view">
         <field name="name">res.partner.search.duplicate.email</field>
         <field name="model">res.partner</field>
         <field name="arch" type="xml">
-            <search>
+            <search string="Search Contacts">
 
-                <!-- Filter: Has Email -->
+                <!-- Has Email -->
                 <filter
                     name="has_email"
                     string="Has Email"
                     domain="[('email', '!=', False)]"/>
 
-                <separator/>
-
                 <!-- Group By -->
-                <group expand="0" string="Group By">
-                    <filter
-                        name="group_by_email"
-                        string="Email"
-                        context="{'group_by': 'email'}"/>
-                </group>
+                <filter
+                    name="group_by_email"
+                    string="Group by Email"
+                    context="{'group_by': 'email'}"/>
 
             </search>
         </field>
     </record>
+
 <record id="action_partner_duplicate_info" model="ir.actions.act_window">
     <field name="name">Contacts Missing Info</field>
     <field name="res_model">res.partner</field>
