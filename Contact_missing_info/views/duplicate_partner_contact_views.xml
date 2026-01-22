@@ -1,4 +1,4 @@
- <odoo>
+<odoo>
 
     <!-- List View -->
     <record id="view_duplicate_partner_contact_list" model="ir.ui.view">
@@ -18,15 +18,6 @@
         <field name="name">Duplicate Contacts</field>
         <field name="res_model">duplicate.partner.contact</field>
         <field name="view_mode">list</field>
-        <field name="view_id" ref="view_duplicate_partner_contact_list"/>
     </record>
-
-    <!-- Menu -->
-    <menuitem
-        id="menu_duplicate_partner_contact"
-        name="Duplicate Contacts"
-        parent="contacts.menu_contacts"
-        action="action_duplicate_partner_contact"
-        sequence="80"/>
 
 </odoo>
