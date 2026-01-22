@@ -39,33 +39,4 @@
         parent="contacts.menu_contacts"
         action="action_partner_missing_info"
         sequence="50"/>
-
-    <record id="view_duplicate_partner_contact_list" model="ir.ui.view">
-        <field name="name">duplicate.partner.contact.list</field>
-        <field name="model">duplicate.partner.contact</field>
-        <field name="arch" type="xml">
-            <list string="Duplicate Contacts (Email &amp; Phone)">
-                <field name="duplicate_type"/>
-                <field name="value"/>
-                <field name="duplicate_count"/>
-            </list>
-        </field>
-    </record>
-
-    <!-- ============================= -->
-    <!-- Window Action -->
-    <!-- ============================= -->
-    <record id="action_duplicate_partner_contact" model="ir.actions.act_window">
-        <field name="name">Duplicate Contacts</field>
-        <field name="res_model">duplicate.partner.contact</field>
-        <field name="view_mode">list</field>
-        <field name="view_id" ref="view_duplicate_partner_contact_list"/>
-    </record>
-            <!-- Menu -->
-    <menuitem
-        id="menu_partner_missing_info"
-        name="Contacts duplicate Info"
-        parent="contacts.menu_contacts"
-        action="action_partner_missing_info"
-        sequence="70"/>
 </odoo>
