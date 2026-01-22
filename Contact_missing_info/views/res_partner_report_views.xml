@@ -39,4 +39,11 @@
         parent="contacts.menu_contacts"
         action="action_partner_missing_info"
         sequence="50"/>
+            <!-- Menu -->
+    <menuitem
+        id="menu_partner_missing_info"
+        name="Contacts duplicate Info"
+        parent="contacts.menu_contacts"
+        action="action_partner_missing_info"
+        sequence="70"/>
 </odoo>
