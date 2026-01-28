@@ -34,9 +34,14 @@
 
     <!-- Menu -->
     <menuitem
+    id="menu_parent"
+    name="Reporting"
+    parent="contacts.menu_contacts"
+    sequence="50"/>
+    <menuitem
         id="menu_partner_missing_info"
         name="Contacts Missing Info"
-        parent="contacts.menu_contacts"
+        parent="menu_parent"
         action="action_partner_missing_info"
-        sequence="50"/>
+        sequence="10"/>
 </odoo>
