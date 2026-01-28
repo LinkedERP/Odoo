@@ -40,7 +40,7 @@
     <menuitem
         id="menu_partner_duplicate_info"
         name="Contacts duplicate Info"
-        parent="contacts.menu_contacts"
+        parent="menu_parent"
         action="action_partner_duplicate_info"
-        sequence="70"/>
+        sequence="20"/>
 </odoo>
