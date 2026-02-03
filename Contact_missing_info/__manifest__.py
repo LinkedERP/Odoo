@@ -7,7 +7,7 @@
     "data": [
         "views/res_partner_report_views.xml",
         "views/duplicate_partner_contact_views.xml",
-        "views/duplicate_partner_contact_views_2.xml",
+        "views/duplicate_partner_contact.xml",
     ],
     "installable": True,
 }
