@@ -23,9 +23,9 @@
 
     <!-- Menu -->
     <menuitem
-        id="menu_partner_duplicate_info"
+        id="menu_partner_duplicate_info2"
         name="Contacts duplicate SQL Test"
         parent="menu_parent"
-        action="action_partner_duplicate_info"
+        action="action_duplicate_partner_contact"
         sequence="30"/>
 </odoo>
