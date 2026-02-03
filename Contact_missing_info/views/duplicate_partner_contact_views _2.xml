@@ -1,0 +1,31 @@
+<odoo>
+
+    <!-- List View -->
+    <record id="view_duplicate_partner_contact_list" model="ir.ui.view">
+        <field name="name">duplicate.partner.contact.list</field>
+        <field name="model">duplicate.partner.contact</field>
+        <field name="arch" type="xml">
+            <list string="Duplicate Contacts (Email &amp; Phone)">
+                <field name="duplicate_type"/>
+                <field name="value"/>
+                <field name="duplicate_count"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_duplicate_partner_contact" model="ir.actions.act_window">
+        <field name="name">Duplicate Contacts</field>
+        <field name="res_model">duplicate.partner.contact</field>
+        <field name="view_mode">list</field>
+    </record>
+
+
+    <!-- Menu -->
+    <menuitem
+        id="menu_partner_duplicate_info"
+        name="Contacts duplicate SQL Test"
+        parent="menu_parent"
+        action="action_partner_duplicate_info"
+        sequence="30"/>
+</odoo>
