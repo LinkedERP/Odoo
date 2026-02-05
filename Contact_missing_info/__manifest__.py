@@ -6,8 +6,9 @@
     "depends": ["contacts"],
     "data": [
         "views/res_partner_report_views.xml",
-        "views/duplicate_partner_contact.xml"
+        "views/duplicate_partner_contact.xml",
         "views/duplicate_partner_contact_views.xml",
+        "security/ir.model.access.csv",
     ],
     "installable": True,
 }
