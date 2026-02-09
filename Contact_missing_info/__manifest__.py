@@ -5,6 +5,7 @@
     "summary": "Report of contacts missing email, phone and company",
     "depends": ["contacts"],
     "data": [
+        "security/ir.model.access.csv",
         "views/res_partner_report_views.xml",
         "views/duplicate_partner_contact.xml"
         "views/duplicate_partner_contact_views.xml",
