@@ -10,11 +10,11 @@ class ResPartner(models.Model):
 
     @api.constrains("email", "phone")
     def _check_duplicate_contacts(self):
+        if self.env.context.get("from_crm"):
+            return
 
 
-        if self.env.context.get('from_crm_lead') or \
-            self.env.context.get('default_type') == 'opportunity':
-             return
+
         for partner in self:
             domain = [("id", "!=", partner.id)]
 
