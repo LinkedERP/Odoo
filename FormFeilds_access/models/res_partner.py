@@ -20,7 +20,7 @@ class ResPartner(models.Model):
             if crm_lead:
                 continue
 
-            domain = [("id", "!=", partner.id)]
+            domain = [("id", "!=", partner.id),("active", "=", True),]
 
             if partner.email:
                 domain_email = domain + [("email", "=", partner.email)]
