@@ -1,5 +1,5 @@
 {
-    "name": "Contact Dynamic Required Fields",
+    "name": "Contact Dynamic Required Fields 2",
     "version": "1.0.1",
     "category": "Contacts",
     "summary": "Make contact fields required dynamically",
