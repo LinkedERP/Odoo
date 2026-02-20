@@ -10,6 +10,9 @@ class ResPartner(models.Model):
 
     @api.constrains("email", "phone")
     def _check_duplicate_contacts(self):
+        # Skip validation if partner created from CRM Lead conversion
+        if self.env.context.get("active_model") == "crm.lead":
+            return
         for partner in self:
             domain = [("id", "!=", partner.id)]
 
@@ -17,12 +20,14 @@ class ResPartner(models.Model):
                 domain_email = domain + [("email", "=", partner.email)]
                 if self.search_count(domain_email):
                     raise ValidationError(
-                        "A contact with the same Email already exists.")
-
+                        _("A contact with the same Email already exists.")
+                    )
             if partner.phone:
                 domain_phone = domain + [("phone", "=", partner.phone)]
                 if self.search_count(domain_phone):
-                    raise ValidationError("A contact with the same Phone number already exists.")
+                    raise ValidationError(
+                        _("A contact with the same Phone number already exists.")
+                    )
 
     @api.constrains('name')
     def _check_name_not_all_caps(self):
