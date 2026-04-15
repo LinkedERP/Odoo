@@ -43,9 +43,22 @@ class HelpdeskTicket(models.Model):
             )
             recipients = self._get_reminder_recipients(ticket)
             if recipients:
-                reminder_template.with_context(
-                    recipient_partners=recipients.ids,
-                ).send_mail(ticket.id, force_send=True, raise_exception=False)
+                email_to = ','.join(filter(None, recipients.mapped('email')))
+                if not email_to:
+                    _logger.warning(
+                        'No email address found for recipients of ticket %s (id=%d), skipping.',
+                        ticket.name, ticket.id,
+                    )
+                    continue
+                reminder_template.send_mail(
+                    ticket.id,
+                    force_send=True,
+                    raise_exception=False,
+                    email_values={
+                        'email_to': email_to,
+                        'recipient_ids': [],  # prevent sending to partners
+                    },
+                )
     # -------------------------------------------------------------------------
     # Helpers
     # -------------------------------------------------------------------------
@@ -77,16 +90,16 @@ class HelpdeskTicket(models.Model):
             ('date', '>=', threshold),
         ], limit=1)
         return recent_reply == 0
+
     def _get_reminder_recipients(self, ticket):
         """
-        Return a res.partner recordset with the recipients for the reminder:
+        Return a res.users recordset with the recipients for the reminder:
           - The assigned user (user_id)
-          - The project manager of the helpdesk team (team_id.project_manager_id)
+          - The project manager of the helpdesk team (team_id.project_id.user_id)
         """
-        recipients = self.env['res.partner']
-        if ticket.user_id and ticket.user_id.partner_id:
-            recipients = recipients + ticket.user_id.partner_id
-        if ticket.team_id.project_manager_id and ticket.team_id.project_manager_id.partner_id:
-            if ticket.team_id.project_manager_id != ticket.user_id:
-                recipients = recipients + ticket.team_id.project_manager_id.partner_id
+        recipients = self.env['res.users']
+        if ticket.user_id:
+            recipients |= ticket.user_id
+        if ticket.team_id.project_id.user_id:
+            recipients |= ticket.team_id.project_id.user_id
         return recipients
