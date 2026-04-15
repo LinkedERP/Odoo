@@ -1,6 +1,6 @@
 {
     'name': 'Timesheet Cross Company Blocker',
-    'version': '1.0.2',
+    'version': '1.0.3',
     'summary': 'Project and User company should be same while filling Timesheet',
     'category': 'Accounting',
     'author': 'JV',
