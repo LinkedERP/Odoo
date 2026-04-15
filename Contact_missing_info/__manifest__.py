@@ -1,6 +1,8 @@
 {
     "name": "Contacts Missing Mandatory Info Report",
     "version": "1.0",
+    "author": "JV",
+    "license": "LGPL-3",
     "category": "Contacts",
     "summary": "Report of contacts missing email, phone and company",
     "depends": ["contacts"],
