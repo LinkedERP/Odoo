@@ -25,13 +25,12 @@
             <xpath expr="//header/t[@groups='sale.group_auto_done_setting']"
                    position="replace">
                 <button
-                    string="Lock"
-                    name="action_lock"
-                    type="object"
-                    class="btn-secondary"
-                    help="Lock this Sales Order to prevent modifications. You can unlock it at any time."
-                    invisible="locked or state != 'sale'"
-                    groups="sales_team.group_sale_manager"/>
+                        string="Lock"
+                        name="action_lock"
+                        type="object"
+                        class="btn-secondary"
+                        help="Lock this Sales Order to prevent modifications. You can unlock it at any time."
+                        invisible="locked or state != 'sale' or invoice_status != 'invoiced'"/>
             </xpath>
         </field>
     </record>
@@ -51,18 +50,48 @@
             <filter name="my_sale_orders_filter" position="after">
                 <separator/>
                 <filter
-                    name="not_locked"
-                    string="Active Orders (Unlocked)"
-                    domain="[('locked', '=', False)]"
-                    help="Show only unlocked / active Sales Orders"/>
+                        name="not_locked"
+                        string="Active Orders (Unlocked)"
+                        domain="[('locked', '=', False)]"
+                        help="Show only unlocked / active Sales Orders"/>
+
+                <filter
+                        name="locked"
+                        string="Locked Sales Orders"
+                        domain="[('locked', '=', True)]"
+                        help="Show only locked / active Sales Orders"/>
             </filter>
         </field>
     </record>
+
+    <record id="sale_order_view_search_inherit_quotation_lock" model="ir.ui.view">
+        <field name="name">sale.order.search.linked.unlocked</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.sale_order_view_search_inherit_quotation"/>
+        <field name="arch" type="xml">
+            <filter name="my_quotation" position="after">
+                <separator/>
+                <filter
+                        name="not_locked"
+                        string="Active Orders (Unlocked)"
+                        domain="[('locked', '=', False)]"
+                        help="Show only unlocked / active Sales Orders"/>
+
+                <filter
+                        name="locked"
+                        string="Locked Sales Orders"
+                        domain="[('locked', '=', True)]"
+                        help="Show only locked / active Sales Orders"/>
+            </filter>
+        </field>
+    </record>
+
+
     <!--
         Set "Active Orders (Unlocked)" as the default filter on the
         Sales Orders window action (stacked with the existing 'sales' filter).
     -->
     <record id="sale.action_orders" model="ir.actions.act_window">
-        <field name="context">{'search_default_sales': 1, 'search_default_not_locked': 1}</field>
+        <field name="context">{}</field>
     </record>
 </odoo>
