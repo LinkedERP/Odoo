@@ -1,14 +1,18 @@
 {
-    'name': 'Timesheet CrossComapny Blocker',
+    'name': 'Timesheet Cross Company Blocker',
     'version': '1.0.0',
-    'summary': 'Project and User company should be same while filling Timesheet',
-    'category': 'Accounting',
-    'author': 'LinkedErp / JV',
-    'website': 'https://Linkederp.com',
+    'summary': 'Ensure project and user company must match when filling timesheets',
+    'category': 'Services/Timesheets',
+    'author': 'LinkedERP / JV',
+    'website': 'https://linkederp.com',
     'license': 'AGPL-3',
-    'depends': ['hr_timesheet'],
-    'data': [],
+    'depends': [
+        'hr_timesheet',
+        'project',
+    ],
+    'data': [
+    ],
     'installable': True,
-    'application': True,
+    'application': False,
     'auto_install': False,
 }

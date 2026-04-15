@@ -9,6 +9,7 @@
     'depends': [
         'helpdesk',
         'mail',
+        'hr_timesheet',
     ],
     'data': [
         'data/mail_template_data.xml',
