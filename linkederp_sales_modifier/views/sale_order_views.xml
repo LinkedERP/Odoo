@@ -30,7 +30,7 @@
                         type="object"
                         class="btn-secondary"
                         help="Lock this Sales Order to prevent modifications. You can unlock it at any time."
-                        invisible="locked or state != 'sale' or invoice_status != 'invoiced'"/>
+                        invisible="locked or state != 'sale'"/>
             </xpath>
         </field>
     </record>
