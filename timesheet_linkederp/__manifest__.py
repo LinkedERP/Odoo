@@ -6,8 +6,10 @@
     'author': 'JV',
     'website': 'https://Linkederp.com',
     'license': 'AGPL-3',
-    'depends': ['account', 'hr_timesheet', 'sale_timesheet'],
-    'data': [],
+    'depends': ['account', 'hr_timesheet', 'sale_timesheet','helpdesk_sale_timesheet'],
+    'data': [
+        'views/sales_timesheet_inherit.xml',
+    ],
     'installable': True,
     'application': True,
     'auto_install': False,
