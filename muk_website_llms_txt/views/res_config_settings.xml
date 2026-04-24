@@ -57,7 +57,14 @@
 							</div>
 						</div>
 					</setting>
-				</block>
+					<setting
+						id="llms_txt_custom_content_setting"
+						string="Custom llms.txt Content"
+						help="If set, /llms.txt will display this content. If empty, it will auto-generate from website data."
+					>
+						<field name="llms_txt_custom_content" placeholder="Enter your custom llms.txt here..." widget="text" style="min-height: 3em; max-height: 6em; overflow-y: auto; resize:vertical;"/>
+					</setting>
+				</block>	
 			</xpath>
 		</field>
 	</record>

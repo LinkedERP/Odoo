@@ -43,3 +43,8 @@ class ResConfigSettings(models.TransientModel):
         related='website_id.llms_include_events',
         readonly=False,
     )
+
+    llms_txt_custom_content = fields.Text(
+        related='website_id.llms_txt_custom_content',
+        readonly=False,
+    )

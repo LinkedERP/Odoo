@@ -70,6 +70,11 @@ class Website(models.Model):
         help="Include published events in llms.txt."
     )
 
+    llms_txt_custom_content = fields.Text(
+        string="Custom llms.txt Content",
+        help="Jika diisi, maka /llms.txt akan menampilkan isi ini. Jika kosong, akan auto-generate dari data website.",
+    )
+
     # ----------------------------------------------------------
     # Helper
     # ----------------------------------------------------------

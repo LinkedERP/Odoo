@@ -28,8 +28,14 @@ class LlmsTxtController(http.Controller):
     def llms_txt(self, **kwargs):
         if not request.website.llms_txt_enabled:
             return request.not_found()
-        content = request.website._get_llms_txt_content()
-        token_count = estimate_tokens(content)
+        content = request.website.llms_txt_custom_content
+        if content:
+            # Jika custom content diisi, pakai itu
+            token_count = estimate_tokens(content)
+        else:
+            # Jika kosong, fallback ke auto-generate
+            content = request.website._get_llms_txt_content()
+            token_count = estimate_tokens(content)
         content_signal = build_content_signal(
             request.website.llms_content_signal or 'all'
         )
