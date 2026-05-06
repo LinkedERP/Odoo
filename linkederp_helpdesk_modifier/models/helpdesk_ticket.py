@@ -1,5 +1,5 @@
 import logging
-from datetime import timedelta
+from datetime import timedelta, datetime
 from odoo import models, fields, api, _
 _logger = logging.getLogger(__name__)
 REMINDER_DAYS = 3  # Send reminder after this many days without a response
@@ -13,11 +13,8 @@ class HelpdeskTicket(models.Model):
     def _cron_send_unanswered_ticket_reminders(self):
         """
         Find open helpdesk tickets that have had no reply from the support team
-        for more than REMINDER_DAYS days and send an email reminder to the
-        assigned user and to the project manager of the helpdesk team.
+        for more than REMINDER_DAYS working days (per user calendar) and send an email reminder.
         """
-        threshold = fields.Datetime.now() - timedelta(days=REMINDER_DAYS)
-        # Fetch open (non-folded) tickets that are assigned to a user
         open_tickets = self.search([
             ('stage_id.fold', '=', False),
             ('user_id', '!=', False),
@@ -34,6 +31,13 @@ class HelpdeskTicket(models.Model):
             return
         tickets_to_remind = self.env['helpdesk.ticket']
         for ticket in open_tickets:
+            # Ambil calendar dari employee user, fallback ke company
+            calendar = None
+            if ticket.user_id and ticket.user_id.employee_id and ticket.user_id.employee_id.resource_calendar_id:
+                calendar = ticket.user_id.employee_id.resource_calendar_id
+            else:
+                calendar = self.env.company.resource_calendar_id
+            threshold = self._get_n_working_days_ago_per_calendar(REMINDER_DAYS, calendar)
             if self._ticket_has_no_recent_support_reply(ticket, threshold):
                 tickets_to_remind = tickets_to_remind + ticket
         for ticket in tickets_to_remind:
@@ -59,6 +63,36 @@ class HelpdeskTicket(models.Model):
                         'recipient_ids': [],  # prevent sending to partners
                     },
                 )
+
+    @api.model
+    def _get_n_working_days_ago_per_calendar(self, n, calendar):
+        """
+        Return a datetime object representing n working days ago from now (exclude Saturday/Sunday and public holidays for the given calendar).
+        """
+        current = fields.Datetime.now()
+        days_counted = 0
+        public_holidays = set()
+        if calendar:
+            leaves = self.env['resource.calendar.leaves'].search([
+                ('calendar_id', '=', calendar.id),
+                ('resource_id', '=', False),
+                ('date_from', '!=', False),
+                ('date_to', '!=', False),
+            ])
+            for leave in leaves:
+                date_from = fields.Date.from_string(leave.date_from)
+                date_to = fields.Date.from_string(leave.date_to)
+                d = date_from
+                while d <= date_to:
+                    public_holidays.add(d)
+                    d += timedelta(days=1)
+        while days_counted < n:
+            current = current - timedelta(days=1)
+            is_weekday = current.weekday() < 5
+            is_public_holiday = current.date() in public_holidays
+            if is_weekday and not is_public_holiday:
+                days_counted += 1
+        return current
     # -------------------------------------------------------------------------
     # Helpers
     # -------------------------------------------------------------------------
@@ -71,8 +105,10 @@ class HelpdeskTicket(models.Model):
           - There is no message posted by a team member (or the assigned user)
             after the threshold date.
         """
-        if ticket.create_date >= threshold:
-            return False  # Ticket is too new - no reminder yet
+        # Gunakan write_date (last update) jika ada, fallback ke create_date
+        last_update = ticket.write_date or ticket.create_date
+        if last_update >= threshold:
+            return False  # Ticket terlalu baru diupdate - no reminder yet
         # Collect partner ids of all support team members
         team_partner_ids = ticket.team_id.member_ids.mapped('partner_id').ids
         assigned_partner_id = ticket.user_id.partner_id.id if ticket.user_id else False
@@ -100,6 +136,6 @@ class HelpdeskTicket(models.Model):
         recipients = self.env['res.users']
         if ticket.user_id:
             recipients |= ticket.user_id
-        if ticket.team_id.project_id.user_id:
-            recipients |= ticket.team_id.project_id.user_id
+        # if ticket.team_id.project_id.user_id:
+        #     recipients |= ticket.team_id.project_id.user_id
         return recipients
