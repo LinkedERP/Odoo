@@ -89,12 +89,14 @@
 
     <!--
         Set "Active Orders (Unlocked)" as the default filter on the
-        Sales Orders window action (stacked with the existing 'sales' filter).
+        Sales Orders window action.
+        Using 'context' with default filter instead of 'domain' allows users
+        to override the filter and see locked orders when needed.
     -->
     <record id="sale.action_orders" model="ir.actions.act_window">
-        <field name="domain">[('locked', '=', False)]</field>
+        <field name="context">{'search_default_not_locked': 1, 'search_default_sales' : 1}</field>
     </record>
     <record id="sale.action_quotations_with_onboarding" model="ir.actions.act_window">
-        <field name="domain">[('locked', '=', False)]</field>
+        <field name="context">{'search_default_not_locked': 1, 'search_default_my_quotation': 1}</field>
     </record>
 </odoo>
