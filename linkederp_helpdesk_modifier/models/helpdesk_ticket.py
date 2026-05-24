@@ -41,28 +41,40 @@ class HelpdeskTicket(models.Model):
             if self._ticket_has_no_recent_support_reply(ticket, threshold):
                 tickets_to_remind = tickets_to_remind + ticket
         for ticket in tickets_to_remind:
-            _logger.info(
-                'Sending helpdesk ticket reminder for ticket %s (id=%d)',
-                ticket.name, ticket.id,
-            )
             recipients = self._get_reminder_recipients(ticket)
-            if recipients:
-                email_to = ','.join(filter(None, recipients.mapped('email')))
-                if not email_to:
-                    _logger.warning(
-                        'No email address found for recipients of ticket %s (id=%d), skipping.',
-                        ticket.name, ticket.id,
-                    )
-                    continue
-                reminder_template.send_mail(
-                    ticket.id,
-                    force_send=True,
-                    raise_exception=True,
-                    email_values={
-                        'email_to': email_to,
-                        'recipient_ids': [],  # prevent sending to partners
-                    },
-                )
+            if not recipients:
+                continue
+
+            email_to = ','.join(filter(None, recipients.mapped('email')))
+            if not email_to:
+                continue
+
+            # Render subject & body dari template
+            subject = reminder_template._render_field('subject', ticket.ids)[ticket.id]
+            body = reminder_template._render_field('body_html', ticket.ids)[ticket.id]
+
+            # 1. Kirim email via template
+            reminder_template.with_context(
+                no_auto_thread=True,  # ← ini yang prevent chatter dari send_mail
+                mail_notify_force_send=False,
+            ).send_mail(
+                ticket.id,
+                force_send=True,
+                raise_exception=False,
+                email_values={
+                    'email_to': email_to,
+                    'recipient_ids': [],
+                },
+            )
+
+            # Satu-satunya chatter, dengan body dari template
+            ticket.message_post(
+                subject=subject,
+                body=body,
+                message_type='notification',
+                subtype_xmlid='mail.mt_note',
+                author_id=self.env.user.partner_id.id,
+            )
 
     @api.model
     def _get_n_working_days_ago_per_calendar(self, n, calendar):
