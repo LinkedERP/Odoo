@@ -57,7 +57,7 @@ class HelpdeskTicket(models.Model):
                 reminder_template.send_mail(
                     ticket.id,
                     force_send=True,
-                    raise_exception=False,
+                    raise_exception=True,
                     email_values={
                         'email_to': email_to,
                         'recipient_ids': [],  # prevent sending to partners
