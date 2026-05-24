@@ -1,5 +1,5 @@
 import logging
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, date as date_type
 from odoo import models, fields, api, _
 _logger = logging.getLogger(__name__)
 REMINDER_DAYS = 3  # Send reminder after this many working days without a response
@@ -40,20 +40,17 @@ class HelpdeskTicket(models.Model):
         tickets_to_remind = self.env['helpdesk.ticket']
         for ticket in open_tickets:
             # Get calendar from employee user, fallback to company calendar
-            calendar = None
-            if ticket.user_id and ticket.user_id.employee_id and ticket.user_id.employee_id.resource_calendar_id:
-                calendar = ticket.user_id.employee_id.resource_calendar_id
-            else:
-                calendar = self.env.company.resource_calendar_id
+            employee = ticket.user_id.employee_id if ticket.user_id else False
+            calendar = (
+                employee.resource_calendar_id
+                if employee and employee.resource_calendar_id
+                else self.env.company.resource_calendar_id
+            )
             threshold = self._get_n_working_days_ago_per_calendar(REMINDER_DAYS, calendar)
 
             # Skip if a reminder was already sent within the last 3 working days
             if ticket.last_reminder_sent:
-                last_sent_dt = fields.Datetime.from_string(
-                    fields.Datetime.to_string(
-                        datetime.combine(ticket.last_reminder_sent, datetime.min.time())
-                    )
-                )
+                last_sent_dt: datetime = datetime.combine(ticket.last_reminder_sent, datetime.min.time())
                 if last_sent_dt >= threshold:
                     continue
 
@@ -75,8 +72,7 @@ class HelpdeskTicket(models.Model):
 
             # 1. Send email via template
             reminder_template.with_context(
-                no_auto_thread=True,  # prevent send_mail from auto-creating a chatter message
-                mail_notify_force_send=False,
+                mail_auto_thread=False,
             ).send_mail(
                 ticket.id,
                 force_send=True,
@@ -87,7 +83,7 @@ class HelpdeskTicket(models.Model):
                 },
             )
 
-            # 2. Post chatter message for tracking
+            # 2. Post chatter manual - 1 chatter
             ticket.message_post(
                 subject=subject,
                 body=body,
@@ -96,7 +92,7 @@ class HelpdeskTicket(models.Model):
                 author_id=self.env.user.partner_id.id,
             )
 
-            # 3. Record the date of this reminder using direct SQL
+            # 3. Record the date of this reminder using direct SQL.
             # IMPORTANT: Must NOT use write() here because it updates write_date,
             # which would cause _ticket_has_no_recent_support_reply to skip this
             # ticket on future cron runs, preventing any further reminders.
@@ -116,9 +112,9 @@ class HelpdeskTicket(models.Model):
         Return a datetime representing n working days ago from now,
         excluding weekends (Saturday/Sunday) and public holidays from the given calendar.
         """
-        current = fields.Datetime.now()
+        current: datetime = fields.Datetime.now()
         days_counted = 0
-        public_holidays = set()
+        public_holidays: set = set()
         if calendar:
             leaves = self.env['resource.calendar.leaves'].search([
                 ('calendar_id', '=', calendar.id),
@@ -127,14 +123,17 @@ class HelpdeskTicket(models.Model):
                 ('date_to', '!=', False),
             ])
             for leave in leaves:
-                date_from = fields.Date.from_string(leave.date_from)
-                date_to = fields.Date.from_string(leave.date_to)
-                d = date_from
+                date_from: date_type = fields.Date.from_string(leave.date_from)
+                date_to: date_type = fields.Date.from_string(leave.date_to)
+                if not date_from or not date_to:
+                    continue
+                d: date_type = date_from
                 while d <= date_to:
                     public_holidays.add(d)
                     d += timedelta(days=1)
         while days_counted < n:
             current = current - timedelta(days=1)
+            assert isinstance(current, datetime)
             is_weekday = current.weekday() < 5
             is_public_holiday = current.date() in public_holidays
             if is_weekday and not is_public_holiday:
@@ -156,11 +155,11 @@ class HelpdeskTicket(models.Model):
         """
         # Use write_date (last update) if available, fallback to create_date
         last_update = ticket.write_date or ticket.create_date
-        if last_update >= threshold:
-            return False  # Ticket was updated too recently - no reminder yet
+        if not last_update or last_update >= threshold:
+            return False  # Ticket was updated too recently, or has no date - no reminder yet
         # Collect partner IDs of all support team members
-        team_partner_ids = ticket.team_id.member_ids.mapped('partner_id').ids
-        assigned_partner_id = ticket.user_id.partner_id.id if ticket.user_id else False
+        team_partner_ids = ticket.team_id.member_ids.mapped('partner_id').ids if ticket.team_id else []
+        assigned_partner_id = ticket.user_id.partner_id.id if ticket.user_id and ticket.user_id.partner_id else False
         support_partner_ids = set(team_partner_ids)
         if assigned_partner_id:
             support_partner_ids.add(assigned_partner_id)
@@ -185,6 +184,6 @@ class HelpdeskTicket(models.Model):
         recipients = self.env['res.users']
         if ticket.user_id:
             recipients |= ticket.user_id
-        # if ticket.team_id.project_id.user_id:
+        # if ticket.team_id and ticket.team_id.project_id.user_id:
         #     recipients |= ticket.team_id.project_id.user_id
         return recipients

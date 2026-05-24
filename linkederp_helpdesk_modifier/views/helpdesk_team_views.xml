@@ -15,15 +15,15 @@
         </field>
     </record>
 
-    <!-- Add Last Reminder Sent field to Helpdesk Ticket form view -->
-    <record id="helpdesk_ticket_view_form_linked" model="ir.ui.view">
-        <field name="name">helpdesk.ticket.form.linked</field>
-        <field name="model">helpdesk.ticket</field>
-        <field name="inherit_id" ref="helpdesk.helpdesk_ticket_view_form"/>
-        <field name="arch" type="xml">
-            <field name="date_last_stage_update" position="after">
-                <field name="last_reminder_sent" readonly="1"/>
-            </field>
-        </field>
-    </record>
+<!--    &lt;!&ndash; Add Last Reminder Sent field to Helpdesk Ticket form view &ndash;&gt;-->
+<!--    <record id="helpdesk_ticket_view_form_linked" model="ir.ui.view">-->
+<!--        <field name="name">helpdesk.ticket.form.linked</field>-->
+<!--        <field name="model">helpdesk.ticket</field>-->
+<!--        <field name="inherit_id" ref="helpdesk.helpdesk_ticket_view_form"/>-->
+<!--        <field name="arch" type="xml">-->
+<!--            <field name="date_last_stage_update" position="after">-->
+<!--                <field name="last_reminder_sent" readonly="1"/>-->
+<!--            </field>-->
+<!--        </field>-->
+<!--    </record>-->
 </odoo>

@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<odoo noupdate="0">
+<odoo noupdate="1">
     <!--
-        Scheduled action: run every day at 08:00 AM (server time).
-        Sends reminder emails for open helpdesk tickets with no support reply in 3+ days.
+        Scheduled action: run every day at 01:00 AM SAST (South Africa Standard Time = UTC+2).
+        Stored as 23:00 UTC (previous day). Sends reminder emails for open helpdesk tickets
+        with no support reply in 3+ working days.
     -->
     <record id="ir_cron_helpdesk_ticket_reminder" model="ir.cron">
         <field name="name">Helpdesk: Send Unanswered Ticket Reminders</field>
@@ -12,6 +13,6 @@
         <field name="active" eval="True"/>
         <field name="interval_number">1</field>
         <field name="interval_type">days</field>
-        <field name="nextcall" eval="(DateTime.now().replace(hour=8, minute=0, second=0) + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')"/>
+        <field name="nextcall" eval="(datetime.now().replace(hour=23, minute=0, second=0, microsecond=0) + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')"/>
     </record>
 </odoo>
