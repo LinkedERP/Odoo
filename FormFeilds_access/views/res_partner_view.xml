@@ -1,0 +1,18 @@
+<odoo>
+    <record id="view_partner_form_dynamic_required" model="ir.ui.view">
+        <field name="name">res.partner.form.dynamic.required</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//sheet/notebook" position="before">
+                <group string="Field Requirement Rules" col="3">
+                    <field name="require_phone"/>
+                    <field name="require_email"/>
+                    <field name="require_vat"/>
+                </group>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

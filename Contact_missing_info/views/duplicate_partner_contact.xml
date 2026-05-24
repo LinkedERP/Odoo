@@ -1,0 +1,52 @@
+<odoo>
+
+    <!-- List View -->
+    <record id="view_duplicate_partner_contact_list" model="ir.ui.view">
+        <field name="name">duplicate.partner.contact.list</field>
+        <field name="model">duplicate.partner.contact</field>
+        <field name="arch" type="xml">
+            <list string="Duplicate Contacts (Email &amp; Phone)">
+                <field name="duplicate_type"/>
+                <field name="value"/>
+                <field name="duplicate_count"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_duplicate_partner_contact_form" model="ir.ui.view">
+        <field name="name">duplicate.partner.contact.form</field>
+        <field name="model">duplicate.partner.contact</field>
+        <field name="arch" type="xml">
+            <form string="Duplicate Contact">
+                <sheet>
+                    <group>
+                        <field name="duplicate_type"/>
+                        <field name="value"/>
+                        <field name="duplicate_count"/>
+                    </group>
+                    <footer>
+                        <button name="action_open_partners" type="object" string="Open Partners" class="btn-primary"/>
+                        <button string="Close" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_duplicate_partner_contact" model="ir.actions.act_window">
+        <field name="name">Duplicate Contacts</field>
+        <field name="res_model">duplicate.partner.contact</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+
+    <!-- Menu -->
+    <menuitem
+        id="menu_partner_duplicate_info2"
+        name="Contacts duplicate SQL Test"
+        parent="menu_parent"
+        action="action_duplicate_partner_contact"
+        sequence="30"/>
+</odoo>

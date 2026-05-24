@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Add Project Manager field to the Helpdesk Team form view -->
+    <record id="helpdesk_team_view_form_linked" model="ir.ui.view">
+        <field name="name">helpdesk.team.form.linked</field>
+        <field name="model">helpdesk.team</field>
+        <field name="inherit_id" ref="helpdesk.helpdesk_team_view_form"/>
+        <field name="arch" type="xml">
+            <!-- Insert Project Manager field after the team name field -->
+            <field name="name" position="after">
+                <field name="project_manager_id"
+                       placeholder="Select a project manager..."
+                       options="{'no_create': True}"/>
+            </field>
+        </field>
+    </record>
+</odoo>
