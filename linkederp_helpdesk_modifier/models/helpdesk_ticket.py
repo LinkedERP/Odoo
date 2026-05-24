@@ -2,10 +2,18 @@ import logging
 from datetime import timedelta, datetime
 from odoo import models, fields, api, _
 _logger = logging.getLogger(__name__)
-REMINDER_DAYS = 3  # Send reminder after this many days without a response
+REMINDER_DAYS = 3  # Send reminder after this many working days without a response
+
 class HelpdeskTicket(models.Model):
     """Extend helpdesk ticket with auto email reminder logic."""
     _inherit = 'helpdesk.ticket'
+
+    last_reminder_sent = fields.Date(
+        string='Last Reminder Sent',
+        help='Date when the last unanswered ticket reminder was sent.',
+        copy=False,
+    )
+
     # -------------------------------------------------------------------------
     # Cron method - called by the scheduled action daily
     # -------------------------------------------------------------------------
@@ -31,15 +39,27 @@ class HelpdeskTicket(models.Model):
             return
         tickets_to_remind = self.env['helpdesk.ticket']
         for ticket in open_tickets:
-            # Ambil calendar dari employee user, fallback ke company
+            # Get calendar from employee user, fallback to company calendar
             calendar = None
             if ticket.user_id and ticket.user_id.employee_id and ticket.user_id.employee_id.resource_calendar_id:
                 calendar = ticket.user_id.employee_id.resource_calendar_id
             else:
                 calendar = self.env.company.resource_calendar_id
             threshold = self._get_n_working_days_ago_per_calendar(REMINDER_DAYS, calendar)
+
+            # Skip if a reminder was already sent within the last 3 working days
+            if ticket.last_reminder_sent:
+                last_sent_dt = fields.Datetime.from_string(
+                    fields.Datetime.to_string(
+                        datetime.combine(ticket.last_reminder_sent, datetime.min.time())
+                    )
+                )
+                if last_sent_dt >= threshold:
+                    continue
+
             if self._ticket_has_no_recent_support_reply(ticket, threshold):
                 tickets_to_remind = tickets_to_remind + ticket
+
         for ticket in tickets_to_remind:
             recipients = self._get_reminder_recipients(ticket)
             if not recipients:
@@ -49,13 +69,13 @@ class HelpdeskTicket(models.Model):
             if not email_to:
                 continue
 
-            # Render subject & body dari template
+            # Render subject & body from template
             subject = reminder_template._render_field('subject', ticket.ids)[ticket.id]
             body = reminder_template._render_field('body_html', ticket.ids)[ticket.id]
 
-            # 1. Kirim email via template
+            # 1. Send email via template
             reminder_template.with_context(
-                no_auto_thread=True,  # ← ini yang prevent chatter dari send_mail
+                no_auto_thread=True,  # prevent send_mail from auto-creating a chatter message
                 mail_notify_force_send=False,
             ).send_mail(
                 ticket.id,
@@ -67,7 +87,7 @@ class HelpdeskTicket(models.Model):
                 },
             )
 
-            # Satu-satunya chatter, dengan body dari template
+            # 2. Post chatter message for tracking
             ticket.message_post(
                 subject=subject,
                 body=body,
@@ -76,10 +96,25 @@ class HelpdeskTicket(models.Model):
                 author_id=self.env.user.partner_id.id,
             )
 
+            # 3. Record the date of this reminder using direct SQL
+            # IMPORTANT: Must NOT use write() here because it updates write_date,
+            # which would cause _ticket_has_no_recent_support_reply to skip this
+            # ticket on future cron runs, preventing any further reminders.
+            self.env.cr.execute(
+                "UPDATE helpdesk_ticket SET last_reminder_sent = %s WHERE id = %s",
+                (fields.Date.today(), ticket.id)
+            )
+            ticket.invalidate_recordset(['last_reminder_sent'])
+            _logger.info(
+                'Sent reminder for ticket %s (id=%d) to %s',
+                ticket.name, ticket.id, email_to,
+            )
+
     @api.model
     def _get_n_working_days_ago_per_calendar(self, n, calendar):
         """
-        Return a datetime object representing n working days ago from now (exclude Saturday/Sunday and public holidays for the given calendar).
+        Return a datetime representing n working days ago from now,
+        excluding weekends (Saturday/Sunday) and public holidays from the given calendar.
         """
         current = fields.Datetime.now()
         days_counted = 0
@@ -105,23 +140,25 @@ class HelpdeskTicket(models.Model):
             if is_weekday and not is_public_holiday:
                 days_counted += 1
         return current
+
     # -------------------------------------------------------------------------
     # Helpers
     # -------------------------------------------------------------------------
     def _ticket_has_no_recent_support_reply(self, ticket, threshold):
         """
         Return True if the ticket has NOT received any message from a support
-        team member (internal user in the team) since *threshold*.
+        team member (internal user in the team) since the given threshold datetime.
+
         A ticket is considered 'unanswered' when:
-          - It was created before the threshold date, AND
+          - Its last update (write_date) is before the threshold date, AND
           - There is no message posted by a team member (or the assigned user)
             after the threshold date.
         """
-        # Gunakan write_date (last update) jika ada, fallback ke create_date
+        # Use write_date (last update) if available, fallback to create_date
         last_update = ticket.write_date or ticket.create_date
         if last_update >= threshold:
-            return False  # Ticket terlalu baru diupdate - no reminder yet
-        # Collect partner ids of all support team members
+            return False  # Ticket was updated too recently - no reminder yet
+        # Collect partner IDs of all support team members
         team_partner_ids = ticket.team_id.member_ids.mapped('partner_id').ids
         assigned_partner_id = ticket.user_id.partner_id.id if ticket.user_id else False
         support_partner_ids = set(team_partner_ids)
@@ -129,7 +166,7 @@ class HelpdeskTicket(models.Model):
             support_partner_ids.add(assigned_partner_id)
         if not support_partner_ids:
             return False
-        # Look for any message from a team member after the threshold
+        # Check if any team member has replied after the threshold
         recent_reply = self.env['mail.message'].search_count([
             ('model', '=', 'helpdesk.ticket'),
             ('res_id', '=', ticket.id),
@@ -141,9 +178,9 @@ class HelpdeskTicket(models.Model):
 
     def _get_reminder_recipients(self, ticket):
         """
-        Return a res.users recordset with the recipients for the reminder:
+        Return a res.users recordset of recipients for the reminder:
           - The assigned user (user_id)
-          - The project manager of the helpdesk team (team_id.project_id.user_id)
+          - The project manager of the helpdesk team (team_id.project_id.user_id) [commented out]
         """
         recipients = self.env['res.users']
         if ticket.user_id:
