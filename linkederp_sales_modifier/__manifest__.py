@@ -1,6 +1,6 @@
 {
     'name': 'LinkedERP Sales Modifier',
-    'version': '1.0.4',
+    'version': '1.0.5',
     'summary': 'Hide locked Sales Orders from default views and timesheet SO selection',
     'category': 'Sales',
     'author': 'LinkedERP',
@@ -9,6 +9,7 @@
     'depends': [
         'sale',
         'sale_timesheet',
+        'helpdesk_timesheet',
     ],
     'data': [
         'views/sale_order_views.xml',
