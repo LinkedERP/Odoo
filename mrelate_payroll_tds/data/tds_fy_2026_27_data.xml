@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+      Statutory tax rates for FY 2026-27 (AY 2027-28).
+      Source: Income Tax Department - Salaried Individuals AY 2026-27
+        https://www.incometax.gov.in/iec/foportal/help/individual/return-applicable-1
+      Budget 2026: no change to slabs / rebate / surcharge vs FY 2025-26.
+      Edit these records (or add a new financial_year) to update rates - no code change.
+    -->
+
+    <!-- ============================ NEW REGIME ============================ -->
+    <record id="cfg_2026_27_new" model="mrelate.tds.year.config">
+        <field name="financial_year">2026-27</field>
+        <field name="regime">new</field>
+        <field name="standard_deduction">75000</field>
+        <field name="rebate_income_limit">1200000</field>
+        <field name="rebate_max">60000</field>
+        <field name="basic_exemption">400000</field>
+        <field name="cess_rate">0.04</field>
+        <field name="surcharge_capped" eval="True"/>
+    </record>
+
+    <record id="slab_new_1" model="mrelate.tds.slab">
+        <field name="config_id" ref="cfg_2026_27_new"/>
+        <field name="sequence">1</field><field name="lower_limit">0</field>
+        <field name="upper_limit">400000</field><field name="rate">0.0</field>
+    </record>
+    <record id="slab_new_2" model="mrelate.tds.slab">
+        <field name="config_id" ref="cfg_2026_27_new"/>
+        <field name="sequence">2</field><field name="lower_limit">400000</field>
+        <field name="upper_limit">800000</field><field name="rate">0.05</field>
+    </record>
+    <record id="slab_new_3" model="mrelate.tds.slab">
+        <field name="config_id" ref="cfg_2026_27_new"/>
+        <field name="sequence">3</field><field name="lower_limit">800000</field>
+        <field name="upper_limit">1200000</field><field name="rate">0.10</field>
+    </record>
+    <record id="slab_new_4" model="mrelate.tds.slab">
+        <field name="config_id" ref="cfg_2026_27_new"/>
+        <field name="sequence">4</field><field name="lower_limit">1200000</field>
+        <field name="upper_limit">1600000</field><field name="rate">0.15</field>
+    </record>
+    <record id="slab_new_5" model="mrelate.tds.slab">
+        <field name="config_id" ref="cfg_2026_27_new"/>
+        <field name="sequence">5</field><field name="lower_limit">1600000</field>
+        <field name="upper_limit">2000000</field><field name="rate">0.20</field>
+    </record>
+    <record id="slab_new_6" model="mrelate.tds.slab">
+        <field name="config_id" ref="cfg_2026_27_new"/>
+        <field name="sequence">6</field><field name="lower_limit">2000000</field>
+        <field name="upper_limit">2400000</field><field name="rate">0.25</field>
+    </record>
+    <record id="slab_new_7" model="mrelate.tds.slab">
+        <field name="config_id" ref="cfg_2026_27_new"/>
+        <field name="sequence">7</field><field name="lower_limit">2400000</field>
+        <field name="upper_limit">0</field><field name="rate">0.30</field>
+    </record>
+
+    <record id="sur_new_1" model="mrelate.tds.surcharge.band">
+        <field name="config_id" ref="cfg_2026_27_new"/>
+        <field name="sequence">1</field><field name="lower_limit">5000000</field>
+        <field name="upper_limit">10000000</field><field name="rate">0.10</field>
+    </record>
+    <record id="sur_new_2" model="mrelate.tds.surcharge.band">
+        <field name="config_id" ref="cfg_2026_27_new"/>
+        <field name="sequence">2</field><field name="lower_limit">10000000</field>
+        <field name="upper_limit">20000000</field><field name="rate">0.15</field>
+    </record>
+    <record id="sur_new_3" model="mrelate.tds.surcharge.band">
+        <field name="config_id" ref="cfg_2026_27_new"/>
+        <field name="sequence">3</field><field name="lower_limit">20000000</field>
+        <field name="upper_limit">0</field><field name="rate">0.25</field>
+    </record>
+
+    <!-- ============================ OLD REGIME ============================ -->
+    <record id="cfg_2026_27_old" model="mrelate.tds.year.config">
+        <field name="financial_year">2026-27</field>
+        <field name="regime">old</field>
+        <field name="standard_deduction">50000</field>
+        <field name="rebate_income_limit">500000</field>
+        <field name="rebate_max">12500</field>
+        <field name="basic_exemption">250000</field>
+        <field name="cess_rate">0.04</field>
+        <field name="surcharge_capped" eval="False"/>
+    </record>
+
+    <record id="slab_old_1" model="mrelate.tds.slab">
+        <field name="config_id" ref="cfg_2026_27_old"/>
+        <field name="sequence">1</field><field name="lower_limit">0</field>
+        <field name="upper_limit">250000</field><field name="rate">0.0</field>
+    </record>
+    <record id="slab_old_2" model="mrelate.tds.slab">
+        <field name="config_id" ref="cfg_2026_27_old"/>
+        <field name="sequence">2</field><field name="lower_limit">250000</field>
+        <field name="upper_limit">500000</field><field name="rate">0.05</field>
+    </record>
+    <record id="slab_old_3" model="mrelate.tds.slab">
+        <field name="config_id" ref="cfg_2026_27_old"/>
+        <field name="sequence">3</field><field name="lower_limit">500000</field>
+        <field name="upper_limit">1000000</field><field name="rate">0.20</field>
+    </record>
+    <record id="slab_old_4" model="mrelate.tds.slab">
+        <field name="config_id" ref="cfg_2026_27_old"/>
+        <field name="sequence">4</field><field name="lower_limit">1000000</field>
+        <field name="upper_limit">0</field><field name="rate">0.30</field>
+    </record>
+
+    <record id="sur_old_1" model="mrelate.tds.surcharge.band">
+        <field name="config_id" ref="cfg_2026_27_old"/>
+        <field name="sequence">1</field><field name="lower_limit">5000000</field>
+        <field name="upper_limit">10000000</field><field name="rate">0.10</field>
+    </record>
+    <record id="sur_old_2" model="mrelate.tds.surcharge.band">
+        <field name="config_id" ref="cfg_2026_27_old"/>
+        <field name="sequence">2</field><field name="lower_limit">10000000</field>
+        <field name="upper_limit">20000000</field><field name="rate">0.15</field>
+    </record>
+    <record id="sur_old_3" model="mrelate.tds.surcharge.band">
+        <field name="config_id" ref="cfg_2026_27_old"/>
+        <field name="sequence">3</field><field name="lower_limit">20000000</field>
+        <field name="upper_limit">50000000</field><field name="rate">0.25</field>
+    </record>
+    <record id="sur_old_4" model="mrelate.tds.surcharge.band">
+        <field name="config_id" ref="cfg_2026_27_old"/>
+        <field name="sequence">4</field><field name="lower_limit">50000000</field>
+        <field name="upper_limit">0</field><field name="rate">0.37</field>
+    </record>
+
+</odoo>

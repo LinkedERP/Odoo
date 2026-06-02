@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Top-level menu (kept independent so it works even if the payroll root id
+         differs across editions). Parent under Payroll if available. -->
+    <menuitem id="menu_tds_root" name="India TDS"
+              parent="hr_payroll.menu_hr_payroll_root"
+              sequence="90"
+              groups="mrelate_payroll_tds.group_tds_employee"/>
+
+    <menuitem id="menu_tds_declarations" name="Tax Declarations"
+              parent="menu_tds_root" sequence="10"
+              action="action_tds_declaration"/>
+
+    <menuitem id="menu_tds_config_root" name="Configuration"
+              parent="menu_tds_root" sequence="90"
+              groups="mrelate_payroll_tds.group_tds_reviewer"/>
+
+    <menuitem id="menu_tds_config_years" name="TDS Tax Configuration"
+              parent="menu_tds_config_root" sequence="10"
+              action="action_tds_year_config"/>
+
+</odoo>
