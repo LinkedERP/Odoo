@@ -45,36 +45,36 @@
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,submitted,reviewed,approved,locked"/>
                 </header>
-                <!-- Hidden fields so the invisible= modifiers can read them.
-                     Odoo 19 requires every field used in invisible/readonly/required
-                     to be present in the view (even as <field invisible="1"/>). -->
-                <field name="drift_detected" invisible="1"/>
-                <field name="pan_206aa_applied" invisible="1"/>
-                <field name="employer_perk_excess" invisible="1"/>
-                <div class="alert alert-warning" role="alert"
-                     invisible="not drift_detected">
-                    <strong>TDS drift detected.</strong>
-                    The contract's <code>l10n_in_tds</code> is
-                    <field name="drift_value" readonly="1" nolabel="1"/>
-                    but this declaration last applied
-                    <field name="applied_monthly_tds" readonly="1" nolabel="1"/>.
-                    Someone wrote to the contract outside this module. Use
-                    <b>Resync to Contract</b> above to restore.
-                </div>
-                <div class="alert alert-info" role="alert"
-                     invisible="not pan_206aa_applied">
-                    <strong>Sec 206AA applied.</strong>
-                    PAN is missing or invalid - TDS floored at 20% of taxable income.
-                    Provide a valid PAN to revert to normal slab rates.
-                </div>
-                <div class="alert alert-danger" role="alert"
-                     invisible="employer_perk_excess == 0">
-                    <strong>Employer perk aggregate cap exceeded (Rs 7.5L).</strong>
-                    Excess <field name="employer_perk_excess" readonly="1" nolabel="1"/>
-                    is taxable as perquisite u/s 17(2)(vii). Not auto-added - record
-                    it under "Other income" or have payroll add a perk component.
-                </div>
                 <sheet>
+                    <!-- Hidden fields so invisible/readonly modifiers can read them.
+                         Odoo 19 requires every field used in invisible/readonly/required
+                         to be declared in the view (even as invisible="1"). -->
+                    <field name="drift_detected" invisible="1"/>
+                    <field name="pan_206aa_applied" invisible="1"/>
+                    <field name="employer_perk_excess" invisible="1"/>
+                    <div class="alert alert-warning" role="alert"
+                         invisible="not drift_detected">
+                        <strong>TDS drift detected.</strong>
+                        The contract's <code>l10n_in_tds</code> is
+                        <field name="drift_value" readonly="1" nolabel="1"/>
+                        but this declaration last applied
+                        <field name="applied_monthly_tds" readonly="1" nolabel="1"/>.
+                        Someone wrote to the contract outside this module. Use
+                        <b>Resync to Contract</b> above to restore.
+                    </div>
+                    <div class="alert alert-info" role="alert"
+                         invisible="not pan_206aa_applied">
+                        <strong>Sec 206AA applied.</strong>
+                        PAN is missing or invalid - TDS floored at 20% of taxable income.
+                        Provide a valid PAN to revert to normal slab rates.
+                    </div>
+                    <div class="alert alert-danger" role="alert"
+                         invisible="employer_perk_excess == 0">
+                        <strong>Employer perk aggregate cap exceeded (Rs 7.5L).</strong>
+                        Excess <field name="employer_perk_excess" readonly="1" nolabel="1"/>
+                        is taxable as perquisite u/s 17(2)(vii). Not auto-added - record
+                        it under "Other income" or have payroll add a perk component.
+                    </div>
                     <div class="oe_title">
                         <h1><field name="name" readonly="1"/></h1>
                     </div>
