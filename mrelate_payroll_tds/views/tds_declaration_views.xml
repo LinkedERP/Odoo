@@ -160,11 +160,13 @@
                 <filter name="f_draft" string="Draft" domain="[('state','=','draft')]"/>
                 <filter name="f_approved" string="Approved/Locked"
                         domain="[('state','in',('approved','locked'))]"/>
-                <group expand="0" string="Group By">
-                    <filter name="g_fy" string="Financial Year"
-                            context="{'group_by':'financial_year'}"/>
-                    <filter name="g_state" string="Status"
-                            context="{'group_by':'state'}"/>
+                <!-- Odoo 19's search-view RELAXNG schema rejects expand= and string= on <group>;
+                     group-by filters need an explicit domain="[]" to validate. -->
+                <group>
+                    <filter name="g_fy" string="Financial Year" domain="[]"
+                            context="{'group_by': 'financial_year'}"/>
+                    <filter name="g_state" string="Status" domain="[]"
+                            context="{'group_by': 'state'}"/>
                 </group>
             </search>
         </field>
