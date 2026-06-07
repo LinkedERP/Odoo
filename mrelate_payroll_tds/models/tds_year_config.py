@@ -44,10 +44,22 @@ class TdsYearConfig(models.Model):
     surcharge_ids = fields.One2many(
         "mrelate.tds.surcharge.band", "config_id", string="Surcharge Bands")
 
-    _sql_constraints = [
-        ("uniq_year_regime", "unique(financial_year, regime)",
-         "A configuration for this financial year and regime already exists."),
-    ]
+    # Odoo 19 removed _sql_constraints. Replaced by a Python @api.constrains
+    # below that searches for an existing row with the same (financial_year, regime).
+    @api.constrains("financial_year", "regime")
+    def _check_unique_year_regime(self):
+        for rec in self:
+            if not (rec.financial_year and rec.regime):
+                continue
+            existing = self.search([
+                ("financial_year", "=", rec.financial_year),
+                ("regime", "=", rec.regime),
+                ("id", "!=", rec.id),
+            ], limit=1)
+            if existing:
+                raise ValidationError(
+                    "A configuration for FY %s (%s regime) already exists."
+                    % (rec.financial_year, rec.regime))
 
     @api.depends("financial_year", "regime")
     def _compute_name(self):

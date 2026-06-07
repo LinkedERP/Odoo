@@ -124,7 +124,12 @@ class TdsDeclaration(models.Model):
         compute="_compute_tax", store=True)
     total_tax_liability = fields.Monetary(compute="_compute_tax", store=True,
         help="Tax for the regime selected on this declaration.")
-    breakdown_html = fields.Html(compute="_compute_tax", sanitize=False, readonly=True)
+    # NOTE: Odoo 19 enforces consistent store= and compute_sudo= across all fields
+    # sharing a compute method. Html defaults to compute_sudo=True; the Monetary/
+    # Selection fields above default to compute_sudo=False. Must use a separate
+    # compute method.
+    breakdown_html = fields.Html(
+        compute="_compute_breakdown_html", sanitize=False, readonly=True)
 
     # ------------------------------------------------------------------
     # Monthly TDS spreading
@@ -231,14 +236,10 @@ class TdsDeclaration(models.Model):
                 res_new = engine.compute(
                     rec.financial_year, "new", rec.taxable_income_new)
             except UserError:
-                # Config missing for this FY - leave zeros, surface in the UI text
+                # Config missing for this FY - leave zeros
                 rec.tax_old = rec.tax_new = 0.0
                 rec.total_tax_liability = rec.monthly_tds = 0.0
                 rec.recommended_regime = False
-                rec.breakdown_html = (
-                    "<p style='color:#b00'>No tax configuration for FY %s. "
-                    "Add it under Payroll &gt; Configuration &gt; TDS Tax "
-                    "Configuration.</p>" % (rec.financial_year or "?"))
                 continue
 
             rec.tax_old = res_old["total_tax"]
@@ -256,6 +257,33 @@ class TdsDeclaration(models.Model):
             months = rec.remaining_months or 1
             rec.monthly_tds = round(remaining / months / 10.0) * 10.0
 
+    # ------------------------------------------------------------------
+    # breakdown_html on its own compute (Odoo 19 requires consistent
+    # store= and compute_sudo= across fields sharing a compute method).
+    # ------------------------------------------------------------------
+    @api.depends("regime", "tax_old", "tax_new", "monthly_tds", "remaining_months",
+                 "total_tax_liability", "prev_employer_tds", "tax_already_deducted",
+                 "taxable_income_old", "taxable_income_new", "recommended_regime",
+                 "financial_year")
+    def _compute_breakdown_html(self):
+        engine = self.env["mrelate.tds.engine"]
+        for rec in self:
+            try:
+                res_old = engine.compute(
+                    rec.financial_year, "old", rec.taxable_income_old)
+                res_new = engine.compute(
+                    rec.financial_year, "new", rec.taxable_income_new)
+            except UserError:
+                rec.breakdown_html = (
+                    "<p style='color:#b00'>No tax configuration for FY %s. "
+                    "Add it under Payroll &gt; Configuration &gt; TDS Tax "
+                    "Configuration.</p>" % (rec.financial_year or "?"))
+                continue
+            remaining = max(
+                0.0,
+                (rec.total_tax_liability or 0.0)
+                - (rec.prev_employer_tds or 0.0)
+                - (rec.tax_already_deducted or 0.0))
             rec.breakdown_html = self._render_breakdown(rec, res_old, res_new, remaining)
 
     # ==================================================================
