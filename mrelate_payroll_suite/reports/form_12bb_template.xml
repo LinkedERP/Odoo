@@ -18,7 +18,6 @@
                                 </td></tr>
                             <tr><td><b>Regime applied</b></td><td><span t-field="doc.regime"/></td></tr>
                             <tr><td><b>Recommended regime</b></td><td><span t-field="doc.recommended_regime"/></td></tr>
-                            <tr><td><b>Age category</b></td><td><span t-field="doc.age_category"/></td></tr>
                             <tr><td><b>Department</b></td><td><span t-field="doc.department_id.name"/></td></tr>
                         </table>
 
@@ -44,13 +43,13 @@
                         <table class="table table-sm table-bordered">
                             <tr><td>HRA received</td><td t-esc="'%0.2f' % (doc.hra_received or 0.0)"/></tr>
                             <tr><td>Annual rent paid</td><td t-esc="'%0.2f' % (doc.rent_paid or 0.0)"/></tr>
-                            <tr><td>City tier</td><td><span t-field="doc.hra_city_tier"/></td></tr>
+                            <tr><td>Metro city</td><td><span t-field="doc.metro_city"/></td></tr>
                             <tr><td>HRA exempt (least-of-three)</td><td t-esc="'%0.2f' % (doc.hra_exempt or 0.0)"/></tr>
                             <tr><td>LTA exemption</td><td t-esc="'%0.2f' % (doc.lta_exemption or 0.0)"/></tr>
                             <tr><td>80C (capped at 1,50,000)</td><td t-esc="'%0.2f' % (min(doc.ded_80c or 0.0, 150000.0))"/></tr>
                             <tr><td>80CCD(1B) (capped at 50,000)</td><td t-esc="'%0.2f' % (min(doc.ded_80ccd_1b or 0.0, 50000.0))"/></tr>
-                            <tr><td>80CCD(2) employer NPS (capped per regime)</td>
-                                <td t-esc="'%0.2f' % (doc.ded_80ccd_2_employer_capped or 0.0)"/></tr>
+                            <tr><td>80CCD(2) employer NPS</td>
+                                <td t-esc="'%0.2f' % (doc.ded_80ccd_2_employer or 0.0)"/></tr>
                             <tr><td>80D medical insurance</td><td t-esc="'%0.2f' % (doc.ded_80d or 0.0)"/></tr>
                             <tr><td>Home loan interest sec 24(b)</td><td t-esc="'%0.2f' % (min(doc.home_loan_interest or 0.0, 200000.0))"/></tr>
                             <tr><td>Other deductions</td><td t-esc="'%0.2f' % (doc.other_deductions or 0.0)"/></tr>
@@ -67,12 +66,6 @@
                             <tr><td>TDS already deducted</td><td t-esc="'%0.2f' % (doc.tax_already_deducted or 0.0)"/></tr>
                             <tr><td>Remaining months</td><td t-esc="'%d' % (doc.remaining_months or 0)"/></tr>
                             <tr><td><b>Monthly TDS</b></td><td t-esc="'%0.2f' % (doc.monthly_tds or 0.0)"/></tr>
-                            <tr t-if="doc.bonus_month_extra_tds">
-                                <td>Bonus-month extra TDS</td>
-                                <td t-esc="'%0.2f' % (doc.bonus_month_extra_tds or 0.0)"/></tr>
-                            <tr t-if="doc.pan_206aa_applied"><td colspan="2" style="color:#b00">
-                                Sec 206AA 20% floor applied (PAN missing or invalid)
-                            </td></tr>
                         </table>
 
                         <p class="text-muted" style="font-size:smaller">
