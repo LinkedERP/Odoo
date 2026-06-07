@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_report_mrelate_payslip" model="ir.actions.report">
+        <field name="name">Payslip (Mrelate Format)</field>
+        <field name="model">hr.payslip</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">mrelate_payroll_suite.report_mrelate_payslip_document</field>
+        <field name="report_file">mrelate_payroll_suite.report_mrelate_payslip_document</field>
+        <field name="binding_model_id" ref="hr_payroll.model_hr_payslip"/>
+        <field name="binding_type">report</field>
+        <field name="print_report_name">'Payslip - %s - %s' % (object.employee_id.name, object.date_from.strftime('%b %Y'))</field>
+    </record>
+</odoo>

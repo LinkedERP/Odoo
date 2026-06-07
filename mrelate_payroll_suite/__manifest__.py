@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "India Payroll Suite (Dashboards, Reports, One-Click Monthly Run)",
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "category": "Human Resources/Payroll",
     "summary": "Adds dashboards, Form 12BB declaration printout and a "
                "one-click Monthly Payroll Run wizard on top of the India "
@@ -44,6 +44,8 @@ Designed to be installed by Indian SMEs and resold as a service.
         "views/menus.xml",
         "reports/form_12bb_template.xml",
         "reports/form_12bb_report.xml",
+        "reports/payslip_template.xml",
+        "reports/payslip_report.xml",
     ],
     "installable": True,
     "application": False,

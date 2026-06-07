@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+      Custom payslip PDF matching the LinkedERP / Mrelate standard salary slip
+      layout (two-column Earnings / Deductions, totals strip, header table with
+      employee code/PF/ESIC etc.).
+    -->
+    <template id="report_mrelate_payslip_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <t t-set="company" t-value="o.company_id"/>
+                    <t t-set="employee" t-value="o.employee_id"/>
+                    <t t-set="lines_by_code"
+                       t-value="{l.code: l for l in o.line_ids}"/>
+                    <t t-set="amt" t-value="lambda c: abs(lines_by_code[c].total) if c in lines_by_code else 0.0"/>
+
+                    <div class="page">
+                        <h3 class="text-center" style="margin-bottom:18px">Employee Pay Slip</h3>
+
+                        <!-- =================== EMPLOYEE HEADER ==================== -->
+                        <table class="table table-bordered table-sm"
+                               style="margin-bottom:18px; font-size:0.92em">
+                            <tr>
+                                <td style="width:13%"><b>Name</b></td>
+                                <td style="width:25%"><span t-field="employee.name"/></td>
+                                <td style="width:13%"><b>Month</b></td>
+                                <td style="width:17%">
+                                    <span t-esc="o.date_from.strftime('%m-%Y')"/>
+                                </td>
+                                <td style="width:14%"><b>No Of Days</b></td>
+                                <td style="width:18%">
+                                    <span t-esc="(o.date_to - o.date_from).days + 1"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><b>Code</b></td>
+                                <td><span t-field="employee.barcode"/></td>
+                                <td><b>City</b></td>
+                                <td><span t-field="employee.work_location_id.name"/></td>
+                                <td><b>Payable Days</b></td>
+                                <td>
+                                    <t t-set="wd" t-value="sum(o.worked_days_line_ids.mapped('number_of_days'))"/>
+                                    <span t-esc="'%g' % wd"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><b>Department</b></td>
+                                <td><span t-field="employee.department_id.name"/></td>
+                                <td><b>Designation</b></td>
+                                <td><span t-field="employee.job_id.name"/></td>
+                                <td><b>Absent Days</b></td>
+                                <td>
+                                    <t t-set="period_days" t-value="(o.date_to - o.date_from).days + 1"/>
+                                    <t t-set="absent" t-value="max(0, period_days - wd)"/>
+                                    <span t-esc="'%g' % absent"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><b>PF Number</b></td>
+                                <td><span t-field="employee.l10n_in_uan"/></td>
+                                <td><b>ESIC Number</b></td>
+                                <td colspan="3">
+                                    <span t-field="employee.l10n_in_esic_number"/>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- =================== EARNINGS | DEDUCTIONS ==================== -->
+                        <table class="table table-bordered table-sm"
+                               style="font-size:0.92em">
+                            <thead>
+                                <tr style="background-color:#f0f0f0">
+                                    <th style="width:30%">Earnings</th>
+                                    <th style="width:20%; text-align:right">Amount</th>
+                                    <th style="width:30%">Deduction</th>
+                                    <th style="width:20%; text-align:right">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Basic</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % amt('BASIC')"/></td>
+                                    <td>Income Tax</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % amt('TDS')"/></td>
+                                </tr>
+                                <tr>
+                                    <td>HRA</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % amt('HRA')"/></td>
+                                    <td>Professional Tax</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % amt('PT')"/></td>
+                                </tr>
+                                <tr>
+                                    <td>Other Allowance</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % (amt('SPL') + amt('STD'))"/></td>
+                                    <td>Medi Claim Insurance</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % amt('MED')"/></td>
+                                </tr>
+                                <tr>
+                                    <td>Shift Allowance</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % amt('SHIFT')"/></td>
+                                    <td>Salary Advance</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % amt('ADVANCE')"/></td>
+                                </tr>
+                                <tr>
+                                    <td>Overtime Allowance</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % amt('OT')"/></td>
+                                    <td>PF (employee contribution)</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % amt('PF')"/></td>
+                                </tr>
+                                <tr>
+                                    <td>Reimbursement</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % (amt('EXPENSES') + amt('REIMBURSEMENT'))"/></td>
+                                    <td>LWF (Employee)</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % amt('LWFE')"/></td>
+                                </tr>
+                                <tr>
+                                    <td>Bonus</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % amt('P_BONUS')"/></td>
+                                    <td>Gratuity</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % amt('GRATUITY')"/></td>
+                                </tr>
+                                <tr>
+                                    <td>Arrears</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % amt('ARREARS')"/></td>
+                                    <td>Other Deductions</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % amt('DEDUCTION')"/></td>
+                                </tr>
+                                <tr>
+                                    <td>PF (employer earnings)</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % amt('PFE')"/></td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr style="background-color:#f0f0f0; font-weight:bold">
+                                    <td>Total Gross</td>
+                                    <td style="text-align:right">
+                                        <t t-set="total_gross"
+                                           t-value="amt('BASIC') + amt('HRA') + amt('SPL') + amt('STD')
+                                                  + amt('SHIFT') + amt('OT') + amt('EXPENSES')
+                                                  + amt('REIMBURSEMENT') + amt('P_BONUS')
+                                                  + amt('ARREARS') + amt('PFE')"/>
+                                        <span t-esc="'%.2f' % total_gross"/>
+                                    </td>
+                                    <td>Total Deductions</td>
+                                    <td style="text-align:right">
+                                        <t t-set="total_ded"
+                                           t-value="amt('TDS') + amt('PT') + amt('MED') + amt('ADVANCE')
+                                                  + amt('PF') + amt('LWFE') + amt('GRATUITY')
+                                                  + amt('DEDUCTION')"/>
+                                        <span t-esc="'%.2f' % total_ded"/>
+                                    </td>
+                                </tr>
+                                <tr style="background-color:#e8f4ff; font-weight:bold; font-size:1.05em">
+                                    <td></td>
+                                    <td></td>
+                                    <td>Net Salary</td>
+                                    <td style="text-align:right">
+                                        <span t-esc="'%.2f' % (total_gross - total_ded)"/>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                        <p class="text-muted" style="font-size:0.75em; margin-top:18px">
+                            Total Gross includes employer PF contribution as part of
+                            Cost to Company. Take-home = Total Gross - Total Deductions
+                            - PF (employer earnings) =
+                            <span t-esc="'%.2f' % (total_gross - total_ded - amt('PFE'))"/>.
+                            Generated from Odoo Payroll. Period:
+                            <span t-esc="o.date_from"/> to <span t-esc="o.date_to"/>.
+                        </p>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>
