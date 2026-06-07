@@ -24,20 +24,6 @@
                             invisible="state not in ('approved','locked')"
                             confirm="Write the computed monthly TDS to the contract version's l10n_in_tds field? This does NOT compute, validate or post any payslip."
                             groups="mrelate_payroll_tds.group_tds_reviewer"/>
-                    <button name="action_resync_from_contract"
-                            string="Resync to Contract" type="object"
-                            invisible="state not in ('approved','locked') or not drift_detected"
-                            confirm="Restore the contract's l10n_in_tds to this declaration's monthly TDS (someone wrote to it outside this module)?"
-                            groups="mrelate_payroll_tds.group_tds_reviewer"/>
-                    <button name="action_rollback_contract"
-                            string="Rollback to Previous" type="object"
-                            invisible="state not in ('approved','locked') or applied_monthly_tds == 0"
-                            confirm="Restore the contract's l10n_in_tds to the value before this declaration was applied?"
-                            groups="mrelate_payroll_tds.group_tds_reviewer"/>
-                    <button name="action_refresh_salary_projection"
-                            string="Refresh Salary Projection" type="object"
-                            invisible="state in ('locked','cancelled')"
-                            help="Auto-fill salary paid YTD, current month, projected remaining and annual Basic+DA from existing payslips and the contract version. Reads payroll only; computes/posts nothing."/>
                     <button name="action_reset_draft" string="Reset to Draft" type="object"
                             invisible="state in ('draft','locked','cancelled')"/>
                     <button name="action_cancel" string="Cancel" type="object"
@@ -46,35 +32,6 @@
                            statusbar_visible="draft,submitted,reviewed,approved,locked"/>
                 </header>
                 <sheet>
-                    <!-- Hidden fields so invisible/readonly modifiers can read them.
-                         Odoo 19 requires every field used in invisible/readonly/required
-                         to be declared in the view (even as invisible="1"). -->
-                    <field name="drift_detected" invisible="1"/>
-                    <field name="pan_206aa_applied" invisible="1"/>
-                    <field name="employer_perk_excess" invisible="1"/>
-                    <div class="alert alert-warning" role="alert"
-                         invisible="not drift_detected">
-                        <strong>TDS drift detected.</strong>
-                        The contract's <code>l10n_in_tds</code> is
-                        <field name="drift_value" readonly="1" nolabel="1"/>
-                        but this declaration last applied
-                        <field name="applied_monthly_tds" readonly="1" nolabel="1"/>.
-                        Someone wrote to the contract outside this module. Use
-                        <b>Resync to Contract</b> above to restore.
-                    </div>
-                    <div class="alert alert-info" role="alert"
-                         invisible="not pan_206aa_applied">
-                        <strong>Sec 206AA applied.</strong>
-                        PAN is missing or invalid - TDS floored at 20% of taxable income.
-                        Provide a valid PAN to revert to normal slab rates.
-                    </div>
-                    <div class="alert alert-danger" role="alert"
-                         invisible="employer_perk_excess == 0">
-                        <strong>Employer perk aggregate cap exceeded (Rs 7.5L).</strong>
-                        Excess <field name="employer_perk_excess" readonly="1" nolabel="1"/>
-                        is taxable as perquisite u/s 17(2)(vii). Not auto-added - record
-                        it under "Other income" or have payroll add a perk component.
-                    </div>
                     <div class="oe_title">
                         <h1><field name="name" readonly="1"/></h1>
                     </div>
@@ -89,29 +46,14 @@
                             <field name="currency_id" invisible="1"/>
                         </group>
                         <group string="Regime &amp; PAN">
-                            <field name="regime" readonly="regime_locked"/>
-                            <field name="regime_locked" invisible="1"/>
+                            <field name="regime"/>
                             <field name="recommended_regime" readonly="1"/>
-                            <field name="age_category"/>
-                            <field name="pan" placeholder="ABCDE1234F"/>
-                            <field name="pan_valid" readonly="1"
-                                   invisible="not pan"/>
+                            <field name="pan"/>
                             <field name="pan_missing"/>
                         </group>
                     </group>
                     <notebook>
                         <page string="Salary Projection">
-                            <div class="oe_button_box" name="salary_proj_buttons">
-                                <button name="action_refresh_salary_projection"
-                                        type="object" class="btn-secondary"
-                                        string="Refresh Salary Projection from Payroll"
-                                        invisible="state in ('locked','cancelled')"/>
-                            </div>
-                            <p class="text-muted">
-                                These four fields can be auto-filled from existing payslips
-                                and the contract version using the button above. They remain
-                                manually editable for overrides.
-                            </p>
                             <group>
                                 <group>
                                     <field name="salary_paid_ytd"/>
@@ -143,7 +85,7 @@
                                 <group string="HRA / LTA">
                                     <field name="hra_received"/>
                                     <field name="rent_paid"/>
-                                    <field name="hra_city_tier"/>
+                                    <field name="metro_city"/>
                                     <field name="lta_exemption"/>
                                     <field name="hra_exempt" readonly="1"/>
                                 </group>
@@ -151,14 +93,9 @@
                                     <field name="ded_80c"/>
                                     <field name="ded_80ccd_1b"/>
                                     <field name="ded_80ccd_2_employer"/>
-                                    <field name="ded_80ccd_2_employer_capped" readonly="1"/>
                                     <field name="ded_80d"/>
                                     <field name="home_loan_interest"/>
                                     <field name="other_deductions"/>
-                                </group>
-                                <group string="Employer perk aggregate (info)" colspan="2">
-                                    <field name="employer_perk_aggregate" readonly="1"/>
-                                    <field name="employer_perk_excess" readonly="1"/>
                                 </group>
                             </group>
                             <p class="text-muted">
@@ -177,19 +114,10 @@
                                     <field name="tax_old" readonly="1"/>
                                     <field name="tax_new" readonly="1"/>
                                     <field name="total_tax_liability" readonly="1"/>
-                                    <field name="pan_206aa_applied" readonly="1"
-                                           invisible="not pan_206aa_applied"/>
                                     <field name="tax_already_deducted"/>
                                     <field name="remaining_months"/>
                                     <field name="monthly_tds" readonly="1"/>
-                                    <field name="bonus_month_extra_tds" readonly="1"
-                                           invisible="bonus_variable == 0"
-                                           help="Apply this extra TDS one-time in the month the bonus is paid"/>
                                     <field name="applied_monthly_tds" readonly="1"/>
-                                    <field name="pre_applied_value" readonly="1"
-                                           invisible="not applied_date"/>
-                                    <field name="applied_date" readonly="1"
-                                           invisible="not applied_date"/>
                                 </group>
                             </group>
                             <separator string="Calculation breakdown (old vs new)"/>
@@ -232,11 +160,11 @@
                 <filter name="f_draft" string="Draft" domain="[('state','=','draft')]"/>
                 <filter name="f_approved" string="Approved/Locked"
                         domain="[('state','in',('approved','locked'))]"/>
-                <group>
-                    <filter name="g_fy" string="Financial Year" domain="[]"
-                            context="{'group_by': 'financial_year'}"/>
-                    <filter name="g_state" string="Status" domain="[]"
-                            context="{'group_by': 'state'}"/>
+                <group expand="0" string="Group By">
+                    <filter name="g_fy" string="Financial Year"
+                            context="{'group_by':'financial_year'}"/>
+                    <filter name="g_state" string="Status"
+                            context="{'group_by':'state'}"/>
                 </group>
             </search>
         </field>

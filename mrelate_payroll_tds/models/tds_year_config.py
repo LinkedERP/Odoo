@@ -8,9 +8,6 @@ never editing code. Seed data for FY 2026-27 is in data/tds_fy_2026_27_data.xml.
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
-# Note: Odoo 19 removed _sql_constraints. Uniqueness on (financial_year, regime)
-# is enforced via a Python @api.constrains below.
-
 
 class TdsYearConfig(models.Model):
     _name = "mrelate.tds.year.config"
@@ -47,20 +44,10 @@ class TdsYearConfig(models.Model):
     surcharge_ids = fields.One2many(
         "mrelate.tds.surcharge.band", "config_id", string="Surcharge Bands")
 
-    @api.constrains("financial_year", "regime")
-    def _check_unique_year_regime(self):
-        for rec in self:
-            if not (rec.financial_year and rec.regime):
-                continue
-            existing = self.search([
-                ("financial_year", "=", rec.financial_year),
-                ("regime", "=", rec.regime),
-                ("id", "!=", rec.id),
-            ], limit=1)
-            if existing:
-                raise ValidationError(
-                    "A configuration for FY %s (%s regime) already exists."
-                    % (rec.financial_year, rec.regime))
+    _sql_constraints = [
+        ("uniq_year_regime", "unique(financial_year, regime)",
+         "A configuration for this financial year and regime already exists."),
+    ]
 
     @api.depends("financial_year", "regime")
     def _compute_name(self):
