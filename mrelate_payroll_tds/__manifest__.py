@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "India Payroll TDS & Income-Tax Declaration",
-    "version": "19.0.1.2.0",
+    "version": "19.0.1.0.0",
     "category": "Human Resources/Payroll",
     "summary": "Employee income-tax declaration, old/new regime engine and monthly TDS "
                "computation for Indian payroll (FY 2026-27). Marginal relief, "
