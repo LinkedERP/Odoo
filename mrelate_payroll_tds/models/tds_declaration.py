@@ -183,7 +183,11 @@ class TdsDeclaration(models.Model):
         compute="_compute_tax", store=True)
     total_tax_liability = fields.Monetary(compute="_compute_tax", store=True,
         help="Tax for the regime selected on this declaration.")
-    breakdown_html = fields.Html(compute="_compute_tax", sanitize=False, readonly=True)
+    # NOTE: must NOT share _compute_tax with the stored Monetary/Selection fields above.
+    # Odoo 19 enforces consistent store= and compute_sudo= across a single compute method;
+    # Html fields default to compute_sudo=True while Monetary defaults to False.
+    breakdown_html = fields.Html(
+        compute="_compute_breakdown_html", sanitize=False, readonly=True)
 
     # ------------------------------------------------------------------
     # Monthly TDS spreading + bonus catch-up
@@ -339,10 +343,6 @@ class TdsDeclaration(models.Model):
                 rec.bonus_month_extra_tds = 0.0
                 rec.pan_206aa_applied = False
                 rec.recommended_regime = False
-                rec.breakdown_html = (
-                    "<p style='color:#b00'>No tax configuration for FY %s. "
-                    "Add it under Payroll &gt; Configuration &gt; TDS Tax "
-                    "Configuration.</p>" % (rec.financial_year or "?"))
                 continue
 
             rec.tax_old = res_old["total_tax"]
@@ -382,6 +382,41 @@ class TdsDeclaration(models.Model):
             rec.bonus_month_extra_tds = round(
                 (avg_rate * (rec.bonus_variable or 0.0)) / 10.0) * 10.0
 
+    # ------------------------------------------------------------------
+    # breakdown_html computes separately - Html field has different store/
+    # compute_sudo defaults than the Monetary fields above; Odoo 19 rejects
+    # mixed compute. Depends on the STORED outputs of _compute_tax.
+    # ------------------------------------------------------------------
+    @api.depends("regime", "tax_old", "tax_new", "monthly_tds", "remaining_months",
+                 "total_tax_liability", "prev_employer_tds", "tax_already_deducted",
+                 "taxable_income_old", "taxable_income_new", "recommended_regime",
+                 "financial_year", "pan_206aa_applied", "age_category")
+    def _compute_breakdown_html(self):
+        engine = self.env["mrelate.tds.engine"]
+        for rec in self:
+            try:
+                if rec.age_category == "senior":
+                    old_exempt_override = OLD_SENIOR_BASIC_EXEMPTION
+                elif rec.age_category == "super_senior":
+                    old_exempt_override = OLD_SUPER_SENIOR_BASIC_EXEMPTION
+                else:
+                    old_exempt_override = None
+                res_old = engine.compute(
+                    rec.financial_year, "old", rec.taxable_income_old,
+                    basic_exemption_override=old_exempt_override)
+                res_new = engine.compute(
+                    rec.financial_year, "new", rec.taxable_income_new)
+            except UserError:
+                rec.breakdown_html = (
+                    "<p style='color:#b00'>No tax configuration for FY %s. "
+                    "Add it under Payroll &gt; Configuration &gt; TDS Tax "
+                    "Configuration.</p>" % (rec.financial_year or "?"))
+                continue
+            remaining = max(
+                0.0,
+                (rec.total_tax_liability or 0.0)
+                - (rec.prev_employer_tds or 0.0)
+                - (rec.tax_already_deducted or 0.0))
             rec.breakdown_html = self._render_breakdown(rec, res_old, res_new, remaining)
 
     # ------------------------------------------------------------------
