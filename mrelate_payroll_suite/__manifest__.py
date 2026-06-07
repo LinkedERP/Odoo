@@ -45,7 +45,9 @@ Designed to be installed by Indian SMEs and resold as a service.
         "reports/form_12bb_template.xml",
         "reports/form_12bb_report.xml",
     ],
-    "installable": True,
+    # TEMPORARILY disabled while bisecting a silent registry-load failure.
+    # Restore to True once the TDS v1.2.0 patches load cleanly on their own.
+    "installable": False,
     "application": False,
     "auto_install": False,
 }
