@@ -224,13 +224,14 @@ class TestDeclarationExtras(TransactionCase):
         self.assertFalse(d2.pan_valid)
 
     def test_206aa_triggered_when_pan_missing(self):
-        # Without PAN: 206AA fires; 15L taxable -> 3L tax
+        # Without PAN: 206AA fires on TAXABLE income (after std deduction).
+        # Gross 15L; taxable_new = 15L - 75k (std ded new) = 14.25L.
+        # 206AA floor = 20% * 14.25L = 2,85,000. Monthly: 285000 / 10 = 28,500.
         d = self._decl(regime="new", salary_projected_remaining=1500000,
                        pan_missing=True)
         self.assertTrue(d.pan_206aa_applied)
-        self.assertEqual(d.total_tax_liability, 300000.0)
-        # Monthly: 300000 / 10 = 30,000
-        self.assertEqual(d.monthly_tds, 30000.0)
+        self.assertEqual(d.total_tax_liability, 285000.0)
+        self.assertEqual(d.monthly_tds, 28500.0)
 
     def test_unique_employee_fy(self):
         self._decl(regime="new", salary_projected_remaining=500000)
