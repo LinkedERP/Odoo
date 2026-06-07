@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Graph + pivot views on the existing TDS declarations model -->
+    <record id="view_tds_decl_graph" model="ir.ui.view">
+        <field name="name">mrelate.tds.declaration.graph</field>
+        <field name="model">mrelate.tds.declaration</field>
+        <field name="arch" type="xml">
+            <graph string="TDS Declarations" type="bar" stacked="0" sample="1">
+                <field name="fy_short"/>
+                <field name="regime"/>
+                <field name="monthly_tds" type="measure"/>
+                <field name="total_tax_liability" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_tds_decl_pivot" model="ir.ui.view">
+        <field name="name">mrelate.tds.declaration.pivot</field>
+        <field name="model">mrelate.tds.declaration</field>
+        <field name="arch" type="xml">
+            <pivot string="TDS Declarations" sample="1">
+                <field name="department_id" type="row"/>
+                <field name="fy_short" type="col"/>
+                <field name="regime" type="col"/>
+                <field name="monthly_tds" type="measure"/>
+                <field name="total_tax_liability" type="measure"/>
+                <field name="applied_monthly_tds" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- Inherit existing tax-declaration window action to allow graph/pivot -->
+    <record id="action_tds_declaration_dashboard" model="ir.actions.act_window">
+        <field name="name">TDS Dashboard</field>
+        <field name="res_model">mrelate.tds.declaration</field>
+        <field name="view_mode">graph,pivot,list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No declarations yet</p>
+            <p>Use Monthly Payroll Run to auto-create FY declarations for all employees.</p>
+        </field>
+    </record>
+
+    <!-- Extend the search view: add useful filters & groupings for dashboards -->
+    <record id="view_tds_decl_search_ext" model="ir.ui.view">
+        <field name="name">mrelate.tds.declaration.search.ext</field>
+        <field name="model">mrelate.tds.declaration</field>
+        <field name="inherit_id" ref="mrelate_payroll_tds.view_tds_declaration_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search/group" position="inside">
+                <filter name="g_dept" string="Department" domain="[]"
+                        context="{'group_by': 'department_id'}"/>
+                <filter name="g_regime" string="Regime" domain="[]"
+                        context="{'group_by': 'regime'}"/>
+                <filter name="g_bucket" string="TDS Band" domain="[]"
+                        context="{'group_by': 'monthly_tds_bucket'}"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

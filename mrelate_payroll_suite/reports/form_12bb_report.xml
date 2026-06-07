@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_report_form_12bb" model="ir.actions.report">
+        <field name="name">Form 12BB-style Declaration</field>
+        <field name="model">mrelate.tds.declaration</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">mrelate_payroll_suite.report_form_12bb_document</field>
+        <field name="report_file">mrelate_payroll_suite.report_form_12bb_document</field>
+        <field name="binding_model_id" ref="mrelate_payroll_tds.model_mrelate_tds_declaration"/>
+        <field name="binding_type">report</field>
+        <field name="print_report_name">'Form 12BB - %s - %s' % (object.employee_id.name, object.financial_year)</field>
+    </record>
+</odoo>

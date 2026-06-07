@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_payroll_run_wizard"
+              name="Monthly Payroll Run"
+              parent="mrelate_payroll_tds.menu_tds_root"
+              action="action_payroll_run_wizard"
+              sequence="5"
+              groups="mrelate_payroll_tds.group_tds_reviewer"/>
+
+    <menuitem id="menu_tds_dashboard"
+              name="TDS Dashboard"
+              parent="mrelate_payroll_tds.menu_tds_root"
+              action="action_tds_declaration_dashboard"
+              sequence="15"
+              groups="mrelate_payroll_tds.group_tds_reviewer"/>
+
+    <menuitem id="menu_payslip_dashboard"
+              name="Payroll Cost Dashboard"
+              parent="mrelate_payroll_tds.menu_tds_root"
+              action="action_payslip_dashboard"
+              sequence="20"
+              groups="mrelate_payroll_tds.group_tds_reviewer"/>
+</odoo>
