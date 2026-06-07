@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+      Add a dedicated "Print Mrelate Payslip" button on the hr.payslip form
+      header, right after Compute Sheet. Bypasses the Print dropdown (which
+      Odoo 19 doesn't always render correctly when many reports are bound).
+    -->
+    <record id="view_hr_payslip_form_mrelate_print_button" model="ir.ui.view">
+        <field name="name">hr.payslip.form.mrelate.print.button</field>
+        <field name="model">hr.payslip</field>
+        <field name="inherit_id" ref="hr_payroll.view_hr_payslip_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header/button[@name='compute_sheet'][last()]" position="after">
+                <button string="Print Mrelate Payslip"
+                        name="%(action_report_mrelate_payslip)d"
+                        type="action"
+                        class="btn-primary"
+                        help="Generate the Mrelate / LinkedERP formatted payslip PDF"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
