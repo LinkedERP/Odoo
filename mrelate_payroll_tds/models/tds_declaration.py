@@ -42,11 +42,9 @@ class TdsDeclaration(models.Model):
     _order = "financial_year desc, employee_id"
     _rec_name = "name"
 
-    _sql_constraints = [
-        ("uniq_employee_fy_company",
-         "unique(employee_id, financial_year, company_id)",
-         "A declaration for this employee and financial year already exists."),
-    ]
+    # Note: Odoo 19 removed _sql_constraints. Uniqueness enforced via the
+    # _check_unique_employee_fy Python constraint below (see Constraints
+    # section near the bottom of the file).
 
     # ------------------------------------------------------------------
     # Identity / context
@@ -493,6 +491,29 @@ class TdsDeclaration(models.Model):
                 # Soft fail: store anyway but pan_valid will be False -> 206AA triggers.
                 # Hard fail would be too disruptive at draft entry.
                 pass
+
+    # ------------------------------------------------------------------
+    # Application-level unique guard (replaces the dropped _sql_constraints).
+    # Race condition is possible without DB-level UNIQUE; for SME scale
+    # (< 100 employees, single payroll user creating declarations) it's
+    # acceptable. Convert to models.Constraint when the Odoo 19 syntax is
+    # confirmed against the official docs.
+    # ------------------------------------------------------------------
+    @api.constrains("employee_id", "financial_year", "company_id")
+    def _check_unique_employee_fy(self):
+        for rec in self:
+            if not (rec.employee_id and rec.financial_year and rec.company_id):
+                continue
+            existing = self.search([
+                ("employee_id", "=", rec.employee_id.id),
+                ("financial_year", "=", rec.financial_year),
+                ("company_id", "=", rec.company_id.id),
+                ("id", "!=", rec.id),
+            ], limit=1)
+            if existing:
+                raise ValidationError(
+                    "A declaration for %s in FY %s already exists (id %d)."
+                    % (rec.employee_id.name, rec.financial_year, existing.id))
 
     # ==================================================================
     # Helpers
