@@ -45,6 +45,12 @@
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,submitted,reviewed,approved,locked"/>
                 </header>
+                <!-- Hidden fields so the invisible= modifiers can read them.
+                     Odoo 19 requires every field used in invisible/readonly/required
+                     to be present in the view (even as <field invisible="1"/>). -->
+                <field name="drift_detected" invisible="1"/>
+                <field name="pan_206aa_applied" invisible="1"/>
+                <field name="employer_perk_excess" invisible="1"/>
                 <div class="alert alert-warning" role="alert"
                      invisible="not drift_detected">
                     <strong>TDS drift detected.</strong>
