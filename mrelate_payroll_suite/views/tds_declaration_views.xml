@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+      Add a dedicated "Print Form 12BB" button on the TDS declaration form.
+      Mirrors the payslip print-button workaround for Odoo 19's flaky Print
+      dropdown when multiple reports are bound.
+    -->
+    <record id="view_tds_decl_form_form12bb_button" model="ir.ui.view">
+        <field name="name">mrelate.tds.declaration.form.form12bb.button</field>
+        <field name="model">mrelate.tds.declaration</field>
+        <field name="inherit_id" ref="mrelate_payroll_tds.view_tds_declaration_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header/field[@name='state']" position="before">
+                <button string="Print Form 12BB"
+                        name="%(action_report_form_12bb)d"
+                        type="action"
+                        class="btn-secondary"
+                        help="Generate the Form 12BB-style declaration PDF"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
