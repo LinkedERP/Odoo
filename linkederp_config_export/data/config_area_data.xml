@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Areas are no longer seeded. They are built dynamically from Odoo's
+         own menu tree (one area per root app with a Configuration branch)
+         each time the export wizard is opened. See
+         models/config_export.py::_get_auto_detected_area_ids. -->
+    <data noupdate="1"/>
+</odoo>

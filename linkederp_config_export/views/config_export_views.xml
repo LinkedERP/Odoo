@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         Config Area – list & form (admin only)
+    ════════════════════════════════════════════════════════════════════ -->
+    <record id="view_al3_config_area_list" model="ir.ui.view">
+        <field name="name">al3.config.area.list</field>
+        <field name="model">al3.config.area</field>
+        <field name="arch" type="xml">
+            <list string="Configuration Areas">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="description"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_al3_config_area_form" model="ir.ui.view">
+        <field name="name">al3.config.area.form</field>
+        <field name="model">al3.config.area</field>
+        <field name="arch" type="xml">
+            <form string="Configuration Area">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="code"/>
+                            <field name="sequence"/>
+                        </group>
+                        <group>
+                            <field name="tab_color"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <group string="Description">
+                        <field name="description" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_al3_config_area" model="ir.actions.act_window">
+        <field name="name">Configuration Areas</field>
+        <field name="res_model">al3.config.area</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         Export Wizard – form
+    ════════════════════════════════════════════════════════════════════ -->
+    <record id="view_al3_config_export_form" model="ir.ui.view">
+        <field name="name">al3.config.export.form</field>
+        <field name="model">al3.config.export</field>
+        <field name="arch" type="xml">
+            <form string="Export Odoo Configuration">
+                <header>
+                    <button name="action_export"
+                            string="📊 Generate Excel"
+                            type="object"
+                            class="btn-primary"/>
+                    <button name="action_generate_module"
+                            string="📦 Generate Module (XML)"
+                            type="object"
+                            class="btn-primary"/>
+                    <button name="action_download"
+                            string="⬇ Download Excel"
+                            type="object"
+                            class="btn-success"
+                            invisible="state == 'draft' or not excel_file"/>
+                    <button name="action_download_module"
+                            string="⬇ Download Module (.zip)"
+                            type="object"
+                            class="btn-success"
+                            invisible="state == 'draft' or not module_file"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,done"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name" placeholder="Export Name…"/>
+                        </h1>
+                    </div>
+
+                    <!-- Info banner: areas auto-detected on open -->
+                    <div class="alert alert-info" role="alert" invisible="state == 'done'">
+                        <strong>ℹ️ Auto-detected</strong> — Configuration areas below are
+                        automatically selected based on your installed modules.
+                        You can add or remove areas manually if needed.
+                    </div>
+
+                    <group>
+                        <group string="Export Settings">
+                            <field name="company_id"/>
+                            <field name="include_cover"/>
+                            <field name="export_partners"/>
+                            <field name="export_products"/>
+                            <field name="installed_modules_info" readonly="1"
+                                   string="Installed Apps"/>
+                        </group>
+                        <group string="Generated Excel" invisible="not excel_file">
+                            <field name="file_name" readonly="1"/>
+                            <field name="excel_file"
+                                   widget="binary"
+                                   filename="file_name"
+                                   string="Download Excel"/>
+                        </group>
+                        <group string="Generated Module" invisible="not module_file">
+                            <field name="module_name" readonly="1" string="Module Name"/>
+                            <field name="module_file"
+                                   widget="binary"
+                                   filename="module_filename"
+                                   string="Download .zip"/>
+                        </group>
+                    </group>
+
+                    <separator string="Configuration Areas (auto-selected by installed modules)"/>
+
+                    <div class="o_row mb-2">
+                        <button name="action_auto_detect"
+                                string="🔍 Re-detect Installed Modules"
+                                type="object"
+                                class="btn-secondary btn-sm me-2"/>
+                        <button name="action_select_all"
+                                string="✔ Select All"
+                                type="object"
+                                class="btn-secondary btn-sm me-2"/>
+                        <button name="action_clear_all"
+                                string="✖ Clear All"
+                                type="object"
+                                class="btn-secondary btn-sm"/>
+                    </div>
+
+                    <!-- tag cloud for quick overview -->
+                    <field name="area_ids"
+                           widget="many2many_tags"
+                           domain="[('active','=',True)]"
+                           options="{'no_create': True}"
+                           string=" "/>
+
+                    <separator/>
+
+                    <!-- sortable list -->
+                    <field name="area_ids" nolabel="1">
+                        <list>
+                            <field name="sequence" widget="handle"/>
+                            <field name="name"/>
+                            <field name="description"/>
+                        </list>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_al3_config_export" model="ir.actions.act_window">
+        <field name="name">Export Configuration</field>
+        <field name="res_model">al3.config.export</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         Top-level menu  (Settings > Config Export)
+    ════════════════════════════════════════════════════════════════════ -->
+    <menuitem id="menu_al3_config_export_root"
+              name="Config Export"
+              parent="base.menu_administration"
+              sequence="99"/>
+
+    <menuitem id="menu_al3_config_export_wizard"
+              name="Export Configuration"
+              parent="menu_al3_config_export_root"
+              action="action_al3_config_export"
+              sequence="1"/>
+
+    <menuitem id="menu_al3_config_area_list"
+              name="Configuration Areas"
+              parent="menu_al3_config_export_root"
+              action="action_al3_config_area"
+              sequence="10"
+              groups="base.group_system"/>
+
+</odoo>
+

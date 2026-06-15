@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_al3_config_area_user,al3.config.area user,model_al3_config_area,base.group_user,1,0,0,0
+access_al3_config_area_manager,al3.config.area manager,model_al3_config_area,base.group_system,1,1,1,1
+access_al3_config_export_user,al3.config.export user,model_al3_config_export,base.group_user,1,1,1,1
+
