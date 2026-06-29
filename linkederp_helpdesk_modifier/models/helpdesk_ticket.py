@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import timedelta, datetime, date as date_type
 from odoo import models, fields, api, _
@@ -7,6 +8,30 @@ REMINDER_DAYS = 3  # Send reminder after this many working days without a respon
 class HelpdeskTicket(models.Model):
     """Extend helpdesk ticket with auto email reminder logic."""
     _inherit = 'helpdesk.ticket'
+
+    available_sale_line_domain = fields.Char(
+        compute='_compute_available_sale_line_domain',
+    )
+
+    @api.depends('sale_order_id')
+    def _compute_available_sale_line_domain(self):
+        for ticket in self:
+            so = ticket.sale_order_id
+            if so:
+                ticket.available_sale_line_domain = json.dumps([
+                    ('id', 'in', so.order_line.ids)
+                ])
+            else:
+                ticket.available_sale_line_domain = json.dumps([])
+
+    sale_line_id = fields.Many2one(
+        'sale.order.line', string="Sales Order Item", tracking=True,
+        compute="_compute_sale_line_id", store=True, readonly=False,
+        domain="available_sale_line_domain",
+        help="Sales Order Item to which the time spent on this ticket will be added in order to be invoiced to your customer.\n"
+             "By default the last prepaid sales order item that has time remaining will be selected.\n"
+             "Remove the sales order item in order to make this ticket non-billable.\n"
+             "You can also change or remove the sales order item of each timesheet entry individually.")
 
     last_reminder_sent = fields.Date(
         string='Last Reminder Sent',
