@@ -85,6 +85,12 @@ class LinkederpDashboard(models.Model):
                     date_to=date_to,
                     filters=filters,
                 )
+            elif dashboard._is_ops_dashboard():
+                widgets = dashboard._ops_dashboard_widgets(
+                    date_from=date_from,
+                    date_to=date_to,
+                    filters=filters,
+                )
 
         return {
             "dashboards": [

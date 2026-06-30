@@ -53,6 +53,9 @@ export class LinkedERPDashboardAction extends Component {
             "funnelStyle",
             "pointShare",
             "matrixCellValue",
+            "matrixCellClass",
+            "deltaIconClass",
+            "columnTargetStyle",
             "pieStyle",
             "linePoints",
             "legendColor",
@@ -206,6 +209,9 @@ export class LinkedERPDashboardAction extends Component {
 
     maxPointValue(widget) {
         const values = (widget.points || []).map((point) => Number(point.value || 0));
+        if (widget.target) {
+            values.push(Number(widget.target));
+        }
         return Math.max(...values, 1);
     }
 
@@ -222,10 +228,24 @@ export class LinkedERPDashboardAction extends Component {
     columnStyle(widget, point, index) {
         const value = Number(point.value || 0);
         const height = value ? Math.max(4, (value / this.maxPointValue(widget)) * 100) : 0;
-        const color = widget.id === "ai_call_outcomes"
-            ? PALETTE[index % PALETTE.length]
-            : widget.color || "#2563eb";
+        let color = widget.color || "#2563eb";
+        if (point.color) {
+            color = point.color;
+        } else if (widget.id === "ai_call_outcomes") {
+            color = PALETTE[index % PALETTE.length];
+        }
         return `height: ${height}%; background: ${color};`;
+    }
+
+    columnTargetStyle(widget) {
+        const target = Number(widget.target || 0);
+        if (!target) {
+            return "display: none;";
+        }
+        const max = this.maxPointValue(widget);
+        // Bar plot area is 184px tall sitting on a baseline 42px above the plot floor.
+        const bottom = 42 + (target / max) * 184;
+        return `bottom: ${bottom}px;`;
     }
 
     comparisonMaxValue(widget) {
@@ -271,6 +291,24 @@ export class LinkedERPDashboardAction extends Component {
 
     matrixCellValue(row, column) {
         return this.formatByType(row[column.key], column.format);
+    }
+
+    matrixCellClass(row, column) {
+        const tone = row.tones && row.tones[column.key];
+        return tone ? `text-center o_lds_cell_${tone}` : "text-center";
+    }
+
+    deltaIconClass(delta) {
+        if (!delta) {
+            return "fa fa-minus";
+        }
+        if (delta.dir === "up") {
+            return "fa fa-caret-up";
+        }
+        if (delta.dir === "down") {
+            return "fa fa-caret-down";
+        }
+        return "fa fa-circle o_lds_delta_dot";
     }
 
     pieStyle(widget) {
