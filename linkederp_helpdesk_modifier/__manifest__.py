@@ -8,8 +8,10 @@
     'license': 'LGPL-3',
     'depends': [
         'helpdesk',
+        'helpdesk_sale',
         'mail',
         'hr_timesheet',
+        'helpdesk_sale_timesheet',
     ],
     'data': [
         'data/mail_template_data.xml',

@@ -1,65 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!--
-        ================================================================
-        FORM VIEW – Lock / Unlock buttons
-        ================================================================
-        In base Odoo the "Lock" button is wrapped in
-            <t groups="sale.group_auto_done_setting">
-        which means it only appears when the "Lock Confirmed Sales"
-        system setting is enabled.
-        This override removes that gate so the Lock button is always
-        available to Sales Managers, directly on every confirmed
-        (state = 'sale') Sales Order – no extra setting required.
-        The Unlock button already exists unconditionally in base Odoo.
-    -->
-    <record id="view_order_form_linked_lock" model="ir.ui.view">
-        <field name="name">sale.order.form.linked.lock</field>
-        <field name="model">sale.order</field>
-        <field name="inherit_id" ref="sale.view_order_form"/>
-        <field name="arch" type="xml">
-            <!--
-                Replace the group-gated <t> wrapper with a plain button
-                so Lock is visible without enabling any system setting.
-            -->
-            <xpath expr="//header/t[@groups='sale.group_auto_done_setting']"
-                   position="replace">
-                <button
-                        string="Lock"
-                        name="action_lock"
-                        type="object"
-                        class="btn-secondary"
-                        help="Lock this Sales Order to prevent modifications. You can unlock it at any time."
-                        invisible="locked or state != 'sale'"/>
-            </xpath>
-        </field>
-    </record>
-    <!--
-        ================================================================
-        SEARCH VIEW – "Active Orders (Unlocked)" default filter
-        ================================================================
-        Adds a filter for unlocked orders and activates it by default
-        on the Sales Orders list view so that locked (closed) orders
-        are hidden unless the user deliberately removes the filter.
-    -->
+
     <record id="view_sales_order_search_unlocked" model="ir.ui.view">
         <field name="name">sale.order.search.linked.unlocked</field>
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.sale_order_view_search_inherit_sale"/>
         <field name="arch" type="xml">
-            <filter name="my_sale_orders_filter" position="after">
+            <filter name="sales" position="after">
                 <separator/>
-                <filter
-                        name="not_locked"
-                        string="Active Orders (Unlocked)"
-                        domain="[('locked', '=', False)]"
-                        help="Show only unlocked / active Sales Orders"/>
+                <filter name="sale_complete" position="after">
+                    <separator/>
+                    <filter
+                            name="not_completed"
+                            string="Uncompleted Orders"
+                            domain="[('x_studio_completed', '=', False)]"
+                            help="Show only Uncompleted  Sales Orders"/>
 
-                <filter
-                        name="locked"
-                        string="Locked Sales Orders"
-                        domain="[('locked', '=', True)]"
-                        help="Show only locked / active Sales Orders"/>
+                    <filter
+                            name="completed"
+                            string="Complete Order"
+                            domain="[('x_studio_completed', '=', True)]"
+                            help="Show only Complete Sales Orders"/>
+                </filter>
+
             </filter>
         </field>
     </record>
@@ -71,17 +34,20 @@
         <field name="arch" type="xml">
             <filter name="my_quotation" position="after">
                 <separator/>
-                <filter
-                        name="not_locked"
-                        string="Active Orders (Unlocked)"
-                        domain="[('locked', '=', False)]"
-                        help="Show only unlocked / active Sales Orders"/>
+                <filter name="quotation_complete" position="after">
+                    <separator/>
+                    <filter
+                            name="quotation_not_completed"
+                            string="Uncompleted Orders"
+                            domain="[('x_studio_completed', '=', False)]"
+                            help="Show only Uncompleted  Sales Orders"/>
 
-                <filter
-                        name="locked"
-                        string="Locked Sales Orders"
-                        domain="[('locked', '=', True)]"
-                        help="Show only locked / active Sales Orders"/>
+                    <filter
+                            name="quotation_completed"
+                            string="Complete Order"
+                            domain="[('x_studio_completed', '=', True)]"
+                            help="Show only Complete Sales Orders"/>
+                </filter>
             </filter>
         </field>
     </record>
@@ -94,9 +60,9 @@
         to override the filter and see locked orders when needed.
     -->
     <record id="sale.action_orders" model="ir.actions.act_window">
-        <field name="context">{'search_default_not_locked': 1, 'search_default_sales' : 1}</field>
+        <field name="context">{'search_default_not_completed': 1, 'search_default_sales': 1}</field>
     </record>
     <record id="sale.action_quotations_with_onboarding" model="ir.actions.act_window">
-        <field name="context">{'search_default_not_locked': 1, 'search_default_my_quotation': 1}</field>
+        <field name="context">{'search_default_quotation_not_completed': 1, 'search_default_my_quotation': 1}</field>
     </record>
 </odoo>
