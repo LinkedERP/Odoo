@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="dashboard_sales_crm" model="linkederp.dashboard">
+        <field name="name">Sales &amp; CRM Dashboard</field>
+        <field name="sequence">10</field>
+        <field name="description">LinkedERP starter dashboard for sales orders, revenue, pipeline, and opportunity performance.</field>
+        <field name="color">#2563eb</field>
+    </record>
+
+    <record id="widget_confirmed_revenue" model="linkederp.dashboard.widget">
+        <field name="dashboard_id" ref="dashboard_sales_crm"/>
+        <field name="sequence">10</field>
+        <field name="name">Confirmed Revenue</field>
+        <field name="widget_type">kpi</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="value_mode">sum</field>
+        <field name="measure_field_id" ref="sale.field_sale_order__amount_total"/>
+        <field name="date_field_id" ref="sale.field_sale_order__date_order"/>
+        <field name="domain_filter">[('state', 'in', ['sale', 'done'])]</field>
+        <field name="color">#2563eb</field>
+        <field name="help_text">Total confirmed sales order value in the selected period.</field>
+    </record>
+
+    <record id="widget_confirmed_orders" model="linkederp.dashboard.widget">
+        <field name="dashboard_id" ref="dashboard_sales_crm"/>
+        <field name="sequence">20</field>
+        <field name="name">Confirmed Orders</field>
+        <field name="widget_type">kpi</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="value_mode">count</field>
+        <field name="date_field_id" ref="sale.field_sale_order__date_order"/>
+        <field name="domain_filter">[('state', 'in', ['sale', 'done'])]</field>
+        <field name="color">#059669</field>
+        <field name="help_text">Number of confirmed sales orders in the selected period.</field>
+    </record>
+
+    <record id="widget_open_opportunities" model="linkederp.dashboard.widget">
+        <field name="dashboard_id" ref="dashboard_sales_crm"/>
+        <field name="sequence">30</field>
+        <field name="name">Open Opportunities</field>
+        <field name="widget_type">kpi</field>
+        <field name="model_id" ref="crm.model_crm_lead"/>
+        <field name="value_mode">count</field>
+        <field name="date_field_id" ref="crm.field_crm_lead__create_date"/>
+        <field name="domain_filter">[('type', '=', 'opportunity'), ('active', '=', True)]</field>
+        <field name="color">#7c3aed</field>
+        <field name="help_text">Active opportunities created in the selected period.</field>
+    </record>
+
+    <record id="widget_expected_pipeline" model="linkederp.dashboard.widget">
+        <field name="dashboard_id" ref="dashboard_sales_crm"/>
+        <field name="sequence">40</field>
+        <field name="name">Expected Pipeline</field>
+        <field name="widget_type">kpi</field>
+        <field name="model_id" ref="crm.model_crm_lead"/>
+        <field name="value_mode">sum</field>
+        <field name="measure_field_id" ref="crm.field_crm_lead__expected_revenue"/>
+        <field name="date_field_id" ref="crm.field_crm_lead__create_date"/>
+        <field name="domain_filter">[('type', '=', 'opportunity'), ('active', '=', True)]</field>
+        <field name="color">#db2777</field>
+        <field name="help_text">Expected revenue from active opportunities created in the selected period.</field>
+    </record>
+
+    <record id="widget_sales_by_month" model="linkederp.dashboard.widget">
+        <field name="dashboard_id" ref="dashboard_sales_crm"/>
+        <field name="sequence">50</field>
+        <field name="name">Sales by Month</field>
+        <field name="widget_type">line</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="value_mode">sum</field>
+        <field name="measure_field_id" ref="sale.field_sale_order__amount_total"/>
+        <field name="groupby_field_id" ref="sale.field_sale_order__date_order"/>
+        <field name="groupby_interval">month</field>
+        <field name="date_field_id" ref="sale.field_sale_order__date_order"/>
+        <field name="domain_filter">[('state', 'in', ['sale', 'done'])]</field>
+        <field name="limit">12</field>
+        <field name="color">#2563eb</field>
+    </record>
+
+    <record id="widget_top_customers" model="linkederp.dashboard.widget">
+        <field name="dashboard_id" ref="dashboard_sales_crm"/>
+        <field name="sequence">60</field>
+        <field name="name">Top Customers</field>
+        <field name="widget_type">bar</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="value_mode">sum</field>
+        <field name="measure_field_id" ref="sale.field_sale_order__amount_total"/>
+        <field name="groupby_field_id" ref="sale.field_sale_order__partner_id"/>
+        <field name="date_field_id" ref="sale.field_sale_order__date_order"/>
+        <field name="domain_filter">[('state', 'in', ['sale', 'done'])]</field>
+        <field name="limit">8</field>
+        <field name="color">#059669</field>
+    </record>
+
+    <record id="widget_pipeline_by_stage" model="linkederp.dashboard.widget">
+        <field name="dashboard_id" ref="dashboard_sales_crm"/>
+        <field name="sequence">70</field>
+        <field name="name">Pipeline by Stage</field>
+        <field name="widget_type">bar</field>
+        <field name="model_id" ref="crm.model_crm_lead"/>
+        <field name="value_mode">sum</field>
+        <field name="measure_field_id" ref="crm.field_crm_lead__expected_revenue"/>
+        <field name="groupby_field_id" ref="crm.field_crm_lead__stage_id"/>
+        <field name="date_field_id" ref="crm.field_crm_lead__create_date"/>
+        <field name="domain_filter">[('type', '=', 'opportunity'), ('active', '=', True)]</field>
+        <field name="limit">10</field>
+        <field name="color">#7c3aed</field>
+    </record>
+
+    <record id="widget_opportunities_by_salesperson" model="linkederp.dashboard.widget">
+        <field name="dashboard_id" ref="dashboard_sales_crm"/>
+        <field name="sequence">80</field>
+        <field name="name">Opportunities by Salesperson</field>
+        <field name="widget_type">table</field>
+        <field name="model_id" ref="crm.model_crm_lead"/>
+        <field name="value_mode">sum</field>
+        <field name="measure_field_id" ref="crm.field_crm_lead__expected_revenue"/>
+        <field name="groupby_field_id" ref="crm.field_crm_lead__user_id"/>
+        <field name="date_field_id" ref="crm.field_crm_lead__create_date"/>
+        <field name="domain_filter">[('type', '=', 'opportunity'), ('active', '=', True)]</field>
+        <field name="limit">10</field>
+        <field name="color">#db2777</field>
+    </record>
+</odoo>

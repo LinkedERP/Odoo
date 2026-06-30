@@ -1,0 +1,9 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_tds_declaration_employee,tds.declaration.employee,model_mrelate_tds_declaration,group_tds_employee,1,1,1,0
+access_tds_declaration_reviewer,tds.declaration.reviewer,model_mrelate_tds_declaration,group_tds_reviewer,1,1,1,1
+access_tds_year_config_employee,tds.year.config.employee,model_mrelate_tds_year_config,group_tds_employee,1,0,0,0
+access_tds_year_config_reviewer,tds.year.config.reviewer,model_mrelate_tds_year_config,group_tds_reviewer,1,1,1,1
+access_tds_slab_employee,tds.slab.employee,model_mrelate_tds_slab,group_tds_employee,1,0,0,0
+access_tds_slab_reviewer,tds.slab.reviewer,model_mrelate_tds_slab,group_tds_reviewer,1,1,1,1
+access_tds_surcharge_employee,tds.surcharge.employee,model_mrelate_tds_surcharge_band,group_tds_employee,1,0,0,0
+access_tds_surcharge_reviewer,tds.surcharge.reviewer,model_mrelate_tds_surcharge_band,group_tds_reviewer,1,1,1,1

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_tds_year_config_form" model="ir.ui.view">
+        <field name="name">mrelate.tds.year.config.form</field>
+        <field name="model">mrelate.tds.year.config</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="financial_year"/>
+                            <field name="regime"/>
+                            <field name="active"/>
+                        </group>
+                        <group>
+                            <field name="standard_deduction"/>
+                            <field name="rebate_income_limit"/>
+                            <field name="rebate_max"/>
+                            <field name="basic_exemption"/>
+                            <field name="cess_rate"/>
+                            <field name="surcharge_capped"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Tax Slabs">
+                            <field name="slab_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="lower_limit"/>
+                                    <field name="upper_limit"/>
+                                    <field name="rate"/>
+                                </list>
+                            </field>
+                            <p class="text-muted">Use upper limit 0 for the top open-ended slab.
+                                Rate is a fraction (0.05 = 5%).</p>
+                        </page>
+                        <page string="Surcharge Bands">
+                            <field name="surcharge_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="lower_limit"/>
+                                    <field name="upper_limit"/>
+                                    <field name="rate"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_tds_year_config_list" model="ir.ui.view">
+        <field name="name">mrelate.tds.year.config.list</field>
+        <field name="model">mrelate.tds.year.config</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="financial_year"/>
+                <field name="regime"/>
+                <field name="standard_deduction"/>
+                <field name="rebate_max"/>
+                <field name="cess_rate"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_tds_year_config" model="ir.actions.act_window">
+        <field name="name">TDS Tax Configuration</field>
+        <field name="res_model">mrelate.tds.year.config</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

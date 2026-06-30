@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_hr_payslip_form_refresh_expenses" model="ir.ui.view">
+        <field name="name">hr.payslip.form.refresh.expenses</field>
+        <field name="model">hr.payslip</field>
+        <field name="inherit_id" ref="hr_payroll.view_hr_payslip_form"/>
+        <field name="arch" type="xml">
+            <!-- Add "Refresh Expenses" right after the Compute Sheet button.
+                 Visible only on draft payslips (corrective action for expenses
+                 approved after this payslip was created). -->
+            <xpath expr="//header/button[@name='compute_sheet'][last()]" position="after">
+                <button string="Refresh Expenses"
+                        name="action_refresh_expenses"
+                        type="object"
+                        invisible="state != 'draft'"
+                        help="Pull approved, employee-paid expenses marked 'Reimburse in Next Payslip' that were approved after this draft payslip was created, then recompute."/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

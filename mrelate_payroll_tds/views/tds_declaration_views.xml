@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_tds_declaration_form" model="ir.ui.view">
+        <field name="name">mrelate.tds.declaration.form</field>
+        <field name="model">mrelate.tds.declaration</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_submit" string="Submit" type="object"
+                            class="oe_highlight" invisible="state != 'draft'"/>
+                    <button name="action_review" string="Mark Reviewed" type="object"
+                            class="oe_highlight" invisible="state != 'submitted'"
+                            groups="mrelate_payroll_tds.group_tds_reviewer"/>
+                    <button name="action_approve" string="Approve" type="object"
+                            class="oe_highlight" invisible="state != 'reviewed'"
+                            groups="mrelate_payroll_tds.group_tds_reviewer"/>
+                    <button name="action_lock" string="Lock" type="object"
+                            invisible="state != 'approved'"
+                            groups="mrelate_payroll_tds.group_tds_reviewer"/>
+                    <button name="action_apply_to_contract"
+                            string="Apply Monthly TDS to Contract" type="object"
+                            class="oe_highlight"
+                            invisible="state not in ('approved','locked')"
+                            confirm="Write the computed monthly TDS to the contract version's l10n_in_tds field? This does NOT compute, validate or post any payslip."
+                            groups="mrelate_payroll_tds.group_tds_reviewer"/>
+                    <button name="action_reset_draft" string="Reset to Draft" type="object"
+                            invisible="state in ('draft','locked','cancelled')"/>
+                    <button name="action_cancel" string="Cancel" type="object"
+                            invisible="state in ('locked','cancelled')"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,submitted,reviewed,approved,locked"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Employee">
+                            <field name="employee_id"
+                                   readonly="state not in ('draft','submitted')"/>
+                            <field name="version_id"
+                                   readonly="state not in ('draft','submitted','reviewed','approved')"/>
+                            <field name="financial_year" readonly="state != 'draft'"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                        <group string="Regime &amp; PAN">
+                            <field name="regime"/>
+                            <field name="recommended_regime" readonly="1"/>
+                            <field name="pan"/>
+                            <field name="pan_missing"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Salary Projection">
+                            <group>
+                                <group>
+                                    <field name="salary_paid_ytd"/>
+                                    <field name="salary_current_month"/>
+                                    <field name="salary_projected_remaining"/>
+                                    <field name="bonus_variable"/>
+                                </group>
+                                <group>
+                                    <field name="annual_basic_da"/>
+                                    <field name="gross_annual_salary" readonly="1"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Other Income / Previous Employer">
+                            <group>
+                                <group string="Previous employer">
+                                    <field name="prev_employer_income"/>
+                                    <field name="prev_employer_tds"/>
+                                </group>
+                                <group string="Other income">
+                                    <field name="other_income"/>
+                                    <field name="interest_income"/>
+                                    <field name="house_property_income"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Exemptions &amp; Deductions (Old regime)">
+                            <group>
+                                <group string="HRA / LTA">
+                                    <field name="hra_received"/>
+                                    <field name="rent_paid"/>
+                                    <field name="metro_city"/>
+                                    <field name="lta_exemption"/>
+                                    <field name="hra_exempt" readonly="1"/>
+                                </group>
+                                <group string="Chapter VI-A">
+                                    <field name="ded_80c"/>
+                                    <field name="ded_80ccd_1b"/>
+                                    <field name="ded_80ccd_2_employer"/>
+                                    <field name="ded_80d"/>
+                                    <field name="home_loan_interest"/>
+                                    <field name="other_deductions"/>
+                                </group>
+                            </group>
+                            <p class="text-muted">
+                                The new regime ignores these except standard deduction and
+                                80CCD(2). Statutory caps are applied automatically.
+                            </p>
+                        </page>
+                        <page string="Tax &amp; Monthly TDS">
+                            <group>
+                                <group string="Taxable income">
+                                    <field name="gross_total_income" readonly="1"/>
+                                    <field name="taxable_income_old" readonly="1"/>
+                                    <field name="taxable_income_new" readonly="1"/>
+                                </group>
+                                <group string="Tax &amp; spreading">
+                                    <field name="tax_old" readonly="1"/>
+                                    <field name="tax_new" readonly="1"/>
+                                    <field name="total_tax_liability" readonly="1"/>
+                                    <field name="tax_already_deducted"/>
+                                    <field name="remaining_months"/>
+                                    <field name="monthly_tds" readonly="1"/>
+                                    <field name="applied_monthly_tds" readonly="1"/>
+                                </group>
+                            </group>
+                            <separator string="Calculation breakdown (old vs new)"/>
+                            <field name="breakdown_html" readonly="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_tds_declaration_list" model="ir.ui.view">
+        <field name="name">mrelate.tds.declaration.list</field>
+        <field name="model">mrelate.tds.declaration</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="employee_id"/>
+                <field name="financial_year"/>
+                <field name="regime"/>
+                <field name="recommended_regime"/>
+                <field name="total_tax_liability"/>
+                <field name="monthly_tds"/>
+                <field name="applied_monthly_tds"/>
+                <field name="state" widget="badge"
+                       decoration-success="state in ('approved','locked')"
+                       decoration-info="state in ('submitted','reviewed')"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_tds_declaration_search" model="ir.ui.view">
+        <field name="name">mrelate.tds.declaration.search</field>
+        <field name="model">mrelate.tds.declaration</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="employee_id"/>
+                <field name="financial_year"/>
+                <filter name="f_draft" string="Draft" domain="[('state','=','draft')]"/>
+                <filter name="f_approved" string="Approved/Locked"
+                        domain="[('state','in',('approved','locked'))]"/>
+                <!-- Odoo 19's search-view RELAXNG schema rejects expand= and string= on <group>;
+                     group-by filters need an explicit domain="[]" to validate. -->
+                <group>
+                    <filter name="g_fy" string="Financial Year" domain="[]"
+                            context="{'group_by': 'financial_year'}"/>
+                    <filter name="g_state" string="Status" domain="[]"
+                            context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_tds_declaration" model="ir.actions.act_window">
+        <field name="name">Tax Declarations</field>
+        <field name="res_model">mrelate.tds.declaration</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Create an employee tax declaration</p>
+            <p>Declare regime, income and deductions; the system computes monthly TDS.</p>
+        </field>
+    </record>
+
+</odoo>

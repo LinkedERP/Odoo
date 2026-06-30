@@ -1,0 +1,845 @@
+.o_linkederp_dashboard {
+    height: 100%;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 24px;
+    background: #f7f8fa;
+    color: #111827;
+
+    .o_lds_toolbar {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .o_lds_title_block {
+        min-width: 220px;
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: 0;
+        }
+
+        p {
+            max-width: 760px;
+            margin: 6px 0 0;
+            color: #64748b;
+        }
+    }
+
+    .o_lds_controls {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+
+        .form-select {
+            width: 220px;
+        }
+
+        .o_lds_filter_select {
+            width: 190px;
+        }
+
+        .form-control {
+            width: 150px;
+        }
+
+        .btn {
+            min-width: 38px;
+        }
+    }
+
+    .o_lds_grid {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .o_lds_widget {
+        grid-column: span 6;
+        min-height: 230px;
+        padding: 18px;
+        border: 1px solid #dde3ea;
+        border-radius: 8px;
+        background: #ffffff;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.07);
+    }
+
+    .o_lds_widget_kpi {
+        grid-column: span 3;
+        min-height: 184px;
+    }
+
+    .o_lds_span_3 {
+        grid-column: span 3;
+    }
+
+    .o_lds_span_4 {
+        grid-column: span 4;
+    }
+
+    .o_lds_span_6 {
+        grid-column: span 6;
+    }
+
+    .o_lds_span_8 {
+        grid-column: span 8;
+    }
+
+    .o_lds_span_12 {
+        grid-column: span 12;
+    }
+
+    .o_lds_widget_table,
+    .o_lds_widget_column,
+    .o_lds_widget_comparison,
+    .o_lds_widget_line,
+    .o_lds_widget_matrix,
+    .o_lds_widget_funnel {
+        grid-column: span 6;
+    }
+
+    .o_lds_widget.o_lds_span_3 {
+        grid-column: span 3;
+    }
+
+    .o_lds_widget.o_lds_span_4 {
+        grid-column: span 4;
+    }
+
+    .o_lds_widget.o_lds_span_6 {
+        grid-column: span 6;
+    }
+
+    .o_lds_widget.o_lds_span_8 {
+        grid-column: span 8;
+    }
+
+    .o_lds_widget.o_lds_span_12 {
+        grid-column: span 12;
+    }
+
+    .o_lds_widget_header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 16px;
+
+        h2 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1.25;
+            letter-spacing: 0;
+        }
+
+        span {
+            display: block;
+            margin-top: 4px;
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
+        .btn {
+            padding: 0;
+            color: #64748b;
+        }
+    }
+
+    .o_lds_kpi {
+        display: flex;
+        width: 100%;
+        min-height: 102px;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: flex-end;
+        border: 0;
+        border-top: 4px solid var(--lds-accent);
+        background: transparent;
+        text-align: left;
+    }
+
+    .o_lds_widget_gauge {
+        min-height: 184px;
+    }
+
+    .o_lds_gauge {
+        display: grid;
+        width: 100%;
+        min-height: 108px;
+        place-items: center;
+        border: 0;
+        background: transparent;
+        color: inherit;
+    }
+
+    .o_lds_gauge_ring {
+        display: grid;
+        width: 132px;
+        height: 132px;
+        place-items: center;
+        border-radius: 50%;
+
+        > span {
+            display: grid;
+            width: 88px;
+            height: 88px;
+            place-items: center;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 0 0 0 1px #e5e7eb;
+            text-align: center;
+        }
+
+        strong {
+            display: block;
+            color: #0f172a;
+            font-size: 22px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        small {
+            display: block;
+            max-width: 74px;
+            color: #64748b;
+            font-size: 10px;
+            line-height: 1.15;
+        }
+    }
+
+    .o_lds_kpi_value {
+        font-size: 34px;
+        font-weight: 800;
+        line-height: 1;
+        color: #0f172a;
+    }
+
+    .o_lds_kpi_caption {
+        margin-top: 8px;
+        color: #64748b;
+        font-size: 13px;
+    }
+
+    .o_lds_bars {
+        display: grid;
+        gap: 10px;
+    }
+
+    .o_lds_funnel {
+        display: grid;
+        gap: 12px;
+    }
+
+    .o_lds_funnel_row {
+        display: grid;
+        grid-template-columns: minmax(120px, 0.75fr) minmax(240px, 3fr) minmax(72px, auto);
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+    }
+
+    .o_lds_funnel_label,
+    .o_lds_funnel_share {
+        color: #334155;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .o_lds_funnel_share {
+        text-align: right;
+    }
+
+    .o_lds_funnel_track {
+        height: 28px;
+        overflow: hidden;
+        border-radius: 6px;
+        background: #edf2f7;
+    }
+
+    .o_lds_funnel_fill {
+        display: flex;
+        height: 100%;
+        align-items: center;
+        justify-content: flex-end;
+        min-width: 44px;
+        padding-right: 10px;
+        border-radius: inherit;
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .o_lds_stack {
+        display: grid;
+        gap: 16px;
+    }
+
+    .o_lds_stack_bar {
+        display: flex;
+        width: 100%;
+        min-height: 42px;
+        overflow: hidden;
+        border: 0;
+        border-radius: 8px;
+        background: #eef2f7;
+        color: #ffffff;
+        text-align: center;
+    }
+
+    .o_lds_stack_segment {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 34px;
+        padding: 0 6px;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .o_lds_stack_legend {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px 14px;
+
+        button {
+            display: grid;
+            grid-template-columns: 10px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 8px;
+            border: 0;
+            background: transparent;
+            color: #334155;
+            font-size: 12px;
+            text-align: left;
+        }
+
+        i {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    }
+
+    .o_lds_bar_row {
+        display: grid;
+        grid-template-columns: minmax(88px, 1.2fr) minmax(120px, 3fr) minmax(72px, auto);
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+    }
+
+    .o_lds_bar_label {
+        overflow: hidden;
+        color: #334155;
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .o_lds_bar_track {
+        height: 10px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #eef2f7;
+    }
+
+    .o_lds_bar_fill {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+    }
+
+    .o_lds_bar_value {
+        color: #0f172a;
+        font-size: 12px;
+        font-weight: 700;
+        text-align: right;
+    }
+
+    .o_lds_compare {
+        display: grid;
+        gap: 12px;
+    }
+
+    .o_lds_compare_legend {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 16px;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 800;
+
+        span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        i {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+    }
+
+    .o_lds_compare_generated {
+        background: #2563eb;
+    }
+
+    .o_lds_compare_meetings {
+        background: #059669;
+    }
+
+    .o_lds_compare_row {
+        display: grid;
+        grid-template-columns: minmax(160px, 1fr) minmax(260px, 2.5fr);
+        align-items: center;
+        gap: 12px;
+    }
+
+    .o_lds_compare_label {
+        display: grid;
+        gap: 3px;
+        border: 0;
+        background: transparent;
+        color: #334155;
+        font-size: 12px;
+        text-align: left;
+
+        span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        strong {
+            color: #0f172a;
+            font-size: 11px;
+        }
+    }
+
+    .o_lds_compare_tracks {
+        display: grid;
+        gap: 5px;
+    }
+
+    .o_lds_compare_track {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 44px;
+        align-items: center;
+        gap: 8px;
+        border: 0;
+        background: transparent;
+        color: inherit;
+    }
+
+    .o_lds_compare_track::before {
+        content: "";
+        display: block;
+        grid-column: 1;
+        grid-row: 1;
+        height: 8px;
+        border-radius: 999px;
+        background: #eef2f7;
+    }
+
+    .o_lds_compare_fill {
+        display: block;
+        grid-column: 1;
+        grid-row: 1;
+        height: 8px;
+        border-radius: 999px;
+    }
+
+    .o_lds_compare_track strong {
+        color: #0f172a;
+        font-size: 11px;
+        font-weight: 800;
+        text-align: right;
+    }
+
+    .o_lds_columns {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr);
+        gap: 10px;
+    }
+
+    .o_lds_column_axis {
+        display: flex;
+        height: 184px;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 0 0 40px;
+        color: #64748b;
+        font-size: 10px;
+        font-weight: 700;
+        text-align: right;
+    }
+
+    .o_lds_column_plot {
+        display: grid;
+        min-height: 224px;
+        grid-auto-columns: minmax(58px, 1fr);
+        grid-auto-flow: column;
+        gap: 14px;
+        overflow-x: auto;
+        padding: 0 4px 4px;
+        background-image: linear-gradient(to bottom, #e8edf3 1px, transparent 1px);
+        background-size: 100% 46px;
+        background-position: 0 0;
+    }
+
+    .o_lds_column_item {
+        display: grid;
+        min-width: 58px;
+        grid-template-rows: 184px 36px;
+        gap: 6px;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        text-align: center;
+    }
+
+    .o_lds_column_bar_wrap {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        border-bottom: 1px solid #cbd5e1;
+    }
+
+    .o_lds_column_bar {
+        display: flex;
+        width: 52px;
+        max-width: 100%;
+        align-items: flex-start;
+        justify-content: center;
+        min-height: 4px;
+        border-radius: 5px 5px 0 0;
+        color: #ffffff;
+        transition: opacity 0.15s ease, transform 0.15s ease;
+
+        strong {
+            margin-top: -18px;
+            color: #0f172a;
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 1;
+        }
+    }
+
+    .o_lds_column_item:hover .o_lds_column_bar {
+        opacity: 0.86;
+        transform: translateY(-2px);
+    }
+
+    .o_lds_column_label {
+        display: block;
+        height: 32px;
+        overflow: hidden;
+        color: #475569;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1.15;
+    }
+
+    .o_lds_line {
+        display: block;
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+
+        svg {
+            width: 100%;
+            height: 138px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+    }
+
+    .o_lds_line_area {
+        fill: none;
+        stroke: rgba(37, 99, 235, 0.16);
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 18;
+    }
+
+    .o_lds_line_stroke {
+        fill: none;
+        stroke: var(--lds-accent);
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 4;
+    }
+
+    .o_lds_line_ticks {
+        display: grid;
+        grid-auto-columns: minmax(54px, 1fr);
+        grid-auto-flow: column;
+        gap: 8px;
+        overflow-x: auto;
+        padding-top: 8px;
+
+        span {
+            display: grid;
+            gap: 2px;
+            min-width: 54px;
+            color: #64748b;
+            text-align: center;
+        }
+
+        small {
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        strong {
+            color: #0f172a;
+            font-size: 12px;
+            font-weight: 800;
+        }
+    }
+
+    .o_lds_axis {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 10px;
+        color: #64748b;
+        font-size: 12px;
+
+        strong {
+            color: #0f172a;
+            font-size: 16px;
+        }
+    }
+
+    .o_lds_pie_wrap {
+        display: grid;
+        grid-template-columns: 156px minmax(0, 1fr);
+        align-items: center;
+        gap: 18px;
+    }
+
+    .o_lds_pie {
+        display: grid;
+        width: 156px;
+        height: 156px;
+        place-items: center;
+        border: 10px solid #ffffff;
+        border-radius: 50%;
+        box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.12), 0 0 0 1px #e5e7eb;
+
+        span {
+            display: grid;
+            min-width: 84px;
+            min-height: 84px;
+            place-items: center;
+            border-radius: 50%;
+            background: #ffffff;
+            color: #0f172a;
+            font-weight: 800;
+        }
+    }
+
+    .o_lds_widget_donut {
+        grid-column: span 6;
+    }
+
+    .o_lds_legend {
+        display: grid;
+        gap: 8px;
+
+        button {
+            display: grid;
+            grid-template-columns: 10px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 8px;
+            border: 0;
+            background: transparent;
+            color: #334155;
+            font-size: 12px;
+            text-align: left;
+        }
+
+        i {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+    }
+
+    .o_lds_table_wrap {
+        max-height: 310px;
+        overflow: auto;
+
+        tbody tr {
+            cursor: pointer;
+        }
+    }
+
+    .o_lds_matrix_wrap {
+        max-height: 380px;
+        overflow: auto;
+
+        table {
+            min-width: 860px;
+        }
+
+        thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: #ffffff;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        tbody tr {
+            cursor: pointer;
+        }
+
+        tbody td {
+            font-size: 12px;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+    }
+
+    .o_lds_widget_error {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        background: #fef2f2;
+        color: #991b1b;
+        font-size: 13px;
+    }
+
+    .o_lds_empty {
+        display: flex;
+        min-height: 320px;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        border: 1px dashed #cbd5e1;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #64748b;
+    }
+}
+
+@media (max-width: 1200px) {
+    .o_linkederp_dashboard {
+        .o_lds_widget,
+        .o_lds_widget_kpi,
+        .o_lds_widget_table,
+        .o_lds_widget_column,
+        .o_lds_widget_comparison,
+        .o_lds_widget_line,
+        .o_lds_widget_matrix,
+        .o_lds_widget_funnel,
+        .o_lds_widget_donut,
+        .o_lds_span_3,
+        .o_lds_span_4,
+        .o_lds_span_6,
+        .o_lds_span_8,
+        .o_lds_span_12 {
+            grid-column: span 6;
+        }
+    }
+}
+
+@media (max-width: 768px) {
+    .o_linkederp_dashboard {
+        padding: 14px;
+
+        .o_lds_toolbar,
+        .o_lds_controls {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .o_lds_controls {
+            .form-select,
+            .form-control,
+            .btn {
+                width: 100%;
+            }
+        }
+
+        .o_lds_widget,
+        .o_lds_widget_kpi,
+        .o_lds_widget_table,
+        .o_lds_widget_column,
+        .o_lds_widget_comparison,
+        .o_lds_widget_line,
+        .o_lds_widget_matrix,
+        .o_lds_widget_funnel,
+        .o_lds_widget_donut,
+        .o_lds_span_3,
+        .o_lds_span_4,
+        .o_lds_span_6,
+        .o_lds_span_8,
+        .o_lds_span_12 {
+            grid-column: span 12;
+        }
+
+        .o_lds_pie_wrap {
+            grid-template-columns: 1fr;
+        }
+
+        .o_lds_bar_row {
+            grid-template-columns: minmax(78px, 1fr) minmax(90px, 2fr) minmax(60px, auto);
+        }
+
+        .o_lds_funnel_row {
+            grid-template-columns: 1fr;
+        }
+
+        .o_lds_compare_row,
+        .o_lds_compare_track {
+            grid-template-columns: 1fr;
+        }
+
+        .o_lds_compare_track strong {
+            text-align: left;
+        }
+
+        .o_lds_stack_legend {
+            grid-template-columns: 1fr;
+        }
+    }
+}

@@ -7,7 +7,7 @@
     'website': 'https://Linkederp.com',
     'license': 'AGPL-3',
     'depends': ['account', 'hr_timesheet', 'sale_timesheet','helpdesk_sale_timesheet'],
-    'data': ['views/timesheet_views.xml'],
+    'data': [],
     'installable': True,
     'application': True,
     'auto_install': False,

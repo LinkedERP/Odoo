@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="report_form_12bb_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h2>Employee Tax Declaration (Form 12BB-style)</h2>
+                        <h4>Financial Year: <span t-field="doc.financial_year"/></h4>
+                        <hr/>
+                        <table class="table table-sm">
+                            <tr><td><b>Employee</b></td><td><span t-field="doc.employee_id.name"/></td></tr>
+                            <tr><td><b>PAN</b></td>
+                                <td><span t-field="doc.pan"/>
+                                    <span t-if="doc.pan_missing" style="color:#b00">
+                                        (NOT PROVIDED - sec 206AA 20% floor applies)
+                                    </span>
+                                </td></tr>
+                            <tr><td><b>Regime applied</b></td><td><span t-field="doc.regime"/></td></tr>
+                            <tr><td><b>Recommended regime</b></td><td><span t-field="doc.recommended_regime"/></td></tr>
+                            <tr><td><b>Department</b></td><td><span t-field="doc.department_id.name"/></td></tr>
+                        </table>
+
+                        <h4>1. Salary projection (annual)</h4>
+                        <table class="table table-sm table-bordered">
+                            <tr><td>Salary paid YTD</td><td t-esc="'%0.2f' % (doc.salary_paid_ytd or 0.0)"/></tr>
+                            <tr><td>Current month salary</td><td t-esc="'%0.2f' % (doc.salary_current_month or 0.0)"/></tr>
+                            <tr><td>Projected remaining</td><td t-esc="'%0.2f' % (doc.salary_projected_remaining or 0.0)"/></tr>
+                            <tr><td>Bonus / variable / one-time</td><td t-esc="'%0.2f' % (doc.bonus_variable or 0.0)"/></tr>
+                            <tr><td><b>Gross annual</b></td><td t-esc="'%0.2f' % (doc.gross_annual_salary or 0.0)"/></tr>
+                        </table>
+
+                        <h4>2. Other income / previous employer</h4>
+                        <table class="table table-sm table-bordered">
+                            <tr><td>Previous employer income</td><td t-esc="'%0.2f' % (doc.prev_employer_income or 0.0)"/></tr>
+                            <tr><td>Previous employer TDS</td><td t-esc="'%0.2f' % (doc.prev_employer_tds or 0.0)"/></tr>
+                            <tr><td>Other income</td><td t-esc="'%0.2f' % (doc.other_income or 0.0)"/></tr>
+                            <tr><td>Interest income</td><td t-esc="'%0.2f' % (doc.interest_income or 0.0)"/></tr>
+                            <tr><td>House property income / (loss)</td><td t-esc="'%0.2f' % (doc.house_property_income or 0.0)"/></tr>
+                        </table>
+
+                        <h4>3. Exemptions &amp; deductions claimed (old regime)</h4>
+                        <table class="table table-sm table-bordered">
+                            <tr><td>HRA received</td><td t-esc="'%0.2f' % (doc.hra_received or 0.0)"/></tr>
+                            <tr><td>Annual rent paid</td><td t-esc="'%0.2f' % (doc.rent_paid or 0.0)"/></tr>
+                            <tr><td>Metro city</td><td><span t-field="doc.metro_city"/></td></tr>
+                            <tr><td>HRA exempt (least-of-three)</td><td t-esc="'%0.2f' % (doc.hra_exempt or 0.0)"/></tr>
+                            <tr><td>LTA exemption</td><td t-esc="'%0.2f' % (doc.lta_exemption or 0.0)"/></tr>
+                            <tr><td>80C (capped at 1,50,000)</td><td t-esc="'%0.2f' % (min(doc.ded_80c or 0.0, 150000.0))"/></tr>
+                            <tr><td>80CCD(1B) (capped at 50,000)</td><td t-esc="'%0.2f' % (min(doc.ded_80ccd_1b or 0.0, 50000.0))"/></tr>
+                            <tr><td>80CCD(2) employer NPS</td>
+                                <td t-esc="'%0.2f' % (doc.ded_80ccd_2_employer or 0.0)"/></tr>
+                            <tr><td>80D medical insurance</td><td t-esc="'%0.2f' % (doc.ded_80d or 0.0)"/></tr>
+                            <tr><td>Home loan interest sec 24(b)</td><td t-esc="'%0.2f' % (min(doc.home_loan_interest or 0.0, 200000.0))"/></tr>
+                            <tr><td>Other deductions</td><td t-esc="'%0.2f' % (doc.other_deductions or 0.0)"/></tr>
+                        </table>
+
+                        <h4>4. Tax &amp; monthly TDS</h4>
+                        <table class="table table-sm table-bordered">
+                            <tr><td>Gross total income</td><td t-esc="'%0.2f' % (doc.gross_total_income or 0.0)"/></tr>
+                            <tr><td>Taxable income (new)</td><td t-esc="'%0.2f' % (doc.taxable_income_new or 0.0)"/></tr>
+                            <tr><td>Taxable income (old)</td><td t-esc="'%0.2f' % (doc.taxable_income_old or 0.0)"/></tr>
+                            <tr><td>Tax (new)</td><td t-esc="'%0.2f' % (doc.tax_new or 0.0)"/></tr>
+                            <tr><td>Tax (old)</td><td t-esc="'%0.2f' % (doc.tax_old or 0.0)"/></tr>
+                            <tr><td><b>Total tax liability (applied regime)</b></td><td t-esc="'%0.2f' % (doc.total_tax_liability or 0.0)"/></tr>
+                            <tr><td>TDS already deducted</td><td t-esc="'%0.2f' % (doc.tax_already_deducted or 0.0)"/></tr>
+                            <tr><td>Remaining months</td><td t-esc="'%d' % (doc.remaining_months or 0)"/></tr>
+                            <tr><td><b>Monthly TDS</b></td><td t-esc="'%0.2f' % (doc.monthly_tds or 0.0)"/></tr>
+                        </table>
+
+                        <p class="text-muted" style="font-size:smaller">
+                            This is a Form 12BB-style printout generated from the
+                            India Payroll TDS module. It is NOT a substitute for
+                            the prescribed Form 12BB filed with proofs - check
+                            with your CA before submission.
+                        </p>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

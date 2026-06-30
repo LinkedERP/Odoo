@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_payroll_run_wizard_form" model="ir.ui.view">
+        <field name="name">mrelate.payroll.run.wizard.form</field>
+        <field name="model">mrelate.payroll.run.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Monthly Payroll Run">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Monthly Payroll Run</h1>
+                        <p class="text-muted">
+                            One click: prepare TDS declarations, apply approved
+                            TDS to contracts, create draft payslips for the period
+                            and refresh expenses. Nothing is validated or posted.
+                        </p>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="period_start"/>
+                            <field name="period_end"/>
+                            <field name="struct_id"/>
+                        </group>
+                        <group>
+                            <field name="create_missing_declarations"/>
+                            <field name="apply_tds_if_approved"/>
+                        </group>
+                    </group>
+                    <group string="Last run summary" invisible="not log_html">
+                        <group>
+                            <field name="employees_count"/>
+                            <field name="declarations_created_count"/>
+                            <field name="declarations_refreshed_count"/>
+                            <field name="tds_applied_count"/>
+                        </group>
+                        <group>
+                            <field name="payslips_created_count"/>
+                            <field name="payslips_skipped_count"/>
+                            <field name="expenses_attached_count"/>
+                        </group>
+                    </group>
+                    <separator string="Activity log" invisible="not log_html"/>
+                    <field name="log_html" nolabel="1" readonly="1"
+                           invisible="not log_html"/>
+                </sheet>
+                <footer>
+                    <button string="Run" name="action_run" type="object"
+                            class="btn-primary"/>
+                    <button string="Close" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_payroll_run_wizard" model="ir.actions.act_window">
+        <field name="name">Monthly Payroll Run</field>
+        <field name="res_model">mrelate.payroll.run.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

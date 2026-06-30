@@ -1,0 +1,2 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_payroll_run_wizard,payroll.run.wizard.access,model_mrelate_payroll_run_wizard,mrelate_payroll_tds.group_tds_reviewer,1,1,1,1

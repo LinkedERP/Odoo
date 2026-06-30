@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Custom graph + pivot views for hr.payslip targeted at India payroll cost view -->
+    <record id="view_payslip_graph_india" model="ir.ui.view">
+        <field name="name">hr.payslip.graph.india</field>
+        <field name="model">hr.payslip</field>
+        <field name="arch" type="xml">
+            <graph string="Payroll Cost" type="bar" stacked="1" sample="1">
+                <field name="date_from" interval="month"/>
+                <field name="gross_wage" type="measure"/>
+                <field name="net_wage" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_payslip_pivot_india" model="ir.ui.view">
+        <field name="name">hr.payslip.pivot.india</field>
+        <field name="model">hr.payslip</field>
+        <field name="arch" type="xml">
+            <pivot string="Payroll Cost" sample="1">
+                <field name="date_from" type="row" interval="month"/>
+                <field name="employee_id" type="row"/>
+                <field name="gross_wage" type="measure"/>
+                <field name="net_wage" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="action_payslip_dashboard" model="ir.actions.act_window">
+        <field name="name">Payroll Cost Dashboard</field>
+        <field name="res_model">hr.payslip</field>
+        <field name="view_mode">graph,pivot,list,form</field>
+        <field name="domain">[('struct_id.country_id.code', '=', 'IN')]</field>
+        <field name="context">{'search_default_group_by_struct': 1}</field>
+    </record>
+</odoo>
