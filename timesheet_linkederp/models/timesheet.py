@@ -69,30 +69,30 @@ class AccountAnalyticLine(models.Model):
         help="Sales order item to which the time spent will be added in order to be invoiced to your customer. "
              "Remove the sales order item for the timesheet entry to be non-billable.")
 
-    @api.constrains('project_id')
-    def _check_project_company_vs_current_company(self):
-        """Prevent logging timesheet if project company != currently selected company."""
-        current_company = self.env.company
-        for record in self:
-            if record.project_id and record.project_id.company_id != current_company:
-                self.project_id = False
-                raise ValidationError(
-                    _("You cannot log a timesheet on a project that belongs to another company.\n"
-                      "Your current company: %s\nProject company: %s") %
-                    (current_company.display_name, record.project_id.company_id.display_name)
-                )
+    # @api.constrains('project_id')
+    # def _check_project_company_vs_current_company(self):
+    #     """Prevent logging timesheet if project company != currently selected company."""
+    #     current_company = self.env.company
+    #     for record in self:
+    #         if record.project_id and record.project_id.company_id != current_company:
+    #             self.project_id = False
+    #             raise ValidationError(
+    #                 _("You cannot log a timesheet on a project that belongs to another company.\n"
+    #                   "Your current company: %s\nProject company: %s") %
+    #                 (current_company.display_name, record.project_id.company_id.display_name)
+    #             )
 
-    @api.onchange('project_id')
-    def _onchange_project_company_vs_current_company(self):
-        """Show warning immediately in form view when project != current company."""
-        current_company = self.env.company
-        if self.project_id and self.project_id.company_id != current_company:
-            self.project_id = False
-            return {
-                'warning': {
-                    'title': _("Invalid Project"),
-                    'message': _("This project belongs to another company. "
-                                 "You cannot log a timesheet for it while working in %s.")
-                               % current_company.display_name,
-                }
-            }
+    # @api.onchange('project_id')
+    # def _onchange_project_company_vs_current_company(self):
+    #     """Show warning immediately in form view when project != current company."""
+    #     current_company = self.env.company
+    #     if self.project_id and self.project_id.company_id != current_company:
+    #         self.project_id = False
+    #         return {
+    #             'warning': {
+    #                 'title': _("Invalid Project"),
+    #                 'message': _("This project belongs to another company. "
+    #                              "You cannot log a timesheet for it while working in %s.")
+    #                            % current_company.display_name,
+    #             }
+    #         }
