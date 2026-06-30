@@ -5,6 +5,7 @@ import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 
 const PALETTE = ["#2563eb", "#059669", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777", "#475569"];
+const SELECTED_DASHBOARD_KEY = "linkederp_dashboard_studio.selected_dashboard_id";
 
 export class LinkedERPDashboardAction extends Component {
     setup() {
@@ -40,9 +41,14 @@ export class LinkedERPDashboardAction extends Component {
             "formatNumber",
             "formatWidgetValue",
             "formatPointValue",
+            "formatByType",
             "optionLabel",
             "isFilterSelected",
             "barStyle",
+            "gaugeStyle",
+            "funnelStyle",
+            "pointShare",
+            "matrixCellValue",
             "pieStyle",
             "linePoints",
             "legendColor",
@@ -69,15 +75,27 @@ export class LinkedERPDashboardAction extends Component {
         return date.toISOString().slice(0, 10);
     }
 
+    savedDashboardId() {
+        const value = window.localStorage.getItem(SELECTED_DASHBOARD_KEY);
+        return value ? Number(value) : false;
+    }
+
+    saveDashboardId(dashboardId) {
+        if (dashboardId) {
+            window.localStorage.setItem(SELECTED_DASHBOARD_KEY, String(dashboardId));
+        }
+    }
+
     async load(dashboardId) {
         this.state.loading = true;
         try {
+            const targetDashboardId = dashboardId || this.savedDashboardId();
             const payload = await this.orm.call(
                 "linkederp.dashboard",
                 "get_dashboard_payload",
                 [],
                 {
-                    dashboard_id: dashboardId || false,
+                    dashboard_id: targetDashboardId || false,
                     date_from: this.state.filters.dateFrom || false,
                     date_to: this.state.filters.dateTo || false,
                     filters: {
@@ -92,6 +110,9 @@ export class LinkedERPDashboardAction extends Component {
             this.state.dashboard = payload.dashboard || false;
             this.state.widgets = payload.widgets || [];
             this.state.crmFilters = payload.crm_filters || { enabled: false };
+            if (this.state.dashboard) {
+                this.saveDashboardId(this.state.dashboard.id);
+            }
         } catch (error) {
             this.notification.add(error.message || error.toString(), { type: "danger" });
         } finally {
@@ -101,7 +122,9 @@ export class LinkedERPDashboardAction extends Component {
 
     async onDashboardChange(ev) {
         this.clearCrmFilters();
-        await this.load(Number(ev.target.value));
+        const dashboardId = Number(ev.target.value);
+        this.saveDashboardId(dashboardId);
+        await this.load(dashboardId);
     }
 
     async applyFilters() {
@@ -147,14 +170,26 @@ export class LinkedERPDashboardAction extends Component {
         }).format(number);
     }
 
+    formatByType(value, format) {
+        const number = Number(value || 0);
+        if (format === "percent") {
+            return `${this.formatNumber(number)}%`;
+        }
+        if (format === "integer") {
+            return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(number);
+        }
+        if (format === "days") {
+            return `${this.formatNumber(number)} days`;
+        }
+        return this.formatNumber(number);
+    }
+
     formatWidgetValue(widget) {
-        const formatted = this.formatNumber(widget.value);
-        return widget.format === "percent" ? `${formatted}%` : formatted;
+        return this.formatByType(widget.value, widget.format);
     }
 
     formatPointValue(widget, value) {
-        const formatted = this.formatNumber(value);
-        return widget.format === "percent" ? `${formatted}%` : formatted;
+        return this.formatByType(value, widget.format);
     }
 
     optionLabel(option) {
@@ -173,6 +208,29 @@ export class LinkedERPDashboardAction extends Component {
     barStyle(widget, point) {
         const width = Math.max(3, (Number(point.value || 0) / this.maxPointValue(widget)) * 100);
         return `width: ${width}%; background: ${widget.color || "#2563eb"};`;
+    }
+
+    gaugeStyle(widget) {
+        const value = Math.max(0, Math.min(100, Number(widget.value || 0)));
+        return `background: conic-gradient(${widget.color || "#2563eb"} 0 ${value}%, #e5e7eb ${value}% 100%);`;
+    }
+
+    funnelStyle(widget, point) {
+        const first = widget.points && widget.points.length ? Number(widget.points[0].value || 0) : 0;
+        const width = first ? Math.max(3, (Number(point.value || 0) / first) * 100) : 3;
+        return `width: ${width}%; background: ${widget.color || "#2563eb"};`;
+    }
+
+    pointShare(widget, point) {
+        const first = widget.points && widget.points.length ? Number(widget.points[0].value || 0) : 0;
+        if (!first) {
+            return "0%";
+        }
+        return `${this.formatNumber((Number(point.value || 0) / first) * 100)}%`;
+    }
+
+    matrixCellValue(row, column) {
+        return this.formatByType(row[column.key], column.format);
     }
 
     pieStyle(widget) {

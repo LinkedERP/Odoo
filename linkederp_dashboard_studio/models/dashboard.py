@@ -106,7 +106,7 @@ class LinkederpDashboard(models.Model):
             }
             or False,
             "widgets": widgets,
-            "crm_filters": dashboard._dashboard_crm_filter_options(date_from=date_from)
+            "crm_filters": dashboard._dashboard_crm_filter_options(date_from=date_from, date_to=date_to)
             if dashboard
             else {"enabled": False},
         }
@@ -329,11 +329,8 @@ class LinkederpDashboard(models.Model):
             domains.append(extra_domain)
         return expression.AND(domains)
 
-    def _ai_count(self, domain):
-        return self.env["crm.lead"].search_count(domain)
-
     def _ai_sum(self, domain, field_name):
-        rows = self.env["crm.lead"].read_group(
+        rows = self._ai_lead_model().read_group(
             domain,
             ["%s:sum" % field_name],
             [],
@@ -357,8 +354,11 @@ class LinkederpDashboard(models.Model):
         measure,
         help_text="",
         points=False,
+        rows=False,
+        columns=False,
         groupby="",
         value_format="number",
+        span=False,
     ):
         return {
             "id": widget_id,
@@ -374,6 +374,9 @@ class LinkederpDashboard(models.Model):
             "format": value_format,
             "domain": self._json_safe(domain),
             "points": points or [],
+            "rows": rows or [],
+            "columns": columns or [],
+            "span": span or False,
             "error": False,
         }
 
@@ -385,7 +388,7 @@ class LinkederpDashboard(models.Model):
         }
 
     def _ai_group_points(self, domain, groupby, measure=False, limit=12):
-        Lead = self.env["crm.lead"]
+        Lead = self._ai_lead_model()
         group_field = groupby.split(":", 1)[0]
         fields_to_read = [group_field]
         if measure:
@@ -414,9 +417,74 @@ class LinkederpDashboard(models.Model):
             return points
         return sorted(points, key=lambda item: item["value"], reverse=True)
 
+    def _ai_lead_model(self):
+        return self.env["crm.lead"].with_context(active_test=False)
+
+    def _ai_count(self, domain):
+        return self._ai_lead_model().search_count(domain)
+
+    def _ai_average_age_days(self, domain):
+        leads = self._ai_lead_model().search(domain, limit=2000)
+        today = fields.Date.context_today(self)
+        ages = []
+        for lead in leads:
+            created = fields.Date.to_date(lead.create_date)
+            if created:
+                ages.append((today - created).days)
+        if not ages:
+            return 0
+        return round(sum(ages) / len(ages), 1)
+
+    def _ai_matrix_rows(self, base_domain, groupby, limit=12):
+        groups = self._ai_group_points(base_domain, groupby, limit=limit)
+        rows = []
+        for group in groups:
+            group_domain = group["domain"]
+            generated = self._ai_count(group_domain)
+            worked_domain = expression.AND([group_domain, [("x_studio_call_outcome", "!=", False)]])
+            meeting_domain = expression.AND(
+                [
+                    group_domain,
+                    [
+                        "|",
+                        ("x_studio_call_outcome", "=", "Meeting Set"),
+                        ("x_studio_meeting_date", "!=", False),
+                    ],
+                ]
+            )
+            lost_domain = expression.AND(
+                [group_domain, ["|", ("won_status", "=", "lost"), ("active", "=", False)]]
+            )
+            open_domain = expression.AND([group_domain, [("active", "=", True)]])
+            worked = self._ai_count(worked_domain)
+            meetings = self._ai_count(meeting_domain)
+            lost = self._ai_count(lost_domain)
+            rows.append(
+                {
+                    "label": group["label"],
+                    "domain": self._json_safe(group_domain),
+                    "generated": generated,
+                    "worked_rate": self._ai_rate(worked, generated),
+                    "meetings": meetings,
+                    "meeting_rate": self._ai_rate(meetings, generated),
+                    "lost": lost,
+                    "lost_rate": self._ai_rate(lost, generated),
+                    "pipeline": self._ai_sum(open_domain, "expected_revenue"),
+                }
+            )
+        return rows
+
     def _ai_generated_lead_widgets(self, date_from=False, date_to=False, filters=False):
         base_domain = self._ai_base_domain(date_from=date_from, date_to=date_to, filters=filters)
         generated = self._ai_count(base_domain)
+
+        open_domain = self._ai_base_domain(
+            date_from=date_from,
+            date_to=date_to,
+            filters=filters,
+            extra_domain=[("active", "=", True)],
+        )
+        open_count = self._ai_count(open_domain)
 
         worked_domain = self._ai_base_domain(
             date_from=date_from,
@@ -437,6 +505,14 @@ class LinkederpDashboard(models.Model):
             ],
         )
         meetings = self._ai_count(meeting_domain)
+
+        won_domain = self._ai_base_domain(
+            date_from=date_from,
+            date_to=date_to,
+            filters=filters,
+            extra_domain=[("won_status", "=", "won")],
+        )
+        won = self._ai_count(won_domain)
 
         not_called_domain = self._ai_base_domain(
             date_from=date_from,
@@ -478,15 +554,27 @@ class LinkederpDashboard(models.Model):
         )
         lost = self._ai_count(lost_domain)
 
+        qualified_domain = self._ai_base_domain(
+            date_from=date_from,
+            date_to=date_to,
+            filters=filters,
+            extra_domain=[
+                ("x_studio_call_outcome", "in", ["Meeting Set", "Send more Info", "Call Later", "Future Interest"])
+            ],
+        )
+        qualified = self._ai_count(qualified_domain)
+
         pipeline = self._ai_sum(
-            self._ai_base_domain(
-                date_from=date_from,
-                date_to=date_to,
-                filters=filters,
-                extra_domain=[("active", "=", True)],
-            ),
+            open_domain,
             "expected_revenue",
         )
+        won_value = self._ai_sum(won_domain, "expected_revenue")
+        avg_backlog_age = self._ai_average_age_days(not_called_domain)
+        contact_rate = self._ai_rate(worked, generated)
+        meeting_rate = self._ai_rate(meetings, generated)
+        meeting_after_work_rate = self._ai_rate(meetings, worked)
+        lost_rate = self._ai_rate(lost, generated)
+        quality_rate = self._ai_rate(qualified, worked)
 
         return [
             self._ai_widget(
@@ -499,17 +587,31 @@ class LinkederpDashboard(models.Model):
                 _("AI-sourced leads"),
                 _("All CRM leads where Source is AI Generated."),
                 value_format="integer",
+                span=3,
+            ),
+            self._ai_widget(
+                "ai_open",
+                _("Open AI Leads"),
+                "kpi",
+                open_count,
+                open_domain,
+                "#0f766e",
+                _("%s%% still active") % self._ai_rate(open_count, generated),
+                _("AI leads that are still active/open."),
+                value_format="integer",
+                span=3,
             ),
             self._ai_widget(
                 "ai_worked",
-                _("Worked / Contacted"),
-                "kpi",
-                worked,
+                _("Contact Rate"),
+                "gauge",
+                contact_rate,
                 worked_domain,
                 "#0891b2",
-                _("%s%% contact rate") % self._ai_rate(worked, generated),
-                _("Leads with a call outcome captured."),
-                value_format="integer",
+                _("%s worked / contacted") % worked,
+                _("Share of AI leads with a call outcome captured."),
+                value_format="percent",
+                span=3,
             ),
             self._ai_widget(
                 "ai_meetings",
@@ -518,85 +620,127 @@ class LinkederpDashboard(models.Model):
                 meetings,
                 meeting_domain,
                 "#059669",
-                _("%s%% of generated") % self._ai_rate(meetings, generated),
+                _("%s%% of generated") % meeting_rate,
                 _("Meeting outcome or meeting date captured."),
                 value_format="integer",
+                span=3,
             ),
             self._ai_widget(
-                "ai_not_called",
-                _("Not Yet Called"),
-                "kpi",
-                not_called,
-                not_called_domain,
-                "#f59e0b",
-                _("%s%% backlog") % self._ai_rate(not_called, generated),
-                _("AI leads with no call outcome yet."),
-                value_format="integer",
-            ),
-            self._ai_widget(
-                "ai_not_suitable",
-                _("Not Suitable"),
-                "kpi",
-                self._ai_rate(not_suitable, worked),
-                not_suitable_domain,
-                "#ef4444",
-                _("%s of worked") % not_suitable,
-                _("Contacts or companies marked as not a fit."),
+                "ai_meeting_rate",
+                _("Meeting Conversion"),
+                "gauge",
+                meeting_after_work_rate,
+                meeting_domain,
+                "#22c55e",
+                _("%s%% once worked") % meeting_after_work_rate,
+                _("Meetings set as a percentage of worked AI leads."),
                 value_format="percent",
+                span=3,
             ),
             self._ai_widget(
-                "ai_unreachable",
-                _("Unreachable"),
-                "kpi",
-                self._ai_rate(unreachable, worked),
-                unreachable_domain,
-                "#db2777",
-                _("%s of worked") % unreachable,
-                _("Worked leads marked unable to make contact."),
+                "ai_quality_score",
+                _("Lead Quality Rate"),
+                "gauge",
+                quality_rate,
+                qualified_domain,
+                "#2563eb",
+                _("%s positive worked outcomes") % qualified,
+                _("Worked leads that are meeting/follow-up/future-interest instead of unsuitable or unreachable."),
                 value_format="percent",
+                span=3,
             ),
             self._ai_widget(
-                "ai_followup",
-                _("Follow-up Needed"),
-                "kpi",
-                followup,
-                followup_domain,
-                "#7c3aed",
-                _("send info / call later / future interest"),
-                _("Leads that still need nurturing or another touch."),
-                value_format="integer",
+                "ai_lost_rate",
+                _("Lost / Archived Rate"),
+                "gauge",
+                lost_rate,
+                lost_domain,
+                "#dc2626",
+                _("%s lost or archived") % lost,
+                _("Includes AI leads marked lost and archived/lost leads hidden by default in CRM."),
+                value_format="percent",
+                span=3,
             ),
             self._ai_widget(
                 "ai_pipeline",
                 _("Open AI Pipeline"),
                 "kpi",
                 pipeline,
-                base_domain,
+                open_domain,
                 "#0f766e",
                 _("Expected Revenue"),
                 _("Expected revenue on active AI-sourced CRM leads."),
+                span=3,
+            ),
+            self._ai_widget(
+                "ai_backlog_age",
+                _("Avg Backlog Age"),
+                "kpi",
+                avg_backlog_age,
+                not_called_domain,
+                "#f59e0b",
+                _("days not yet called"),
+                _("Average age of AI leads with no call outcome captured."),
+                value_format="days",
+                span=3,
+            ),
+            self._ai_widget(
+                "ai_won_value",
+                _("Won Value"),
+                "kpi",
+                won_value,
+                won_domain,
+                "#16a34a",
+                _("%s won leads") % won,
+                _("Expected revenue on AI leads marked won."),
+                span=3,
             ),
             self._ai_widget(
                 "ai_funnel",
-                _("Lead Funnel"),
-                "bar",
+                _("AI Lead Conversion Funnel"),
+                "funnel",
                 generated,
                 base_domain,
                 "#2563eb",
                 _("Records"),
-                _("Generated to worked to meetings set."),
+                _("Generated -> worked -> meetings -> qualified, with lost visible as leakage."),
                 points=[
                     self._ai_point(_("Generated"), generated, base_domain),
                     self._ai_point(_("Worked"), worked, worked_domain),
                     self._ai_point(_("Meetings"), meetings, meeting_domain),
+                    self._ai_point(_("Qualified Follow-up"), qualified, qualified_domain),
+                    self._ai_point(_("Lost / Archived"), lost, lost_domain),
                 ],
                 groupby=_("Funnel Step"),
                 value_format="integer",
+                span=12,
+            ),
+            self._ai_widget(
+                "ai_status_mix",
+                _("Lead Status Mix"),
+                "donut",
+                generated,
+                base_domain,
+                "#2563eb",
+                _("Records"),
+                _("Portfolio view of where AI leads currently sit."),
+                points=[
+                    self._ai_point(_("Not Yet Called"), not_called, not_called_domain),
+                    self._ai_point(_("Follow-up Needed"), followup, followup_domain),
+                    self._ai_point(_("Meetings Set"), meetings, meeting_domain),
+                    self._ai_point(_("Not Suitable"), not_suitable, not_suitable_domain),
+                    self._ai_point(_("Unreachable"), unreachable, unreachable_domain),
+                    self._ai_point(_("Lost / Archived"), lost, lost_domain),
+                    self._ai_point(_("Won"), won, won_domain),
+                ],
+                groupby=_("Status"),
+                value_format="integer",
+                span=6,
             ),
             self._ai_widget(
                 "ai_call_outcomes",
                 _("Call Outcomes"),
-                "bar",
+                "donut",
                 worked,
                 worked_domain,
                 "#0891b2",
@@ -605,6 +749,7 @@ class LinkederpDashboard(models.Model):
                 points=self._ai_group_points(worked_domain, "x_studio_call_outcome", limit=10),
                 groupby=_("Call Outcome"),
                 value_format="integer",
+                span=6,
             ),
             self._ai_widget(
                 "ai_generated_by_day",
@@ -618,52 +763,98 @@ class LinkederpDashboard(models.Model):
                 points=self._ai_group_points(base_domain, "create_date:day", limit=31),
                 groupby=_("Created On"),
                 value_format="integer",
+                span=6,
             ),
             self._ai_widget(
                 "ai_stage_pipeline",
                 _("Open Pipeline by Stage"),
                 "bar",
                 pipeline,
-                base_domain,
+                open_domain,
                 "#7c3aed",
                 _("Expected Revenue"),
                 _("Expected revenue grouped by CRM stage."),
-                points=self._ai_group_points(base_domain, "stage_id", measure="expected_revenue", limit=10),
+                points=self._ai_group_points(open_domain, "stage_id", measure="expected_revenue", limit=10),
                 groupby=_("Stage"),
+                span=6,
             ),
             self._ai_widget(
-                "ai_campaigns",
-                _("AI Leads by Campaign"),
-                "bar",
-                generated,
-                base_domain,
-                "#059669",
-                _("Records"),
-                _("Which campaigns are producing AI-sourced leads."),
-                points=self._ai_group_points(base_domain, "campaign_id", limit=10),
-                groupby=_("Campaign"),
+                "ai_lost_reasons",
+                _("Lost Reasons"),
+                "donut",
+                lost,
+                lost_domain,
+                "#dc2626",
+                _("Lost Leads"),
+                _("Why AI leads are being lost or archived."),
+                points=self._ai_group_points(lost_domain, "lost_reason_id", limit=8),
+                groupby=_("Lost Reason"),
                 value_format="integer",
+                span=6,
             ),
             self._ai_widget(
-                "ai_salesperson_work",
-                _("Worked Leads by Salesperson"),
-                "table",
-                worked,
-                worked_domain,
-                "#0f766e",
-                _("Worked Leads"),
-                _("Ownership and execution by salesperson."),
-                points=self._ai_group_points(worked_domain, "user_id", limit=15),
+                "ai_backlog_by_owner",
+                _("Not-Called Backlog by Owner"),
+                "bar",
+                not_called,
+                not_called_domain,
+                "#f59e0b",
+                _("Records"),
+                _("AI leads waiting for first call outcome by salesperson."),
+                points=self._ai_group_points(not_called_domain, "user_id", limit=10),
                 groupby=_("Salesperson"),
                 value_format="integer",
+                span=6,
+            ),
+            self._ai_widget(
+                "ai_campaign_matrix",
+                _("Campaign Performance Matrix"),
+                "matrix",
+                generated,
+                base_domain,
+                "#2563eb",
+                _("Records"),
+                _("Campaign quality, conversion, loss, and pipeline in one view."),
+                rows=self._ai_matrix_rows(base_domain, "campaign_id", limit=12),
+                columns=[
+                    {"key": "generated", "label": _("Generated"), "format": "integer"},
+                    {"key": "worked_rate", "label": _("Worked %"), "format": "percent"},
+                    {"key": "meetings", "label": _("Meetings"), "format": "integer"},
+                    {"key": "meeting_rate", "label": _("Meeting %"), "format": "percent"},
+                    {"key": "lost_rate", "label": _("Lost %"), "format": "percent"},
+                    {"key": "pipeline", "label": _("Open Pipeline"), "format": "number"},
+                ],
+                groupby=_("Campaign"),
+                span=12,
+            ),
+            self._ai_widget(
+                "ai_salesperson_matrix",
+                _("Salesperson Execution Matrix"),
+                "matrix",
+                generated,
+                base_domain,
+                "#0f766e",
+                _("Records"),
+                _("Owner-level contact, meeting, loss, and pipeline performance."),
+                rows=self._ai_matrix_rows(base_domain, "user_id", limit=15),
+                columns=[
+                    {"key": "generated", "label": _("Generated"), "format": "integer"},
+                    {"key": "worked_rate", "label": _("Worked %"), "format": "percent"},
+                    {"key": "meetings", "label": _("Meetings"), "format": "integer"},
+                    {"key": "meeting_rate", "label": _("Meeting %"), "format": "percent"},
+                    {"key": "lost", "label": _("Lost"), "format": "integer"},
+                    {"key": "pipeline", "label": _("Open Pipeline"), "format": "number"},
+                ],
+                groupby=_("Salesperson"),
+                span=12,
             ),
         ]
 
-    def _dashboard_crm_filter_options(self, date_from=False):
+    def _dashboard_crm_filter_options(self, date_from=False, date_to=False):
         self.ensure_one()
         if not self._is_ai_generated_leads_dashboard() or "crm.lead" not in self.env:
             return {"enabled": False}
-        base_domain = self._ai_base_domain(date_from=date_from)
+        base_domain = self._ai_base_domain(date_from=date_from, date_to=date_to)
         return {
             "enabled": True,
             "campaigns": self._crm_filter_options_for_field(base_domain, "campaign_id"),
@@ -673,7 +864,7 @@ class LinkederpDashboard(models.Model):
         }
 
     def _crm_filter_options_for_field(self, domain, field_name):
-        rows = self.env["crm.lead"].read_group(
+        rows = self._ai_lead_model().read_group(
             domain,
             [field_name],
             [field_name],
@@ -742,6 +933,7 @@ class LinkederpDashboard(models.Model):
                 [False, "graph"],
             ],
             "domain": parsed_domain,
+            "context": {"active_test": False} if model_name == "crm.lead" else {},
             "target": "current",
         }
 

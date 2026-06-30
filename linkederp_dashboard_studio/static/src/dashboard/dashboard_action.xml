@@ -90,7 +90,7 @@
             <div t-else="" class="o_lds_grid">
                 <t t-foreach="state.widgets" t-as="widget" t-key="widget.id">
                     <section
-                        t-att-class="'o_lds_widget o_lds_widget_' + widget.type"
+                        t-att-class="'o_lds_widget o_lds_widget_' + widget.type + (widget.span ? ' o_lds_span_' + widget.span : '')"
                         t-att-style="'--lds-accent:' + (widget.color || '#2563eb')">
                         <header class="o_lds_widget_header">
                             <div>
@@ -138,6 +138,39 @@
                             </div>
                         </t>
 
+                        <t t-elif="widget.type === 'gauge'">
+                            <button
+                                class="o_lds_gauge"
+                                type="button"
+                                t-on-click="() => openRecords(widget.model, widget.domain)">
+                                <span class="o_lds_gauge_ring" t-att-style="gaugeStyle(widget)">
+                                    <span>
+                                        <strong t-esc="formatWidgetValue(widget)"/>
+                                        <small t-esc="widget.measure"/>
+                                    </span>
+                                </span>
+                            </button>
+                        </t>
+
+                        <t t-elif="widget.type === 'funnel'">
+                            <div class="o_lds_funnel">
+                                <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                    <button
+                                        class="o_lds_funnel_row"
+                                        type="button"
+                                        t-on-click="() => openRecords(widget.model, point.domain)">
+                                        <span class="o_lds_funnel_label" t-esc="point.label"/>
+                                        <span class="o_lds_funnel_track">
+                                            <span class="o_lds_funnel_fill" t-att-style="funnelStyle(widget, point)">
+                                                <strong t-esc="formatPointValue(widget, point.value)"/>
+                                            </span>
+                                        </span>
+                                        <span class="o_lds_funnel_share" t-esc="pointShare(widget, point)"/>
+                                    </button>
+                                </t>
+                            </div>
+                        </t>
+
                         <t t-elif="widget.type === 'line'">
                             <button
                                 class="o_lds_line"
@@ -155,7 +188,7 @@
                             </button>
                         </t>
 
-                        <t t-elif="widget.type === 'pie'">
+                        <t t-elif="widget.type === 'pie' || widget.type === 'donut'">
                             <div class="o_lds_pie_wrap">
                                 <button
                                     class="o_lds_pie"
@@ -173,6 +206,31 @@
                                         </button>
                                     </t>
                                 </div>
+                            </div>
+                        </t>
+
+                        <t t-elif="widget.type === 'matrix'">
+                            <div class="o_lds_matrix_wrap">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th t-esc="widget.groupby"/>
+                                            <t t-foreach="widget.columns" t-as="column" t-key="column.key">
+                                                <th class="text-end" t-esc="column.label"/>
+                                            </t>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-foreach="widget.rows" t-as="row" t-key="row.label">
+                                            <tr t-on-click="() => openRecords(widget.model, row.domain)">
+                                                <td t-esc="row.label"/>
+                                                <t t-foreach="widget.columns" t-as="column" t-key="column.key">
+                                                    <td class="text-end" t-esc="matrixCellValue(row, column)"/>
+                                                </t>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                </table>
                             </div>
                         </t>
 

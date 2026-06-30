@@ -69,7 +69,7 @@
         border: 1px solid #dde3ea;
         border-radius: 8px;
         background: #ffffff;
-        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.07);
     }
 
     .o_lds_widget_kpi {
@@ -77,9 +77,51 @@
         min-height: 184px;
     }
 
-    .o_lds_widget_table,
-    .o_lds_widget_line {
+    .o_lds_span_3 {
+        grid-column: span 3;
+    }
+
+    .o_lds_span_4 {
+        grid-column: span 4;
+    }
+
+    .o_lds_span_6 {
         grid-column: span 6;
+    }
+
+    .o_lds_span_8 {
+        grid-column: span 8;
+    }
+
+    .o_lds_span_12 {
+        grid-column: span 12;
+    }
+
+    .o_lds_widget_table,
+    .o_lds_widget_line,
+    .o_lds_widget_matrix,
+    .o_lds_widget_funnel {
+        grid-column: span 6;
+    }
+
+    .o_lds_widget.o_lds_span_3 {
+        grid-column: span 3;
+    }
+
+    .o_lds_widget.o_lds_span_4 {
+        grid-column: span 4;
+    }
+
+    .o_lds_widget.o_lds_span_6 {
+        grid-column: span 6;
+    }
+
+    .o_lds_widget.o_lds_span_8 {
+        grid-column: span 8;
+    }
+
+    .o_lds_widget.o_lds_span_12 {
+        grid-column: span 12;
     }
 
     .o_lds_widget_header {
@@ -124,6 +166,55 @@
         text-align: left;
     }
 
+    .o_lds_widget_gauge {
+        min-height: 184px;
+    }
+
+    .o_lds_gauge {
+        display: grid;
+        width: 100%;
+        min-height: 108px;
+        place-items: center;
+        border: 0;
+        background: transparent;
+        color: inherit;
+    }
+
+    .o_lds_gauge_ring {
+        display: grid;
+        width: 132px;
+        height: 132px;
+        place-items: center;
+        border-radius: 50%;
+
+        > span {
+            display: grid;
+            width: 88px;
+            height: 88px;
+            place-items: center;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 0 0 0 1px #e5e7eb;
+            text-align: center;
+        }
+
+        strong {
+            display: block;
+            color: #0f172a;
+            font-size: 22px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        small {
+            display: block;
+            max-width: 74px;
+            color: #64748b;
+            font-size: 10px;
+            line-height: 1.15;
+        }
+    }
+
     .o_lds_kpi_value {
         font-size: 34px;
         font-weight: 800;
@@ -140,6 +231,54 @@
     .o_lds_bars {
         display: grid;
         gap: 10px;
+    }
+
+    .o_lds_funnel {
+        display: grid;
+        gap: 12px;
+    }
+
+    .o_lds_funnel_row {
+        display: grid;
+        grid-template-columns: minmax(120px, 0.75fr) minmax(240px, 3fr) minmax(72px, auto);
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+    }
+
+    .o_lds_funnel_label,
+    .o_lds_funnel_share {
+        color: #334155;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .o_lds_funnel_share {
+        text-align: right;
+    }
+
+    .o_lds_funnel_track {
+        height: 28px;
+        overflow: hidden;
+        border-radius: 6px;
+        background: #edf2f7;
+    }
+
+    .o_lds_funnel_fill {
+        display: flex;
+        height: 100%;
+        align-items: center;
+        justify-content: flex-end;
+        min-width: 44px;
+        padding-right: 10px;
+        border-radius: inherit;
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 800;
     }
 
     .o_lds_bar_row {
@@ -256,6 +395,10 @@
         }
     }
 
+    .o_lds_widget_donut {
+        grid-column: span 6;
+    }
+
     .o_lds_legend {
         display: grid;
         gap: 8px;
@@ -285,6 +428,36 @@
 
         tbody tr {
             cursor: pointer;
+        }
+    }
+
+    .o_lds_matrix_wrap {
+        max-height: 380px;
+        overflow: auto;
+
+        table {
+            min-width: 860px;
+        }
+
+        thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: #ffffff;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        tbody tr {
+            cursor: pointer;
+        }
+
+        tbody td {
+            font-size: 12px;
+            vertical-align: middle;
+            white-space: nowrap;
         }
     }
 
@@ -318,7 +491,15 @@
         .o_lds_widget,
         .o_lds_widget_kpi,
         .o_lds_widget_table,
-        .o_lds_widget_line {
+        .o_lds_widget_line,
+        .o_lds_widget_matrix,
+        .o_lds_widget_funnel,
+        .o_lds_widget_donut,
+        .o_lds_span_3,
+        .o_lds_span_4,
+        .o_lds_span_6,
+        .o_lds_span_8,
+        .o_lds_span_12 {
             grid-column: span 6;
         }
     }
@@ -345,7 +526,15 @@
         .o_lds_widget,
         .o_lds_widget_kpi,
         .o_lds_widget_table,
-        .o_lds_widget_line {
+        .o_lds_widget_line,
+        .o_lds_widget_matrix,
+        .o_lds_widget_funnel,
+        .o_lds_widget_donut,
+        .o_lds_span_3,
+        .o_lds_span_4,
+        .o_lds_span_6,
+        .o_lds_span_8,
+        .o_lds_span_12 {
             grid-column: span 12;
         }
 
@@ -355,6 +544,10 @@
 
         .o_lds_bar_row {
             grid-template-columns: minmax(78px, 1fr) minmax(90px, 2fr) minmax(60px, auto);
+        }
+
+        .o_lds_funnel_row {
+            grid-template-columns: 1fr;
         }
     }
 }
