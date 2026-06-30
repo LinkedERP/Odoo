@@ -18,6 +18,54 @@
                             </option>
                         </t>
                     </select>
+                    <select
+                        t-if="state.crmFilters.enabled"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="(ev) => setFilter('campaignId', ev.target.value)">
+                        <option value="">All campaigns</option>
+                        <t t-foreach="state.crmFilters.campaigns" t-as="option" t-key="option.id">
+                            <option
+                                t-att-value="option.id"
+                                t-att-selected="state.filters.campaignId === String(option.id)"
+                                t-esc="optionLabel(option)"/>
+                        </t>
+                    </select>
+                    <select
+                        t-if="state.crmFilters.enabled"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="(ev) => setFilter('userId', ev.target.value)">
+                        <option value="">All salespeople</option>
+                        <t t-foreach="state.crmFilters.salespeople" t-as="option" t-key="option.id">
+                            <option
+                                t-att-value="option.id"
+                                t-att-selected="state.filters.userId === String(option.id)"
+                                t-esc="optionLabel(option)"/>
+                        </t>
+                    </select>
+                    <select
+                        t-if="state.crmFilters.enabled"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="(ev) => setFilter('teamId', ev.target.value)">
+                        <option value="">All teams</option>
+                        <t t-foreach="state.crmFilters.teams" t-as="option" t-key="option.id">
+                            <option
+                                t-att-value="option.id"
+                                t-att-selected="state.filters.teamId === String(option.id)"
+                                t-esc="optionLabel(option)"/>
+                        </t>
+                    </select>
+                    <select
+                        t-if="state.crmFilters.enabled"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="(ev) => setFilter('stageId', ev.target.value)">
+                        <option value="">All stages</option>
+                        <t t-foreach="state.crmFilters.stages" t-as="option" t-key="option.id">
+                            <option
+                                t-att-value="option.id"
+                                t-att-selected="state.filters.stageId === String(option.id)"
+                                t-esc="optionLabel(option)"/>
+                        </t>
+                    </select>
                     <input class="form-control" type="date" t-model="state.filters.dateFrom"/>
                     <input class="form-control" type="date" t-model="state.filters.dateTo"/>
                     <button class="btn btn-primary" type="button" t-on-click="applyFilters" title="Apply filters">
@@ -68,7 +116,7 @@
                                 class="o_lds_kpi"
                                 type="button"
                                 t-on-click="() => openRecords(widget.model, widget.domain)">
-                                <span class="o_lds_kpi_value" t-esc="formatNumber(widget.value)"/>
+                                <span class="o_lds_kpi_value" t-esc="formatWidgetValue(widget)"/>
                                 <span class="o_lds_kpi_caption" t-esc="widget.measure"/>
                             </button>
                         </t>
@@ -84,7 +132,7 @@
                                         <span class="o_lds_bar_track">
                                             <span class="o_lds_bar_fill" t-att-style="barStyle(widget, point)"/>
                                         </span>
-                                        <span class="o_lds_bar_value" t-esc="formatNumber(point.value)"/>
+                                        <span class="o_lds_bar_value" t-esc="formatPointValue(widget, point.value)"/>
                                     </button>
                                 </t>
                             </div>
@@ -101,7 +149,7 @@
                                 </svg>
                                 <div class="o_lds_axis">
                                     <span t-if="widget.points.length" t-esc="widget.points[0].label"/>
-                                    <strong t-esc="formatNumber(widget.value)"/>
+                                    <strong t-esc="formatWidgetValue(widget)"/>
                                     <span t-if="widget.points.length" t-esc="widget.points[widget.points.length - 1].label"/>
                                 </div>
                             </button>
@@ -114,14 +162,14 @@
                                     type="button"
                                     t-att-style="pieStyle(widget)"
                                     t-on-click="() => openRecords(widget.model, widget.domain)">
-                                    <span t-esc="formatNumber(widget.value)"/>
+                                    <span t-esc="formatWidgetValue(widget)"/>
                                 </button>
                                 <div class="o_lds_legend">
                                     <t t-foreach="widget.points" t-as="point" t-key="point.label">
                                         <button type="button" t-on-click="() => openRecords(widget.model, point.domain)">
                                             <i t-att-style="legendColor(point_index)"/>
                                             <span t-esc="point.label"/>
-                                            <strong t-esc="formatNumber(point.value)"/>
+                                            <strong t-esc="formatPointValue(widget, point.value)"/>
                                         </button>
                                     </t>
                                 </div>
@@ -141,7 +189,7 @@
                                         <t t-foreach="widget.points" t-as="point" t-key="point.label">
                                             <tr t-on-click="() => openRecords(widget.model, point.domain)">
                                                 <td t-esc="point.label"/>
-                                                <td class="text-end" t-esc="formatNumber(point.value)"/>
+                                                <td class="text-end" t-esc="formatPointValue(widget, point.value)"/>
                                             </tr>
                                         </t>
                                     </tbody>

@@ -133,10 +133,10 @@ class LinkederpDashboardWidget(models.Model):
                 if field and field.model_id != model:
                     raise ValidationError(_("Widget fields must belong to the selected model."))
 
-    def _get_payload(self, date_from=False, date_to=False):
+    def _get_payload(self, date_from=False, date_to=False, extra_domain=False):
         self.ensure_one()
         try:
-            payload = self._build_payload(date_from=date_from, date_to=date_to)
+            payload = self._build_payload(date_from=date_from, date_to=date_to, extra_domain=extra_domain)
         except AccessError:
             payload = self._error_payload(_("Not enough access to read this data."))
         except Exception as error:
@@ -144,9 +144,13 @@ class LinkederpDashboardWidget(models.Model):
             payload = self._error_payload(str(error))
         return payload
 
-    def _build_payload(self, date_from=False, date_to=False):
+    def _build_payload(self, date_from=False, date_to=False, extra_domain=False):
         model = self._target_model()
-        domain = self._date_filtered_domain(date_from=date_from, date_to=date_to)
+        domain = self._date_filtered_domain(
+            date_from=date_from,
+            date_to=date_to,
+            extra_domain=extra_domain,
+        )
 
         if self.widget_type == "kpi":
             value = self._read_total(model, domain)
@@ -170,6 +174,7 @@ class LinkederpDashboardWidget(models.Model):
             "color": self.color or "#2563eb",
             "help": self.help_text or "",
             "value": self._number(value),
+            "format": "number",
             "domain": self._json_safe(domain),
             "points": points,
             "error": False,
@@ -191,6 +196,7 @@ class LinkederpDashboardWidget(models.Model):
             "color": self.color or "#dc2626",
             "help": self.help_text or "",
             "value": 0,
+            "format": "number",
             "domain": [],
             "points": [],
             "error": message,
@@ -211,7 +217,7 @@ class LinkederpDashboardWidget(models.Model):
             raise UserError(_("Widget domain must be a valid Odoo domain list."))
         return domain
 
-    def _date_filtered_domain(self, date_from=False, date_to=False):
+    def _date_filtered_domain(self, date_from=False, date_to=False, extra_domain=False):
         domain = self._base_domain()
         date_field = self.date_field_id.name if self.date_field_id else False
         date_domain = []
@@ -219,6 +225,8 @@ class LinkederpDashboardWidget(models.Model):
             date_domain.append((date_field, ">=", date_from))
         if date_field and date_to:
             date_domain.append((date_field, "<=", date_to))
+        if extra_domain:
+            date_domain = expression.AND([date_domain, extra_domain]) if date_domain else extra_domain
         if date_domain:
             return expression.AND([domain, date_domain])
         return domain

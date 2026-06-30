@@ -21,6 +21,7 @@ export class LinkedERPDashboardAction extends Component {
             dashboard: false,
             dashboards: [],
             widgets: [],
+            crmFilters: { enabled: false },
             filters: this.defaultFilters(),
             initialDashboardId,
         });
@@ -35,6 +36,10 @@ export class LinkedERPDashboardAction extends Component {
         return {
             dateFrom: this.dateToInput(start),
             dateTo: this.dateToInput(today),
+            campaignId: "",
+            userId: "",
+            teamId: "",
+            stageId: "",
         };
     }
 
@@ -53,11 +58,18 @@ export class LinkedERPDashboardAction extends Component {
                     dashboard_id: dashboardId || false,
                     date_from: this.state.filters.dateFrom || false,
                     date_to: this.state.filters.dateTo || false,
+                    filters: {
+                        campaign_id: this.state.filters.campaignId || false,
+                        user_id: this.state.filters.userId || false,
+                        team_id: this.state.filters.teamId || false,
+                        stage_id: this.state.filters.stageId || false,
+                    },
                 }
             );
             this.state.dashboards = payload.dashboards || [];
             this.state.dashboard = payload.dashboard || false;
             this.state.widgets = payload.widgets || [];
+            this.state.crmFilters = payload.crm_filters || { enabled: false };
         } catch (error) {
             this.notification.add(error.message || error.toString(), { type: "danger" });
         } finally {
@@ -66,6 +78,7 @@ export class LinkedERPDashboardAction extends Component {
     }
 
     async onDashboardChange(ev) {
+        this.clearCrmFilters();
         await this.load(Number(ev.target.value));
     }
 
@@ -76,6 +89,17 @@ export class LinkedERPDashboardAction extends Component {
     async resetFilters() {
         this.state.filters = this.defaultFilters();
         await this.applyFilters();
+    }
+
+    clearCrmFilters() {
+        this.state.filters.campaignId = "";
+        this.state.filters.userId = "";
+        this.state.filters.teamId = "";
+        this.state.filters.stageId = "";
+    }
+
+    setFilter(key, value) {
+        this.state.filters[key] = value;
     }
 
     async openRecords(model, domain) {
@@ -99,6 +123,20 @@ export class LinkedERPDashboardAction extends Component {
         return new Intl.NumberFormat("en-IN", {
             maximumFractionDigits: Number.isInteger(number) ? 0 : 2,
         }).format(number);
+    }
+
+    formatWidgetValue(widget) {
+        const formatted = this.formatNumber(widget.value);
+        return widget.format === "percent" ? `${formatted}%` : formatted;
+    }
+
+    formatPointValue(widget, value) {
+        const formatted = this.formatNumber(value);
+        return widget.format === "percent" ? `${formatted}%` : formatted;
+    }
+
+    optionLabel(option) {
+        return `${option.name} (${this.formatNumber(option.count)})`;
     }
 
     maxPointValue(widget) {
