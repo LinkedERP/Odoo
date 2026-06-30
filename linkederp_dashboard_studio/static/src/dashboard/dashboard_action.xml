@@ -138,6 +138,32 @@
                             </div>
                         </t>
 
+                        <t t-elif="widget.type === 'column'">
+                            <div class="o_lds_columns">
+                                <div class="o_lds_column_axis">
+                                    <t t-foreach="columnGridLines(widget)" t-as="line" t-key="line_index">
+                                        <span t-esc="formatPointValue(widget, line)"/>
+                                    </t>
+                                </div>
+                                <div class="o_lds_column_plot">
+                                    <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                        <button
+                                            class="o_lds_column_item"
+                                            type="button"
+                                            t-att-title="point.label + ': ' + formatPointValue(widget, point.value)"
+                                            t-on-click="() => openRecords(widget.model, point.domain)">
+                                            <span class="o_lds_column_bar_wrap">
+                                                <span class="o_lds_column_bar" t-att-style="columnStyle(widget, point, point_index)">
+                                                    <strong t-esc="formatPointValue(widget, point.value)"/>
+                                                </span>
+                                            </span>
+                                            <span class="o_lds_column_label" t-esc="point.label"/>
+                                        </button>
+                                    </t>
+                                </div>
+                            </div>
+                        </t>
+
                         <t t-elif="widget.type === 'stacked'">
                             <div class="o_lds_stack">
                                 <button

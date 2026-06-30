@@ -45,6 +45,8 @@ export class LinkedERPDashboardAction extends Component {
             "optionLabel",
             "isFilterSelected",
             "barStyle",
+            "columnGridLines",
+            "columnStyle",
             "stackSegmentStyle",
             "gaugeStyle",
             "funnelStyle",
@@ -209,6 +211,20 @@ export class LinkedERPDashboardAction extends Component {
     barStyle(widget, point) {
         const width = Math.max(3, (Number(point.value || 0) / this.maxPointValue(widget)) * 100);
         return `width: ${width}%; background: ${widget.color || "#2563eb"};`;
+    }
+
+    columnGridLines(widget) {
+        const max = this.maxPointValue(widget);
+        return [max, max * 0.75, max * 0.5, max * 0.25, 0].map((value) => Math.round(value));
+    }
+
+    columnStyle(widget, point, index) {
+        const value = Number(point.value || 0);
+        const height = value ? Math.max(4, (value / this.maxPointValue(widget)) * 100) : 0;
+        const color = widget.id === "ai_call_outcomes"
+            ? PALETTE[index % PALETTE.length]
+            : widget.color || "#2563eb";
+        return `height: ${height}%; background: ${color};`;
     }
 
     stackSegmentStyle(widget, point, index) {

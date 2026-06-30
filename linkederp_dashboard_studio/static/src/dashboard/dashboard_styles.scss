@@ -98,6 +98,7 @@
     }
 
     .o_lds_widget_table,
+    .o_lds_widget_column,
     .o_lds_widget_line,
     .o_lds_widget_matrix,
     .o_lds_widget_funnel {
@@ -378,6 +379,90 @@
         text-align: right;
     }
 
+    .o_lds_columns {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr);
+        gap: 10px;
+    }
+
+    .o_lds_column_axis {
+        display: flex;
+        height: 184px;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 0 0 40px;
+        color: #64748b;
+        font-size: 10px;
+        font-weight: 700;
+        text-align: right;
+    }
+
+    .o_lds_column_plot {
+        display: grid;
+        min-height: 224px;
+        grid-auto-columns: minmax(58px, 1fr);
+        grid-auto-flow: column;
+        gap: 14px;
+        overflow-x: auto;
+        padding: 0 4px 4px;
+        background-image: linear-gradient(to bottom, #e8edf3 1px, transparent 1px);
+        background-size: 100% 46px;
+        background-position: 0 0;
+    }
+
+    .o_lds_column_item {
+        display: grid;
+        min-width: 58px;
+        grid-template-rows: 184px 36px;
+        gap: 6px;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        text-align: center;
+    }
+
+    .o_lds_column_bar_wrap {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        border-bottom: 1px solid #cbd5e1;
+    }
+
+    .o_lds_column_bar {
+        display: flex;
+        width: min(52px, 100%);
+        align-items: flex-start;
+        justify-content: center;
+        min-height: 4px;
+        border-radius: 5px 5px 0 0;
+        color: #ffffff;
+        transition: opacity 0.15s ease, transform 0.15s ease;
+
+        strong {
+            margin-top: -18px;
+            color: #0f172a;
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 1;
+        }
+    }
+
+    .o_lds_column_item:hover .o_lds_column_bar {
+        opacity: 0.86;
+        transform: translateY(-2px);
+    }
+
+    .o_lds_column_label {
+        display: -webkit-box;
+        overflow: hidden;
+        color: #475569;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1.15;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
     .o_lds_line {
         display: block;
         width: 100%;
@@ -576,6 +661,7 @@
         .o_lds_widget,
         .o_lds_widget_kpi,
         .o_lds_widget_table,
+        .o_lds_widget_column,
         .o_lds_widget_line,
         .o_lds_widget_matrix,
         .o_lds_widget_funnel,
@@ -611,6 +697,7 @@
         .o_lds_widget,
         .o_lds_widget_kpi,
         .o_lds_widget_table,
+        .o_lds_widget_column,
         .o_lds_widget_line,
         .o_lds_widget_matrix,
         .o_lds_widget_funnel,
