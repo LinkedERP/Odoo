@@ -49,6 +49,7 @@
         <field name="arch" type="xml">
             <field name="sale_order_id" position="before">
                 <field name="available_sale_line_domain" invisible="1"/>
+                <field name="team_project_id" invisible="1"/>
             </field>
         </field>
     </record>
