@@ -138,6 +138,42 @@
                             </div>
                         </t>
 
+                        <t t-elif="widget.type === 'comparison'">
+                            <div class="o_lds_compare">
+                                <div class="o_lds_compare_legend">
+                                    <span><i class="o_lds_compare_generated"/>Generated</span>
+                                    <span><i class="o_lds_compare_meetings"/>Meetings</span>
+                                </div>
+                                <t t-foreach="widget.rows" t-as="row" t-key="row.label">
+                                    <div class="o_lds_compare_row">
+                                        <button
+                                            class="o_lds_compare_label"
+                                            type="button"
+                                            t-on-click="() => openRecords(widget.model, row.domain)">
+                                            <span t-esc="row.label"/>
+                                            <strong t-esc="formatByType(row.meeting_rate, 'percent')"/>
+                                        </button>
+                                        <div class="o_lds_compare_tracks">
+                                            <button
+                                                class="o_lds_compare_track"
+                                                type="button"
+                                                t-on-click="() => openRecords(widget.model, row.domain)">
+                                                <span class="o_lds_compare_fill" t-att-style="comparisonBarStyle(widget, row, 'generated')"/>
+                                                <strong t-esc="formatByType(row.generated, 'integer')"/>
+                                            </button>
+                                            <button
+                                                class="o_lds_compare_track"
+                                                type="button"
+                                                t-on-click="() => openRecords(widget.model, row.meetings_domain)">
+                                                <span class="o_lds_compare_fill" t-att-style="comparisonBarStyle(widget, row, 'meetings')"/>
+                                                <strong t-esc="formatByType(row.meetings, 'integer')"/>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+
                         <t t-elif="widget.type === 'column'">
                             <div class="o_lds_columns">
                                 <div class="o_lds_column_axis">

@@ -455,7 +455,6 @@ class LinkederpDashboard(models.Model):
             lost_domain = expression.AND(
                 [group_domain, ["|", ("won_status", "=", "lost"), ("active", "=", False)]]
             )
-            open_domain = expression.AND([group_domain, [("active", "=", True)]])
             worked = self._ai_count(worked_domain)
             meetings = self._ai_count(meeting_domain)
             lost = self._ai_count(lost_domain)
@@ -469,10 +468,9 @@ class LinkederpDashboard(models.Model):
                     "meeting_rate": self._ai_rate(meetings, generated),
                     "lost": lost,
                     "lost_rate": self._ai_rate(lost, generated),
-                    "pipeline": self._ai_sum(open_domain, "expected_revenue"),
                 }
             )
-        return rows
+        return sorted(rows, key=lambda row: (row["meeting_rate"], row["meetings"], row["generated"]), reverse=True)
 
     def _ai_week_points(self, domain, limit=12):
         leads = self._ai_lead_model().search(domain, limit=5000, order="create_date asc")
@@ -511,6 +509,31 @@ class LinkederpDashboard(models.Model):
     def _ai_campaign_meeting_turnover_points(self, meeting_domain, limit=12):
         points = self._ai_group_points(meeting_domain, "campaign_id", limit=limit)
         return sorted(points, key=lambda point: point["value"], reverse=True)
+
+    def _ai_campaign_conversion_rows(self, base_domain, limit=12):
+        groups = self._ai_group_points(base_domain, "campaign_id", limit=limit)
+        rows = []
+        meeting_extra_domain = [
+            "|",
+            ("x_studio_call_outcome", "=", "Meeting Set"),
+            ("x_studio_meeting_date", "!=", False),
+        ]
+        for group in groups:
+            group_domain = group["domain"]
+            meeting_domain = expression.AND([group_domain, meeting_extra_domain])
+            generated = self._ai_count(group_domain)
+            meetings = self._ai_count(meeting_domain)
+            rows.append(
+                {
+                    "label": group["label"],
+                    "domain": self._json_safe(group_domain),
+                    "generated": generated,
+                    "meetings": meetings,
+                    "meeting_rate": self._ai_rate(meetings, generated),
+                    "meetings_domain": self._json_safe(meeting_domain),
+                }
+            )
+        return sorted(rows, key=lambda row: (row["meetings"], row["meeting_rate"], row["generated"]), reverse=True)
 
     def _ai_call_outcome_points(self, worked_domain):
         groups = [
@@ -748,15 +771,15 @@ class LinkederpDashboard(models.Model):
                 span=6,
             ),
             self._ai_widget(
-                "ai_campaign_meeting_turnover",
-                _("Campaign Meeting Turnover"),
-                "bar",
-                meetings,
-                meeting_domain,
+                "ai_campaign_conversion",
+                _("Campaign Leads vs Meetings"),
+                "comparison",
+                generated,
+                base_domain,
                 "#059669",
-                _("Meetings"),
-                _("Campaigns ranked by meeting turnover, highest meeting count first."),
-                points=self._ai_campaign_meeting_turnover_points(meeting_domain, limit=12),
+                _("Leads / Meetings"),
+                _("Generated leads compared with meetings set by campaign."),
+                rows=self._ai_campaign_conversion_rows(base_domain, limit=12),
                 groupby=_("Campaign"),
                 value_format="integer",
                 span=6,
@@ -769,7 +792,7 @@ class LinkederpDashboard(models.Model):
                 base_domain,
                 "#0f766e",
                 _("Records"),
-                _("Owner-level contact, meeting, loss, and pipeline performance."),
+                _("Owner-level contact, meeting, and loss performance."),
                 rows=self._ai_matrix_rows(base_domain, "user_id", limit=15),
                 columns=[
                     {"key": "generated", "label": _("Generated"), "format": "integer"},
@@ -777,7 +800,7 @@ class LinkederpDashboard(models.Model):
                     {"key": "meetings", "label": _("Meetings"), "format": "integer"},
                     {"key": "meeting_rate", "label": _("Meeting %"), "format": "percent"},
                     {"key": "lost", "label": _("Lost"), "format": "integer"},
-                    {"key": "pipeline", "label": _("Open Pipeline"), "format": "number"},
+                    {"key": "lost_rate", "label": _("Lost %"), "format": "percent"},
                 ],
                 groupby=_("Salesperson"),
                 span=6,

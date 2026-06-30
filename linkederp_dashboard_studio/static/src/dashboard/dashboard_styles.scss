@@ -99,6 +99,7 @@
 
     .o_lds_widget_table,
     .o_lds_widget_column,
+    .o_lds_widget_comparison,
     .o_lds_widget_line,
     .o_lds_widget_matrix,
     .o_lds_widget_funnel {
@@ -379,6 +380,110 @@
         text-align: right;
     }
 
+    .o_lds_compare {
+        display: grid;
+        gap: 12px;
+    }
+
+    .o_lds_compare_legend {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 16px;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 800;
+
+        span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        i {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+    }
+
+    .o_lds_compare_generated {
+        background: #2563eb;
+    }
+
+    .o_lds_compare_meetings {
+        background: #059669;
+    }
+
+    .o_lds_compare_row {
+        display: grid;
+        grid-template-columns: minmax(160px, 1fr) minmax(260px, 2.5fr);
+        align-items: center;
+        gap: 12px;
+    }
+
+    .o_lds_compare_label {
+        display: grid;
+        gap: 3px;
+        border: 0;
+        background: transparent;
+        color: #334155;
+        font-size: 12px;
+        text-align: left;
+
+        span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        strong {
+            color: #0f172a;
+            font-size: 11px;
+        }
+    }
+
+    .o_lds_compare_tracks {
+        display: grid;
+        gap: 5px;
+    }
+
+    .o_lds_compare_track {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 44px;
+        align-items: center;
+        gap: 8px;
+        border: 0;
+        background: transparent;
+        color: inherit;
+    }
+
+    .o_lds_compare_track::before {
+        content: "";
+        display: block;
+        grid-column: 1;
+        grid-row: 1;
+        height: 8px;
+        border-radius: 999px;
+        background: #eef2f7;
+    }
+
+    .o_lds_compare_fill {
+        display: block;
+        grid-column: 1;
+        grid-row: 1;
+        height: 8px;
+        border-radius: 999px;
+    }
+
+    .o_lds_compare_track strong {
+        color: #0f172a;
+        font-size: 11px;
+        font-weight: 800;
+        text-align: right;
+    }
+
     .o_lds_columns {
         display: grid;
         grid-template-columns: 42px minmax(0, 1fr);
@@ -430,7 +535,8 @@
 
     .o_lds_column_bar {
         display: flex;
-        width: min(52px, 100%);
+        width: 52px;
+        max-width: 100%;
         align-items: flex-start;
         justify-content: center;
         min-height: 4px;
@@ -453,14 +559,13 @@
     }
 
     .o_lds_column_label {
-        display: -webkit-box;
+        display: block;
+        height: 32px;
         overflow: hidden;
         color: #475569;
         font-size: 10px;
         font-weight: 700;
         line-height: 1.15;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
     }
 
     .o_lds_line {
@@ -662,6 +767,7 @@
         .o_lds_widget_kpi,
         .o_lds_widget_table,
         .o_lds_widget_column,
+        .o_lds_widget_comparison,
         .o_lds_widget_line,
         .o_lds_widget_matrix,
         .o_lds_widget_funnel,
@@ -698,6 +804,7 @@
         .o_lds_widget_kpi,
         .o_lds_widget_table,
         .o_lds_widget_column,
+        .o_lds_widget_comparison,
         .o_lds_widget_line,
         .o_lds_widget_matrix,
         .o_lds_widget_funnel,
@@ -720,6 +827,15 @@
 
         .o_lds_funnel_row {
             grid-template-columns: 1fr;
+        }
+
+        .o_lds_compare_row,
+        .o_lds_compare_track {
+            grid-template-columns: 1fr;
+        }
+
+        .o_lds_compare_track strong {
+            text-align: left;
         }
 
         .o_lds_stack_legend {

@@ -47,6 +47,7 @@ export class LinkedERPDashboardAction extends Component {
             "barStyle",
             "columnGridLines",
             "columnStyle",
+            "comparisonBarStyle",
             "stackSegmentStyle",
             "gaugeStyle",
             "funnelStyle",
@@ -225,6 +226,22 @@ export class LinkedERPDashboardAction extends Component {
             ? PALETTE[index % PALETTE.length]
             : widget.color || "#2563eb";
         return `height: ${height}%; background: ${color};`;
+    }
+
+    comparisonMaxValue(widget) {
+        const values = [];
+        for (const row of widget.rows || []) {
+            values.push(Number(row.generated || 0));
+            values.push(Number(row.meetings || 0));
+        }
+        return Math.max(...values, 1);
+    }
+
+    comparisonBarStyle(widget, row, key) {
+        const value = Number(row[key] || 0);
+        const width = value ? Math.max(3, (value / this.comparisonMaxValue(widget)) * 100) : 0;
+        const color = key === "meetings" ? "#059669" : "#2563eb";
+        return `width: ${width}%; background: ${color};`;
     }
 
     stackSegmentStyle(widget, point, index) {
