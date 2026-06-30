@@ -138,6 +138,33 @@
                             </div>
                         </t>
 
+                        <t t-elif="widget.type === 'stacked'">
+                            <div class="o_lds_stack">
+                                <button
+                                    class="o_lds_stack_bar"
+                                    type="button"
+                                    t-on-click="() => openRecords(widget.model, widget.domain)">
+                                    <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                        <span
+                                            class="o_lds_stack_segment"
+                                            t-att-title="point.label"
+                                            t-att-style="stackSegmentStyle(widget, point, point_index)">
+                                            <strong t-esc="formatPointValue(widget, point.value)"/>
+                                        </span>
+                                    </t>
+                                </button>
+                                <div class="o_lds_stack_legend">
+                                    <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                        <button type="button" t-on-click="() => openRecords(widget.model, point.domain)">
+                                            <i t-att-style="legendColor(point_index)"/>
+                                            <span t-esc="point.label"/>
+                                            <strong t-esc="formatPointValue(widget, point.value)"/>
+                                        </button>
+                                    </t>
+                                </div>
+                            </div>
+                        </t>
+
                         <t t-elif="widget.type === 'gauge'">
                             <button
                                 class="o_lds_gauge"
@@ -180,6 +207,14 @@
                                     <polyline class="o_lds_line_area" t-att-points="linePoints(widget)"/>
                                     <polyline class="o_lds_line_stroke" t-att-points="linePoints(widget)"/>
                                 </svg>
+                                <div class="o_lds_line_ticks" t-if="widget.points.length">
+                                    <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                        <span>
+                                            <small t-esc="point.label"/>
+                                            <strong t-esc="formatPointValue(widget, point.value)"/>
+                                        </span>
+                                    </t>
+                                </div>
                                 <div class="o_lds_axis">
                                     <span t-if="widget.points.length" t-esc="widget.points[0].label"/>
                                     <strong t-esc="formatWidgetValue(widget)"/>

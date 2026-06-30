@@ -45,6 +45,7 @@ export class LinkedERPDashboardAction extends Component {
             "optionLabel",
             "isFilterSelected",
             "barStyle",
+            "stackSegmentStyle",
             "gaugeStyle",
             "funnelStyle",
             "pointShare",
@@ -208,6 +209,12 @@ export class LinkedERPDashboardAction extends Component {
     barStyle(widget, point) {
         const width = Math.max(3, (Number(point.value || 0) / this.maxPointValue(widget)) * 100);
         return `width: ${width}%; background: ${widget.color || "#2563eb"};`;
+    }
+
+    stackSegmentStyle(widget, point, index) {
+        const total = (widget.points || []).reduce((sum, item) => sum + Number(item.value || 0), 0);
+        const width = total ? Math.max(4, (Number(point.value || 0) / total) * 100) : 0;
+        return `width: ${width}%; background: ${PALETTE[index % PALETTE.length]};`;
     }
 
     gaugeStyle(widget) {

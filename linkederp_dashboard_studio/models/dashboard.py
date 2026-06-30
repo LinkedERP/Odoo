@@ -1,5 +1,5 @@
 import ast
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from odoo import api, fields, models, _
 from odoo.exceptions import AccessError, UserError
@@ -474,6 +474,44 @@ class LinkederpDashboard(models.Model):
             )
         return rows
 
+    def _ai_week_points(self, domain, limit=12):
+        leads = self._ai_lead_model().search(domain, limit=5000, order="create_date asc")
+        buckets = {}
+        for lead in leads:
+            created = fields.Datetime.to_datetime(lead.create_date)
+            if not created:
+                continue
+            week_start = created.date() - timedelta(days=created.weekday())
+            bucket = buckets.setdefault(
+                week_start,
+                {
+                    "label": _("Wk %s") % ("%02d" % week_start.isocalendar()[1]),
+                    "value": 0,
+                    "domain": expression.AND(
+                        [
+                            domain,
+                            [
+                                ("create_date", ">=", "%s 00:00:00" % fields.Date.to_string(week_start)),
+                                (
+                                    "create_date",
+                                    "<=",
+                                    "%s 23:59:59" % fields.Date.to_string(week_start + timedelta(days=6)),
+                                ),
+                            ],
+                        ]
+                    ),
+                },
+            )
+            bucket["value"] += 1
+        return [
+            self._ai_point(bucket["label"], bucket["value"], bucket["domain"])
+            for _, bucket in sorted(buckets.items())[-limit:]
+        ]
+
+    def _ai_campaign_meeting_turnover_points(self, meeting_domain, limit=12):
+        points = self._ai_group_points(meeting_domain, "campaign_id", limit=limit)
+        return sorted(points, key=lambda point: point["value"], reverse=True)
+
     def _ai_generated_lead_widgets(self, date_from=False, date_to=False, filters=False):
         base_domain = self._ai_base_domain(date_from=date_from, date_to=date_to, filters=filters)
         generated = self._ai_count(base_domain)
@@ -505,14 +543,6 @@ class LinkederpDashboard(models.Model):
             ],
         )
         meetings = self._ai_count(meeting_domain)
-
-        won_domain = self._ai_base_domain(
-            date_from=date_from,
-            date_to=date_to,
-            filters=filters,
-            extra_domain=[("won_status", "=", "won")],
-        )
-        won = self._ai_count(won_domain)
 
         not_called_domain = self._ai_base_domain(
             date_from=date_from,
@@ -564,11 +594,6 @@ class LinkederpDashboard(models.Model):
         )
         qualified = self._ai_count(qualified_domain)
 
-        pipeline = self._ai_sum(
-            open_domain,
-            "expected_revenue",
-        )
-        won_value = self._ai_sum(won_domain, "expected_revenue")
         avg_backlog_age = self._ai_average_age_days(not_called_domain)
         contact_rate = self._ai_rate(worked, generated)
         meeting_rate = self._ai_rate(meetings, generated)
@@ -662,17 +687,6 @@ class LinkederpDashboard(models.Model):
                 span=3,
             ),
             self._ai_widget(
-                "ai_pipeline",
-                _("Open AI Pipeline"),
-                "kpi",
-                pipeline,
-                open_domain,
-                "#0f766e",
-                _("Expected Revenue"),
-                _("Expected revenue on active AI-sourced CRM leads."),
-                span=3,
-            ),
-            self._ai_widget(
                 "ai_backlog_age",
                 _("Avg Backlog Age"),
                 "kpi",
@@ -682,17 +696,6 @@ class LinkederpDashboard(models.Model):
                 _("days not yet called"),
                 _("Average age of AI leads with no call outcome captured."),
                 value_format="days",
-                span=3,
-            ),
-            self._ai_widget(
-                "ai_won_value",
-                _("Won Value"),
-                "kpi",
-                won_value,
-                won_domain,
-                "#16a34a",
-                _("%s won leads") % won,
-                _("Expected revenue on AI leads marked won."),
                 span=3,
             ),
             self._ai_widget(
@@ -716,66 +719,31 @@ class LinkederpDashboard(models.Model):
                 span=12,
             ),
             self._ai_widget(
-                "ai_status_mix",
-                _("Lead Status Mix"),
-                "donut",
-                generated,
-                base_domain,
-                "#2563eb",
-                _("Records"),
-                _("Portfolio view of where AI leads currently sit."),
-                points=[
-                    self._ai_point(_("Not Yet Called"), not_called, not_called_domain),
-                    self._ai_point(_("Follow-up Needed"), followup, followup_domain),
-                    self._ai_point(_("Meetings Set"), meetings, meeting_domain),
-                    self._ai_point(_("Not Suitable"), not_suitable, not_suitable_domain),
-                    self._ai_point(_("Unreachable"), unreachable, unreachable_domain),
-                    self._ai_point(_("Lost / Archived"), lost, lost_domain),
-                    self._ai_point(_("Won"), won, won_domain),
-                ],
-                groupby=_("Status"),
-                value_format="integer",
-                span=6,
-            ),
-            self._ai_widget(
                 "ai_call_outcomes",
                 _("Call Outcomes"),
-                "donut",
+                "stacked",
                 worked,
                 worked_domain,
                 "#0891b2",
                 _("Records"),
-                _("What happened after the AI leads were worked."),
+                _("Worked-lead outcomes, sorted highest to lowest."),
                 points=self._ai_group_points(worked_domain, "x_studio_call_outcome", limit=10),
                 groupby=_("Call Outcome"),
                 value_format="integer",
                 span=6,
             ),
             self._ai_widget(
-                "ai_generated_by_day",
-                _("Leads Generated by Day"),
+                "ai_generated_by_week",
+                _("Leads Generated by Week"),
                 "line",
                 generated,
                 base_domain,
                 "#2563eb",
                 _("Records"),
-                _("Daily AI lead generation trend."),
-                points=self._ai_group_points(base_domain, "create_date:day", limit=31),
-                groupby=_("Created On"),
+                _("Weekly AI lead generation trend by ISO week number."),
+                points=self._ai_week_points(base_domain, limit=12),
+                groupby=_("Created Week"),
                 value_format="integer",
-                span=6,
-            ),
-            self._ai_widget(
-                "ai_stage_pipeline",
-                _("Open Pipeline by Stage"),
-                "bar",
-                pipeline,
-                open_domain,
-                "#7c3aed",
-                _("Expected Revenue"),
-                _("Expected revenue grouped by CRM stage."),
-                points=self._ai_group_points(open_domain, "stage_id", measure="expected_revenue", limit=10),
-                groupby=_("Stage"),
                 span=6,
             ),
             self._ai_widget(
@@ -793,39 +761,18 @@ class LinkederpDashboard(models.Model):
                 span=6,
             ),
             self._ai_widget(
-                "ai_backlog_by_owner",
-                _("Not-Called Backlog by Owner"),
+                "ai_campaign_meeting_turnover",
+                _("Campaign Meeting Turnover"),
                 "bar",
-                not_called,
-                not_called_domain,
-                "#f59e0b",
-                _("Records"),
-                _("AI leads waiting for first call outcome by salesperson."),
-                points=self._ai_group_points(not_called_domain, "user_id", limit=10),
-                groupby=_("Salesperson"),
+                meetings,
+                meeting_domain,
+                "#059669",
+                _("Meetings"),
+                _("Campaigns ranked by meeting turnover, highest meeting count first."),
+                points=self._ai_campaign_meeting_turnover_points(meeting_domain, limit=12),
+                groupby=_("Campaign"),
                 value_format="integer",
                 span=6,
-            ),
-            self._ai_widget(
-                "ai_campaign_matrix",
-                _("Campaign Performance Matrix"),
-                "matrix",
-                generated,
-                base_domain,
-                "#2563eb",
-                _("Records"),
-                _("Campaign quality, conversion, loss, and pipeline in one view."),
-                rows=self._ai_matrix_rows(base_domain, "campaign_id", limit=12),
-                columns=[
-                    {"key": "generated", "label": _("Generated"), "format": "integer"},
-                    {"key": "worked_rate", "label": _("Worked %"), "format": "percent"},
-                    {"key": "meetings", "label": _("Meetings"), "format": "integer"},
-                    {"key": "meeting_rate", "label": _("Meeting %"), "format": "percent"},
-                    {"key": "lost_rate", "label": _("Lost %"), "format": "percent"},
-                    {"key": "pipeline", "label": _("Open Pipeline"), "format": "number"},
-                ],
-                groupby=_("Campaign"),
-                span=12,
             ),
             self._ai_widget(
                 "ai_salesperson_matrix",
@@ -846,7 +793,7 @@ class LinkederpDashboard(models.Model):
                     {"key": "pipeline", "label": _("Open Pipeline"), "format": "number"},
                 ],
                 groupby=_("Salesperson"),
-                span=12,
+                span=6,
             ),
         ]
 
