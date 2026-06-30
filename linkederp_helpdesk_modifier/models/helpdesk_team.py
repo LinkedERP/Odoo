@@ -10,3 +10,11 @@ class HelpdeskTeam(models.Model):
         domain=lambda self: "[('all_group_ids', 'in', %d), ('company_ids', 'in', [company_id])]"
                             % self.env.ref('base.group_user').id,
     )
+    # A05: default project task that ticket time rolls up to (per Helpdesk Team)
+    project_task_id = fields.Many2one(
+        'project.task',
+        string='Roll-up Task',
+        domain="[('project_id', '=', project_id)]",
+        help='Default project task that time logged on this team\'s tickets '
+             'will be attributed to, so ticket effort is visible at task level.',
+    )

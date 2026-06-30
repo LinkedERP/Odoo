@@ -33,6 +33,22 @@ class HelpdeskTicket(models.Model):
              "Remove the sales order item in order to make this ticket non-billable.\n"
              "You can also change or remove the sales order item of each timesheet entry individually.")
 
+    # A05: roll-up task for this ticket; defaults from the team, editable per ticket
+    task_id = fields.Many2one(
+        'project.task', string='Roll-up Task', tracking=True, store=True, readonly=False,
+        domain="[('project_id', '=', project_id)]",
+        help='Project task to which time logged on this ticket is attributed, '
+             'so ticket effort is visible at task level. Defaults from the team.',
+    )
+
+    @api.depends('team_id')
+    def _compute_task_id(self):
+        for ticket in self:
+            if ticket.team_id.project_task_id:
+                ticket.task_id = ticket.team_id.project_task_id
+            elif not ticket.task_id:
+                ticket.task_id = False
+
     last_reminder_sent = fields.Date(
         string='Last Reminder Sent',
         help='Date when the last unanswered ticket reminder was sent.',

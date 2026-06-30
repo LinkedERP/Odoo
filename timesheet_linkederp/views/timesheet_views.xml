@@ -9,11 +9,19 @@
                 <xpath expr="//field[@name='project_id']" position="attributes">
                     <attribute name="options">{'no_create': True}</attribute>
                 </xpath>
-                <xpath expr="//field[@name='task_id']" position="attributes">
-                    <attribute name="options">{'no_create': True}</attribute>
+<!--                <xpath expr="//field[@name='task_id']" position="attributes">-->
+<!--                    <attribute name="options">{'no_create': True}</attribute>-->
+<!--                </xpath>-->
+                <xpath expr="//field[@name='task_id']" position="replace">
+                    <field name="task_id" optional="show" options="{'no_create_edit': True, 'no_open': True, 'no_create': True}" widget="task_with_hours"
+                        context="{'default_project_id': project_id, 'search_default_my_tasks': True, 'search_default_open_tasks': True}"
+                        readonly="readonly_timesheet"/>
                 </xpath>
-                <xpath expr="//field[@name='helpdesk_ticket_id']" position="attributes">
-                    <attribute name="options">{'no_create': True}</attribute>
+                <xpath expr="//field[@name='helpdesk_ticket_id']" position="replace">
+                    <field name="helpdesk_ticket_id"
+                    readonly="readonly_timesheet"  optional="show"
+                    context="{'search_default_my_ticket': True, 'search_default_is_open': True, 'search_view_ref': 'helpdesk.helpdesk_ticket_view_search_analysis', 'default_project_id': project_id}"
+                    options="{'no_open': True,'no_create': True}" groups="helpdesk_timesheet.group_use_helpdesk_timesheet"/>
                 </xpath>
             </field>
         </record>

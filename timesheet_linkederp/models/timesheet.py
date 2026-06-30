@@ -96,3 +96,73 @@ class AccountAnalyticLine(models.Model):
                                % current_company.display_name,
                 }
             }
+    # -------------------------------------------------------------------------
+    # A05: Helpdesk-to-Task time roll-up
+    #
+    # Native helpdesk_timesheet forces task_id and helpdesk_ticket_id to be
+    # mutually exclusive on a timesheet line. We relax that so a single line can
+    # carry BOTH: the line is still counted once at project level (project totals
+    # group by project_id), while also surfacing at task level (task.effective_hours
+    # groups by task_id) and ticket level. No double counting on the dashboard.
+    # -------------------------------------------------------------------------
+    @api.depends('helpdesk_ticket_id', 'task_id.project_id')
+    def _compute_project_id(self):
+        """Ticket wins over task for project_id.
+        Roll-up task may live in another project; keeping project_id on the
+        ticket prevents double project time while still surfacing time on task."""
+        ticket_lines = self.filtered('helpdesk_ticket_id')
+        for line in ticket_lines:
+            line.project_id = line.helpdesk_ticket_id.project_id or line.project_id
+        super(AccountAnalyticLine, self - ticket_lines)._compute_project_id()
+
+    @api.depends('helpdesk_ticket_id', 'project_id')
+    def _compute_task_id(self):
+        """Ticket fills task. Task never fills/clears ticket."""
+        ticket_lines = self.filtered('helpdesk_ticket_id')
+        for line in ticket_lines:
+            line.task_id = line.helpdesk_ticket_id.task_id
+        self.env.remove_to_compute(self._fields['helpdesk_ticket_id'], ticket_lines)
+        super(AccountAnalyticLine, self - ticket_lines)._compute_task_id()
+
+    @api.depends('task_id', 'project_id')
+    def _compute_helpdesk_ticket_id(self):
+        """No-op override: native clears ticket when task/project changes."""
+        for line in self:
+            line.helpdesk_ticket_id = line.helpdesk_ticket_id
+
+    def _inverse_project_id(self):
+        """No-op override: keep helpdesk_ticket_id even if roll-up task project differs."""
+        return
+
+    @api.onchange('project_id')
+    def _onchange_project_id(self):
+        """No-op override: native clears ticket/task on project mismatch."""
+        return
+
+    def _set_ticket_rollup_task_vals(self, vals):
+        ticket_id = vals.get('helpdesk_ticket_id')
+        if ticket_id:
+            ticket = self.env['helpdesk.ticket'].sudo().browse(ticket_id)
+            if ticket.task_id:
+                vals['task_id'] = ticket.task_id.id
+        return vals
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            self._set_ticket_rollup_task_vals(vals)
+        return super().create(vals_list)
+
+    def write(self, vals):
+        vals = self._set_ticket_rollup_task_vals(dict(vals))
+        return super().write(vals)
+
+
+    @api.constrains('task_id', 'helpdesk_ticket_id')
+    def _check_no_link_task_and_ticket(self):
+        """Override native: a line may link to BOTH a task and a ticket (A05).
+        The ticket's roll-up task may legitimately live in another project, so we
+        don't enforce a project match here. The line still carries a single
+        project_id, so no double counting at project level.
+        ponytail: no-op override on purpose — kills the native mutual-exclusion."""
+        return

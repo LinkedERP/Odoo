@@ -7,7 +7,7 @@
     'website': 'https://linkederp.com',
     'license': 'LGPL-3',
     'depends': [
-        'project','sale_project'
+        'project', 'sale_project',
     ],
     'data': [
         'views/project_views_modifier.xml',

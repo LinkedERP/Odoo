@@ -15,6 +15,32 @@
         </field>
     </record>
 
+    <!-- A05: roll-up task reference on the Helpdesk Team -->
+    <record id="helpdesk_team_view_form_task" model="ir.ui.view">
+        <field name="name">helpdesk.team.form.task.linked</field>
+        <field name="model">helpdesk.team</field>
+        <field name="inherit_id" ref="helpdesk_timesheet.helpdesk_team_view_form_inherit_helpdesk_timesheet"/>
+        <field name="arch" type="xml">
+            <field name="project_id" position="after">
+                <field name="project_task_id"
+                       invisible="not project_id"
+                       options="{'no_create': True}"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- A05: roll-up task on the ticket (defaults from team, editable) -->
+    <record id="helpdesk_ticket_view_form_task_link" model="ir.ui.view">
+        <field name="name">helpdesk.ticket.form.task.linked</field>
+        <field name="model">helpdesk.ticket</field>
+        <field name="inherit_id" ref="helpdesk.helpdesk_ticket_view_form"/>
+        <field name="arch" type="xml">
+            <field name="user_id" position="after">
+                <field name="task_id" options="{'no_create': True}"/>
+            </field>
+        </field>
+    </record>
+
     <!-- Restrict sale_line_id on ticket to the SO linked via team → project → SO -->
     <record id="helpdesk_ticket_view_form_sale_line" model="ir.ui.view">
         <field name="name">helpdesk.ticket.form.sale.line.linked</field>
