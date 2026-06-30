@@ -43,8 +43,9 @@ class HelpdeskTicket(models.Model):
 
 
     task_id = fields.Many2one(
-        'project.task', string='Roll-up Task', tracking=True, store=True, readonly=False,
+        'project.task', string='Roll-up Task', tracking=True, readonly=True,
         domain="[('project_id', '=', team_project_id)]",
+        compute="_compute_task_id",
         help='Project task to which time logged on this ticket is attributed, '
              'so ticket effort is visible at task level. Defaults from the team.',
     )

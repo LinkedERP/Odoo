@@ -12,22 +12,16 @@
                        placeholder="Select a project manager..."
                        options="{'no_create': True}"/>
             </field>
+            <xpath expr="//setting[@id='timesheet']" position='inside'>
+                <div invisible="not use_helpdesk_timesheet">
+                    <label for="project_task_id" string="Task"/>
+                    <field name="project_task_id" class="oe_inline"
+                           context="{'default_allow_billable': use_helpdesk_sale_timesheet, 'default_use_documents': False}"/>
+                </div>
+            </xpath>
         </field>
     </record>
-
-    <!-- A05: roll-up task reference on the Helpdesk Team -->
-    <record id="helpdesk_team_view_form_task" model="ir.ui.view">
-        <field name="name">helpdesk.team.form.task.linked</field>
-        <field name="model">helpdesk.team</field>
-        <field name="inherit_id" ref="helpdesk_timesheet.helpdesk_team_view_form_inherit_helpdesk_timesheet"/>
-        <field name="arch" type="xml">
-            <field name="project_id" position="after">
-                <field name="project_task_id"
-                       invisible="not project_id"
-                       options="{'no_create': True}"/>
-            </field>
-        </field>
-    </record>
+    
 
     <!-- A05: roll-up task on the ticket (defaults from team, editable) -->
     <record id="helpdesk_ticket_view_form_task_link" model="ir.ui.view">
