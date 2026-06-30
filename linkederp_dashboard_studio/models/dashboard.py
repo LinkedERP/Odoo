@@ -735,6 +735,12 @@ class LinkederpDashboard(models.Model):
             "name": model_label,
             "res_model": model_name,
             "view_mode": "list,form,pivot,graph",
+            "views": [
+                [False, "list"],
+                [False, "form"],
+                [False, "pivot"],
+                [False, "graph"],
+            ],
             "domain": parsed_domain,
             "target": "current",
         }
