@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_linkederp_dashboard_list" model="ir.ui.view">
+        <field name="name">linkederp.dashboard.list</field>
+        <field name="model">linkederp.dashboard</field>
+        <field name="arch" type="xml">
+            <list string="Dashboards">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="active"/>
+                <field name="company_id"/>
+                <field name="allowed_group_ids" widget="many2many_tags"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_linkederp_dashboard_form" model="ir.ui.view">
+        <field name="name">linkederp.dashboard.form</field>
+        <field name="model">linkederp.dashboard</field>
+        <field name="arch" type="xml">
+            <form string="Dashboard">
+                <header>
+                    <button name="action_view_dashboard" type="object" string="Open Dashboard" class="oe_highlight"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name" placeholder="Sales Dashboard"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="sequence"/>
+                            <field name="active"/>
+                            <field name="company_id"/>
+                            <field name="color" widget="color"/>
+                        </group>
+                        <group>
+                            <field name="allowed_group_ids" widget="many2many_tags"/>
+                        </group>
+                    </group>
+                    <field name="description" placeholder="Internal notes about this dashboard."/>
+                    <notebook>
+                        <page string="Widgets">
+                            <field name="widget_ids" context="{'default_dashboard_id': id}">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                    <field name="active"/>
+                                    <field name="widget_type"/>
+                                    <field name="model_id"/>
+                                    <field name="value_mode"/>
+                                    <field name="measure_field_id"/>
+                                    <field name="groupby_field_id"/>
+                                    <field name="date_field_id"/>
+                                    <field name="limit"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_linkederp_dashboard_config" model="ir.actions.act_window">
+        <field name="name">Dashboards</field>
+        <field name="res_model">linkederp.dashboard</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_linkederp_dashboard_widget_list" model="ir.ui.view">
+        <field name="name">linkederp.dashboard.widget.list</field>
+        <field name="model">linkederp.dashboard.widget</field>
+        <field name="arch" type="xml">
+            <list string="Dashboard Widgets">
+                <field name="sequence" widget="handle"/>
+                <field name="dashboard_id"/>
+                <field name="name"/>
+                <field name="active"/>
+                <field name="widget_type"/>
+                <field name="model_id"/>
+                <field name="value_mode"/>
+                <field name="measure_field_id"/>
+                <field name="groupby_field_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_linkederp_dashboard_widget_form" model="ir.ui.view">
+        <field name="name">linkederp.dashboard.widget.form</field>
+        <field name="model">linkederp.dashboard.widget</field>
+        <field name="arch" type="xml">
+            <form string="Dashboard Widget">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name" placeholder="Confirmed Revenue"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="dashboard_id"/>
+                            <field name="sequence"/>
+                            <field name="active"/>
+                            <field name="widget_type"/>
+                            <field name="color" widget="color"/>
+                        </group>
+                        <group>
+                            <field name="model_id"/>
+                            <field name="value_mode"/>
+                            <field
+                                name="measure_field_id"
+                                domain="[('model_id', '=', model_id), ('ttype', 'in', ('integer', 'float', 'monetary')), ('store', '=', True)]"/>
+                            <field
+                                name="groupby_field_id"
+                                domain="[('model_id', '=', model_id), ('ttype', 'in', ('boolean', 'char', 'date', 'datetime', 'many2one', 'selection')), ('store', '=', True)]"/>
+                            <field
+                                name="groupby_interval"
+                                invisible="not groupby_field_id"/>
+                            <field
+                                name="date_field_id"
+                                domain="[('model_id', '=', model_id), ('ttype', 'in', ('date', 'datetime')), ('store', '=', True)]"/>
+                            <field name="limit"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="domain_filter" placeholder="[('state', 'in', ['sale', 'done'])]"/>
+                        <field name="help_text"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_linkederp_dashboard_widget_config" model="ir.actions.act_window">
+        <field name="name">Widgets</field>
+        <field name="res_model">linkederp.dashboard.widget</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

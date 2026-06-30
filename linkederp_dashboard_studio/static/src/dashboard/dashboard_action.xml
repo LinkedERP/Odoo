@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="linkederp_dashboard_studio.DashboardAction">
+        <div class="o_linkederp_dashboard">
+            <div class="o_lds_toolbar">
+                <div class="o_lds_title_block">
+                    <h1 t-if="state.dashboard" t-esc="state.dashboard.name"/>
+                    <h1 t-else="">Dashboard Studio</h1>
+                    <p t-if="state.dashboard &amp;&amp; state.dashboard.description" t-esc="state.dashboard.description"/>
+                </div>
+                <div class="o_lds_controls">
+                    <select class="form-select" t-on-change="onDashboardChange">
+                        <t t-foreach="state.dashboards" t-as="dashboard" t-key="dashboard.id">
+                            <option
+                                t-att-value="dashboard.id"
+                                t-att-selected="state.dashboard &amp;&amp; dashboard.id === state.dashboard.id">
+                                <t t-esc="dashboard.name"/>
+                            </option>
+                        </t>
+                    </select>
+                    <input class="form-control" type="date" t-model="state.filters.dateFrom"/>
+                    <input class="form-control" type="date" t-model="state.filters.dateTo"/>
+                    <button class="btn btn-primary" type="button" t-on-click="applyFilters" title="Apply filters">
+                        <i class="fa fa-filter"/>
+                    </button>
+                    <button class="btn btn-outline-secondary" type="button" t-on-click="resetFilters" title="Reset filters">
+                        <i class="fa fa-refresh"/>
+                    </button>
+                </div>
+            </div>
+
+            <div t-if="state.loading" class="o_lds_empty">
+                <i class="fa fa-spinner fa-spin"/>
+                <span>Loading dashboard</span>
+            </div>
+
+            <div t-elif="!state.dashboard" class="o_lds_empty">
+                <i class="fa fa-bar-chart"/>
+                <span>No dashboard is configured yet.</span>
+            </div>
+
+            <div t-else="" class="o_lds_grid">
+                <t t-foreach="state.widgets" t-as="widget" t-key="widget.id">
+                    <section
+                        t-att-class="'o_lds_widget o_lds_widget_' + widget.type"
+                        t-att-style="'--lds-accent:' + (widget.color || '#2563eb')">
+                        <header class="o_lds_widget_header">
+                            <div>
+                                <h2 t-esc="widget.name"/>
+                                <span t-if="widget.help" t-esc="widget.help"/>
+                            </div>
+                            <button
+                                class="btn btn-sm btn-link"
+                                type="button"
+                                t-on-click="() => openRecords(widget.model, widget.domain)"
+                                title="Open records">
+                                <i class="fa fa-external-link"/>
+                            </button>
+                        </header>
+
+                        <div t-if="widget.error" class="o_lds_widget_error">
+                            <i class="fa fa-warning"/>
+                            <span t-esc="widget.error"/>
+                        </div>
+
+                        <t t-elif="widget.type === 'kpi'">
+                            <button
+                                class="o_lds_kpi"
+                                type="button"
+                                t-on-click="() => openRecords(widget.model, widget.domain)">
+                                <span class="o_lds_kpi_value" t-esc="formatNumber(widget.value)"/>
+                                <span class="o_lds_kpi_caption" t-esc="widget.measure"/>
+                            </button>
+                        </t>
+
+                        <t t-elif="widget.type === 'bar'">
+                            <div class="o_lds_bars">
+                                <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                    <button
+                                        class="o_lds_bar_row"
+                                        type="button"
+                                        t-on-click="() => openRecords(widget.model, point.domain)">
+                                        <span class="o_lds_bar_label" t-esc="point.label"/>
+                                        <span class="o_lds_bar_track">
+                                            <span class="o_lds_bar_fill" t-att-style="barStyle(widget, point)"/>
+                                        </span>
+                                        <span class="o_lds_bar_value" t-esc="formatNumber(point.value)"/>
+                                    </button>
+                                </t>
+                            </div>
+                        </t>
+
+                        <t t-elif="widget.type === 'line'">
+                            <button
+                                class="o_lds_line"
+                                type="button"
+                                t-on-click="() => openRecords(widget.model, widget.domain)">
+                                <svg viewBox="0 0 300 110" preserveAspectRatio="none" role="img">
+                                    <polyline class="o_lds_line_area" t-att-points="linePoints(widget)"/>
+                                    <polyline class="o_lds_line_stroke" t-att-points="linePoints(widget)"/>
+                                </svg>
+                                <div class="o_lds_axis">
+                                    <span t-if="widget.points.length" t-esc="widget.points[0].label"/>
+                                    <strong t-esc="formatNumber(widget.value)"/>
+                                    <span t-if="widget.points.length" t-esc="widget.points[widget.points.length - 1].label"/>
+                                </div>
+                            </button>
+                        </t>
+
+                        <t t-elif="widget.type === 'pie'">
+                            <div class="o_lds_pie_wrap">
+                                <button
+                                    class="o_lds_pie"
+                                    type="button"
+                                    t-att-style="pieStyle(widget)"
+                                    t-on-click="() => openRecords(widget.model, widget.domain)">
+                                    <span t-esc="formatNumber(widget.value)"/>
+                                </button>
+                                <div class="o_lds_legend">
+                                    <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                        <button type="button" t-on-click="() => openRecords(widget.model, point.domain)">
+                                            <i t-att-style="legendColor(point_index)"/>
+                                            <span t-esc="point.label"/>
+                                            <strong t-esc="formatNumber(point.value)"/>
+                                        </button>
+                                    </t>
+                                </div>
+                            </div>
+                        </t>
+
+                        <t t-elif="widget.type === 'table'">
+                            <div class="o_lds_table_wrap">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th t-esc="widget.groupby"/>
+                                            <th class="text-end" t-esc="widget.measure"/>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                            <tr t-on-click="() => openRecords(widget.model, point.domain)">
+                                                <td t-esc="point.label"/>
+                                                <td class="text-end" t-esc="formatNumber(point.value)"/>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </t>
+                    </section>
+                </t>
+            </div>
+        </div>
+    </t>
+</templates>

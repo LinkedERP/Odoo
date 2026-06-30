@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_linkederp_dashboard_studio" model="ir.actions.client">
+        <field name="name">Dashboard Studio</field>
+        <field name="tag">linkederp_dashboard_studio.dashboard_action</field>
+    </record>
+
+    <menuitem
+        id="menu_linkederp_dashboard_root"
+        name="Dashboards"
+        action="action_linkederp_dashboard_studio"
+        sequence="12"
+        groups="base.group_user"/>
+
+    <menuitem
+        id="menu_linkederp_dashboard_configuration"
+        name="Configuration"
+        parent="menu_linkederp_dashboard_root"
+        sequence="90"
+        groups="linkederp_dashboard_studio.group_dashboard_studio_manager"/>
+
+    <menuitem
+        id="menu_linkederp_dashboards"
+        name="Dashboards"
+        parent="menu_linkederp_dashboard_configuration"
+        action="action_linkederp_dashboard_config"
+        sequence="10"/>
+
+    <menuitem
+        id="menu_linkederp_dashboard_widgets"
+        name="Widgets"
+        parent="menu_linkederp_dashboard_configuration"
+        action="action_linkederp_dashboard_widget_config"
+        sequence="20"/>
+</odoo>
