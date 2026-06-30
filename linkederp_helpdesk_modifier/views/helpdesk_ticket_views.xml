@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="helpdesk_ticket_view_form_lock_timesheet" model="ir.ui.view">
+        <field name="name">helpdesk.ticket.form.lock.timesheet</field>
+        <field name="model">helpdesk.ticket</field>
+        <field name="inherit_id" ref="helpdesk_timesheet.helpdesk_ticket_view_form_inherit_helpdesk_timesheet"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='timesheet_ids']" position="before">
+                <field name="sale_order_completed" invisible="1"/>
+            </xpath>
+            <xpath expr="//field[@name='timesheet_ids']" position="attributes">
+                <attribute name="readonly">sale_order_id.x_studio_completed</attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>
