@@ -44,6 +44,9 @@ class LinkederpDashboard(models.Model):
     @api.model
     def get_dashboard_payload(self, dashboard_id=False, date_from=False, date_to=False):
         dashboards = self.search([("active", "=", True)], order="sequence, name")
+        if not dashboards and not dashboard_id:
+            self.sudo()._ensure_default_sales_crm_dashboard()
+            dashboards = self.search([("active", "=", True)], order="sequence, name")
         dashboards = dashboards._visible_to_current_user()
 
         if dashboard_id:
@@ -80,6 +83,172 @@ class LinkederpDashboard(models.Model):
             ]
             or [],
         }
+
+    @api.model
+    def _ensure_default_sales_crm_dashboard(self):
+        if self.search_count([]):
+            return
+        if "sale.order" not in self.env or "crm.lead" not in self.env:
+            return
+
+        dashboard = self.create(
+            {
+                "name": _("Sales & CRM Dashboard"),
+                "sequence": 10,
+                "description": _(
+                    "LinkedERP starter dashboard for sales orders, revenue, pipeline, and opportunity performance."
+                ),
+                "color": "#2563eb",
+            }
+        )
+
+        specs = [
+            {
+                "name": _("Confirmed Revenue"),
+                "sequence": 10,
+                "widget_type": "kpi",
+                "model": "sale.order",
+                "value_mode": "sum",
+                "measure": "amount_total",
+                "date": "date_order",
+                "domain_filter": "[('state', 'in', ['sale', 'done'])]",
+                "color": "#2563eb",
+                "help_text": _("Total confirmed sales order value in the selected period."),
+            },
+            {
+                "name": _("Confirmed Orders"),
+                "sequence": 20,
+                "widget_type": "kpi",
+                "model": "sale.order",
+                "value_mode": "count",
+                "date": "date_order",
+                "domain_filter": "[('state', 'in', ['sale', 'done'])]",
+                "color": "#059669",
+                "help_text": _("Number of confirmed sales orders in the selected period."),
+            },
+            {
+                "name": _("Open Opportunities"),
+                "sequence": 30,
+                "widget_type": "kpi",
+                "model": "crm.lead",
+                "value_mode": "count",
+                "date": "create_date",
+                "domain_filter": "[('type', '=', 'opportunity'), ('active', '=', True)]",
+                "color": "#7c3aed",
+                "help_text": _("Active opportunities created in the selected period."),
+            },
+            {
+                "name": _("Expected Pipeline"),
+                "sequence": 40,
+                "widget_type": "kpi",
+                "model": "crm.lead",
+                "value_mode": "sum",
+                "measure": "expected_revenue",
+                "date": "create_date",
+                "domain_filter": "[('type', '=', 'opportunity'), ('active', '=', True)]",
+                "color": "#db2777",
+                "help_text": _("Expected revenue from active opportunities created in the selected period."),
+            },
+            {
+                "name": _("Sales by Month"),
+                "sequence": 50,
+                "widget_type": "line",
+                "model": "sale.order",
+                "value_mode": "sum",
+                "measure": "amount_total",
+                "groupby": "date_order",
+                "groupby_interval": "month",
+                "date": "date_order",
+                "domain_filter": "[('state', 'in', ['sale', 'done'])]",
+                "limit": 12,
+                "color": "#2563eb",
+            },
+            {
+                "name": _("Top Customers"),
+                "sequence": 60,
+                "widget_type": "bar",
+                "model": "sale.order",
+                "value_mode": "sum",
+                "measure": "amount_total",
+                "groupby": "partner_id",
+                "date": "date_order",
+                "domain_filter": "[('state', 'in', ['sale', 'done'])]",
+                "limit": 8,
+                "color": "#059669",
+            },
+            {
+                "name": _("Pipeline by Stage"),
+                "sequence": 70,
+                "widget_type": "bar",
+                "model": "crm.lead",
+                "value_mode": "sum",
+                "measure": "expected_revenue",
+                "groupby": "stage_id",
+                "date": "create_date",
+                "domain_filter": "[('type', '=', 'opportunity'), ('active', '=', True)]",
+                "limit": 10,
+                "color": "#7c3aed",
+            },
+            {
+                "name": _("Opportunities by Salesperson"),
+                "sequence": 80,
+                "widget_type": "table",
+                "model": "crm.lead",
+                "value_mode": "sum",
+                "measure": "expected_revenue",
+                "groupby": "user_id",
+                "date": "create_date",
+                "domain_filter": "[('type', '=', 'opportunity'), ('active', '=', True)]",
+                "limit": 10,
+                "color": "#db2777",
+            },
+        ]
+
+        Widget = self.env["linkederp.dashboard.widget"]
+        for spec in specs:
+            model = self._dashboard_model(spec["model"])
+            if not model:
+                continue
+            vals = {
+                "dashboard_id": dashboard.id,
+                "name": spec["name"],
+                "sequence": spec["sequence"],
+                "widget_type": spec["widget_type"],
+                "model_id": model.id,
+                "value_mode": spec["value_mode"],
+                "domain_filter": spec["domain_filter"],
+                "limit": spec.get("limit", 8),
+                "color": spec["color"],
+                "help_text": spec.get("help_text", ""),
+            }
+            measure = self._dashboard_field(model.model, spec.get("measure"))
+            groupby = self._dashboard_field(model.model, spec.get("groupby"))
+            date_field = self._dashboard_field(model.model, spec.get("date"))
+            if spec.get("measure") and not measure:
+                continue
+            if spec.get("groupby") and not groupby:
+                continue
+            if measure:
+                vals["measure_field_id"] = measure.id
+            if groupby:
+                vals["groupby_field_id"] = groupby.id
+                vals["groupby_interval"] = spec.get("groupby_interval", "month")
+            if date_field:
+                vals["date_field_id"] = date_field.id
+            Widget.create(vals)
+
+    @api.model
+    def _dashboard_model(self, model_name):
+        return self.env["ir.model"].search([("model", "=", model_name)], limit=1)
+
+    @api.model
+    def _dashboard_field(self, model_name, field_name):
+        if not field_name:
+            return self.env["ir.model.fields"]
+        return self.env["ir.model.fields"].search(
+            [("model", "=", model_name), ("name", "=", field_name)],
+            limit=1,
+        )
 
     @api.model
     def action_open_records(self, model_name, domain=False):
