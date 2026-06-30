@@ -34,9 +34,17 @@ class HelpdeskTicket(models.Model):
              "You can also change or remove the sales order item of each timesheet entry individually.")
 
     # A05: roll-up task for this ticket; defaults from the team, editable per ticket
+
+    team_project_id = fields.Many2one(
+        'project.project',
+        related='team_id.project_id',
+        store=False,
+    )
+
+
     task_id = fields.Many2one(
         'project.task', string='Roll-up Task', tracking=True, store=True, readonly=False,
-        domain="[('project_id', '=', team_id.project_id)]",
+        domain="[('project_id', '=', team_project_id)]",
         help='Project task to which time logged on this ticket is attributed, '
              'so ticket effort is visible at task level. Defaults from the team.',
     )
