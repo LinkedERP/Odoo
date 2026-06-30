@@ -36,28 +36,28 @@ class AccountAnalyticLine(models.Model):
             domain,
         ]))
 
-    @api.depends('helpdesk_ticket_id.sale_line_id')
-    def _compute_so_line(self):
-        non_billed_helpdesk_timesheets = self.filtered(
-            lambda t: not t.is_so_line_edited
-                      and t.helpdesk_ticket_id
-                      and t._is_not_billed()
-                      and not t.validated
-        )
-
-        for timesheet in non_billed_helpdesk_timesheets:
-            so_line = timesheet.helpdesk_ticket_id.sale_line_id
-
-            if (
-                timesheet.project_id.allow_billable
-                and so_line
-                and not so_line.order_id.x_studio_completed
-            ):
-                timesheet.so_line = so_line
-            else:
-                timesheet.so_line = False
-
-        super(AccountAnalyticLine, self - non_billed_helpdesk_timesheets)._compute_so_line()
+    # @api.depends('helpdesk_ticket_id.sale_line_id')
+    # def _compute_so_line(self):
+    #     non_billed_helpdesk_timesheets = self.filtered(
+    #         lambda t: not t.is_so_line_edited
+    #                   and t.helpdesk_ticket_id
+    #                   and t._is_not_billed()
+    #                   and not t.validated
+    #     )
+    #
+    #     for timesheet in non_billed_helpdesk_timesheets:
+    #         so_line = timesheet.helpdesk_ticket_id.sale_line_id
+    #
+    #         if (
+    #             timesheet.project_id.allow_billable
+    #             and so_line
+    #             and not so_line.order_id.x_studio_completed
+    #         ):
+    #             timesheet.so_line = so_line
+    #         else:
+    #             timesheet.so_line = False
+    #
+    #     super(AccountAnalyticLine, self - non_billed_helpdesk_timesheets)._compute_so_line()
 
     project_id = fields.Many2one(
         'project.project', 'Project', domain=_domain_project_id, index=True,
