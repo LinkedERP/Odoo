@@ -8,21 +8,17 @@
         <field name="arch" type="xml">
             <filter name="sales" position="after">
                 <separator/>
-                <filter name="sale_complete" position="after">
-                    <separator/>
-                    <filter
-                            name="not_completed"
-                            string="Uncompleted Orders"
-                            domain="[('x_studio_completed', '=', False)]"
-                            help="Show only Uncompleted  Sales Orders"/>
+                <filter
+                        name="not_completed"
+                        string="Open Orders"
+                        domain="[('x_studio_completed', '=', False)]"
+                        help="Show only Uncompleted  Sales Orders"/>
 
-                    <filter
-                            name="completed"
-                            string="Complete Order"
-                            domain="[('x_studio_completed', '=', True)]"
-                            help="Show only Complete Sales Orders"/>
-                </filter>
-
+                <filter
+                        name="completed"
+                        string="Complete Order"
+                        domain="[('x_studio_completed', '=', True)]"
+                        help="Show only Complete Sales Orders"/>
             </filter>
         </field>
     </record>
@@ -34,20 +30,17 @@
         <field name="arch" type="xml">
             <filter name="my_quotation" position="after">
                 <separator/>
-                <filter name="quotation_complete" position="after">
-                    <separator/>
-                    <filter
-                            name="quotation_not_completed"
-                            string="Uncompleted Orders"
-                            domain="[('x_studio_completed', '=', False)]"
-                            help="Show only Uncompleted  Sales Orders"/>
+                <filter
+                        name="quotation_not_completed"
+                        string="Open Orders"
+                        domain="[('x_studio_completed', '=', False)]"
+                        help="Show only Uncompleted  Sales Orders"/>
 
-                    <filter
-                            name="quotation_completed"
-                            string="Complete Order"
-                            domain="[('x_studio_completed', '=', True)]"
-                            help="Show only Complete Sales Orders"/>
-                </filter>
+                <filter
+                        name="quotation_completed"
+                        string="Complete Order"
+                        domain="[('x_studio_completed', '=', True)]"
+                        help="Show only Complete Sales Orders"/>
             </filter>
         </field>
     </record>
