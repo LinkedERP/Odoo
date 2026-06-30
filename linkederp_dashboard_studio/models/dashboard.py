@@ -35,11 +35,21 @@ class LinkederpDashboard(models.Model):
     )
 
     def _visible_to_current_user(self):
-        user_groups = self.env.user.groups_id
+        user_groups = self._current_user_groups()
+        if not user_groups:
+            return self
         return self.filtered(
             lambda dashboard: not dashboard.allowed_group_ids
             or bool(dashboard.allowed_group_ids & user_groups)
         )
+
+    def _current_user_groups(self):
+        user = self.env.user
+        if "groups_id" in user._fields:
+            return user.groups_id
+        if "group_ids" in user._fields:
+            return user.group_ids
+        return self.env["res.groups"]
 
     @api.model
     def get_dashboard_payload(self, dashboard_id=False, date_from=False, date_to=False):
