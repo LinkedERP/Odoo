@@ -36,7 +36,7 @@ class HelpdeskTicket(models.Model):
     # A05: roll-up task for this ticket; defaults from the team, editable per ticket
     task_id = fields.Many2one(
         'project.task', string='Roll-up Task', tracking=True, store=True, readonly=False,
-        domain="[('project_id', '=', project_id)]",
+        domain="[('project_id', '=', team_id.project_id)]",
         help='Project task to which time logged on this ticket is attributed, '
              'so ticket effort is visible at task level. Defaults from the team.',
     )
