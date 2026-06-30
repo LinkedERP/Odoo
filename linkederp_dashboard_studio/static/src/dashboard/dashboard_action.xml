@@ -26,7 +26,7 @@
                         <t t-foreach="state.crmFilters.campaigns" t-as="option" t-key="option.id">
                             <option
                                 t-att-value="option.id"
-                                t-att-selected="state.filters.campaignId === String(option.id)"
+                                t-att-selected="isFilterSelected('campaignId', option.id)"
                                 t-esc="optionLabel(option)"/>
                         </t>
                     </select>
@@ -38,7 +38,7 @@
                         <t t-foreach="state.crmFilters.salespeople" t-as="option" t-key="option.id">
                             <option
                                 t-att-value="option.id"
-                                t-att-selected="state.filters.userId === String(option.id)"
+                                t-att-selected="isFilterSelected('userId', option.id)"
                                 t-esc="optionLabel(option)"/>
                         </t>
                     </select>
@@ -50,7 +50,7 @@
                         <t t-foreach="state.crmFilters.teams" t-as="option" t-key="option.id">
                             <option
                                 t-att-value="option.id"
-                                t-att-selected="state.filters.teamId === String(option.id)"
+                                t-att-selected="isFilterSelected('teamId', option.id)"
                                 t-esc="optionLabel(option)"/>
                         </t>
                     </select>
@@ -62,7 +62,7 @@
                         <t t-foreach="state.crmFilters.stages" t-as="option" t-key="option.id">
                             <option
                                 t-att-value="option.id"
-                                t-att-selected="state.filters.stageId === String(option.id)"
+                                t-att-selected="isFilterSelected('stageId', option.id)"
                                 t-esc="optionLabel(option)"/>
                         </t>
                     </select>

@@ -11,6 +11,7 @@ export class LinkedERPDashboardAction extends Component {
         this.orm = useService("orm");
         this.action = useService("action");
         this.notification = useService("notification");
+        this.bindTemplateMethods();
 
         const initialDashboardId = this.props.action && this.props.action.params
             ? this.props.action.params.dashboard_id
@@ -27,6 +28,27 @@ export class LinkedERPDashboardAction extends Component {
         });
 
         onWillStart(() => this.load(initialDashboardId));
+    }
+
+    bindTemplateMethods() {
+        for (const method of [
+            "onDashboardChange",
+            "applyFilters",
+            "resetFilters",
+            "setFilter",
+            "openRecords",
+            "formatNumber",
+            "formatWidgetValue",
+            "formatPointValue",
+            "optionLabel",
+            "isFilterSelected",
+            "barStyle",
+            "pieStyle",
+            "linePoints",
+            "legendColor",
+        ]) {
+            this[method] = this[method].bind(this);
+        }
     }
 
     defaultFilters() {
@@ -137,6 +159,10 @@ export class LinkedERPDashboardAction extends Component {
 
     optionLabel(option) {
         return `${option.name} (${this.formatNumber(option.count)})`;
+    }
+
+    isFilterSelected(key, optionId) {
+        return `${this.state.filters[key] || ""}` === `${optionId}`;
     }
 
     maxPointValue(widget) {
