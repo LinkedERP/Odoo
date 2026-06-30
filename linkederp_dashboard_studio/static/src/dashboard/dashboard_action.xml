@@ -311,7 +311,7 @@
                                 <table class="table table-sm">
                                     <thead>
                                         <tr>
-                                            <th class="text-center" t-esc="widget.groupby"/>
+                                            <th class="text-start" t-esc="widget.groupby"/>
                                             <t t-foreach="widget.columns" t-as="column" t-key="column.key">
                                                 <th class="text-center" t-esc="column.label"/>
                                             </t>
@@ -320,7 +320,7 @@
                                     <tbody>
                                         <t t-foreach="widget.rows" t-as="row" t-key="row.label">
                                             <tr t-on-click="() => openRecords(widget.model, row.domain)">
-                                                <td class="text-center" t-esc="row.label"/>
+                                                <td class="text-start" t-esc="row.label"/>
                                                 <t t-foreach="widget.columns" t-as="column" t-key="column.key">
                                                     <td class="text-center" t-esc="matrixCellValue(row, column)"/>
                                                 </t>
