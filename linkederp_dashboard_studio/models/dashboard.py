@@ -455,7 +455,10 @@ class LinkederpDashboard(models.Model):
             lost_domain = expression.AND(
                 [group_domain, ["|", ("won_status", "=", "lost"), ("active", "=", False)]]
             )
+            not_called_domain = expression.AND([group_domain, [("x_studio_call_outcome", "=", False)]])
+            open_domain = expression.AND([group_domain, [("active", "=", True)]])
             worked = self._ai_count(worked_domain)
+            open_count = self._ai_count(open_domain)
             meetings = self._ai_count(meeting_domain)
             lost = self._ai_count(lost_domain)
             rows.append(
@@ -463,11 +466,12 @@ class LinkederpDashboard(models.Model):
                     "label": group["label"],
                     "domain": self._json_safe(group_domain),
                     "generated": generated,
-                    "worked_rate": self._ai_rate(worked, generated),
+                    "worked": worked,
+                    "open": open_count,
                     "meetings": meetings,
                     "meeting_rate": self._ai_rate(meetings, generated),
                     "lost": lost,
-                    "lost_rate": self._ai_rate(lost, generated),
+                    "ageing": self._ai_average_age_days(not_called_domain),
                 }
             )
         return sorted(rows, key=lambda row: (row["meeting_rate"], row["meetings"], row["generated"]), reverse=True)
@@ -792,15 +796,16 @@ class LinkederpDashboard(models.Model):
                 base_domain,
                 "#0f766e",
                 _("Records"),
-                _("Owner-level contact, meeting, and loss performance."),
+                _("Owner-level generation, work, meeting, loss, and ageing performance."),
                 rows=self._ai_matrix_rows(base_domain, "user_id", limit=15),
                 columns=[
                     {"key": "generated", "label": _("Generated"), "format": "integer"},
-                    {"key": "worked_rate", "label": _("Worked %"), "format": "percent"},
-                    {"key": "meetings", "label": _("Meetings"), "format": "integer"},
-                    {"key": "meeting_rate", "label": _("Meeting %"), "format": "percent"},
+                    {"key": "worked", "label": _("Worked"), "format": "integer"},
+                    {"key": "open", "label": _("Open"), "format": "integer"},
+                    {"key": "meetings", "label": _("Meetings Set"), "format": "integer"},
+                    {"key": "meeting_rate", "label": _("Meetings %"), "format": "percent"},
                     {"key": "lost", "label": _("Lost"), "format": "integer"},
-                    {"key": "lost_rate", "label": _("Lost %"), "format": "percent"},
+                    {"key": "ageing", "label": _("Ageing"), "format": "days"},
                 ],
                 groupby=_("Salesperson"),
                 span=6,
