@@ -77,6 +77,17 @@
                                 t-esc="option.label"/>
                         </t>
                     </select>
+                    <select
+                        t-if="state.opsFilters.enabled &amp;&amp; state.opsFilters.teams"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onOpsTeamChange">
+                        <t t-foreach="state.opsFilters.teams" t-as="option" t-key="option.value">
+                            <option
+                                t-att-value="option.value"
+                                t-att-selected="isOpsTeamSelected(option.value)"
+                                t-esc="option.label"/>
+                        </t>
+                    </select>
                     <input t-if="!state.opsFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom"/>
                     <input t-if="!state.opsFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo"/>
                     <button class="btn btn-primary" type="button" t-on-click="applyFilters" title="Apply filters">

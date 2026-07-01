@@ -40,6 +40,8 @@ export class LinkedERPDashboardAction extends Component {
             "setFilter",
             "onWeekChange",
             "isWeekSelected",
+            "onOpsTeamChange",
+            "isOpsTeamSelected",
             "openRecords",
             "formatNumber",
             "formatWidgetValue",
@@ -76,6 +78,7 @@ export class LinkedERPDashboardAction extends Component {
             teamId: "",
             stageId: "",
             week: "",
+            opsTeam: "",
         };
     }
 
@@ -112,6 +115,7 @@ export class LinkedERPDashboardAction extends Component {
                         team_id: this.state.filters.teamId || false,
                         stage_id: this.state.filters.stageId || false,
                         week: this.state.filters.week || false,
+                        ops_team: this.state.filters.opsTeam || false,
                     },
                 }
             );
@@ -164,6 +168,16 @@ export class LinkedERPDashboardAction extends Component {
 
     isWeekSelected(value) {
         const current = this.state.filters.week || this.state.opsFilters.selected;
+        return `${current}` === `${value}`;
+    }
+
+    async onOpsTeamChange(ev) {
+        this.state.filters.opsTeam = ev.target.value;
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    isOpsTeamSelected(value) {
+        const current = this.state.filters.opsTeam || this.state.opsFilters.selected_team || "";
         return `${current}` === `${value}`;
     }
 

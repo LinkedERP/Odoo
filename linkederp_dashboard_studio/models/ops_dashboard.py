@@ -18,6 +18,13 @@ WEEK_OPTIONS_COUNT = 26
 OPS_TEAM_FIELD = "x_studio_selection_field_ih_1jsfannnb"
 OPS_TEAM_VALUE = "Operations"
 
+# Optional sub-team ("Operations Team" Studio selection on hr.employee) used as a
+# dashboard slicer next to the week filter.
+OPS_SUBTEAM_FIELD = "x_studio_selection_field_8lf_1jsfbg0sl"
+
+# Expected billable hours are this share of total expected hours.
+BILLABLE_SHARE = 0.75
+
 
 class LinkederpDashboardOps(models.Model):
     _inherit = "linkederp.dashboard"
@@ -85,11 +92,26 @@ class LinkederpDashboardOps(models.Model):
             for ws in weeks
         ]
 
+    def _ops_selected_subteam(self, filters=False):
+        filters = filters or {}
+        return filters.get("ops_team") or ""
+
+    def _ops_subteam_options(self):
+        options = [{"value": "", "label": _("All Operations Teams")}]
+        Employee = self.env["hr.employee"]
+        if OPS_SUBTEAM_FIELD in Employee._fields:
+            info = Employee.fields_get([OPS_SUBTEAM_FIELD])
+            for value, label in info.get(OPS_SUBTEAM_FIELD, {}).get("selection") or []:
+                options.append({"value": value, "label": label})
+        return options
+
     def _ops_filter_options(self, filters=False):
         return {
             "enabled": True,
             "weeks": self._ops_week_options(),
             "selected": fields.Date.to_string(self._ops_selected_week(filters)),
+            "teams": self._ops_subteam_options(),
+            "selected_team": self._ops_selected_subteam(filters),
         }
 
     # ------------------------------------------------------------------
@@ -132,7 +154,7 @@ class LinkederpDashboardOps(models.Model):
     # ------------------------------------------------------------------
     # Expected hours (reusable engine) + Coverage
     # ------------------------------------------------------------------
-    def _ops_primary_employees(self):
+    def _ops_primary_employees(self, sub_team=None):
         """{user_id: employee} for the employee in the user's DEFAULT company.
 
         Expected hours (leaves + public holidays) are driven only by this
@@ -140,8 +162,11 @@ class LinkederpDashboardOps(models.Model):
         companies' projects.
         """
         domain = [("user_id", "!=", False), ("active", "=", True)]
-        if OPS_TEAM_FIELD in self.env["hr.employee"]._fields:
+        fields_map = self.env["hr.employee"]._fields
+        if OPS_TEAM_FIELD in fields_map:
             domain.append((OPS_TEAM_FIELD, "=", OPS_TEAM_VALUE))
+        if sub_team and OPS_SUBTEAM_FIELD in fields_map:
+            domain.append((OPS_SUBTEAM_FIELD, "=", sub_team))
         employees = self.env["hr.employee"].search(domain)
         by_user_company = {}
         for emp in employees:
@@ -212,15 +237,21 @@ class LinkederpDashboardOps(models.Model):
         by_emp = self._ops_employee_expected_hours(employees, week_start, week_end)
         return {uid: by_emp.get(emp.id, 0.0) for uid, emp in emp_map.items()}
 
-    def _ops_logged_hours_by_user(self, week_start):
-        """{user_id: logged project hours} across all companies for the week."""
+    def _ops_logged_hours_by_user(self, week_start, billable_only=False):
+        """{user_id: logged project hours} across all companies for the week.
+
+        billable_only keeps lines whose invoice type is not ``non_billable``.
+        """
         week_end = week_start + timedelta(days=6)
+        domain = [
+            ("project_id", "!=", False),
+            ("date", ">=", fields.Date.to_string(week_start)),
+            ("date", "<=", fields.Date.to_string(week_end)),
+        ]
+        if billable_only:
+            domain.append(("timesheet_invoice_type", "!=", "non_billable"))
         rows = self.env["account.analytic.line"].with_context(active_test=False).read_group(
-            [
-                ("project_id", "!=", False),
-                ("date", ">=", fields.Date.to_string(week_start)),
-                ("date", "<=", fields.Date.to_string(week_end)),
-            ],
+            domain,
             ["unit_amount:sum"],
             ["user_id"],
             lazy=False,
@@ -230,6 +261,21 @@ class LinkederpDashboardOps(models.Model):
             for row in rows
             if row.get("user_id")
         }
+
+    def _ops_billable_domain(self, week_start):
+        return self._ops_timesheet_week_domain(week_start) + [
+            ("timesheet_invoice_type", "!=", "non_billable")
+        ]
+
+    def _ops_billability(self, week_start, emp_map=None):
+        """Team billability = billable hours / (75% of expected hours)."""
+        expected = self._ops_expected_hours_by_user(week_start, emp_map=emp_map)
+        billable = self._ops_logged_hours_by_user(week_start, billable_only=True)
+        population = list(expected.keys())
+        expected_billable = sum(expected.values()) * BILLABLE_SHARE
+        total_billable = sum(billable.get(uid, 0.0) for uid in population)
+        rate = round(total_billable / expected_billable * 100, 1) if expected_billable else 0.0
+        return rate, total_billable, expected_billable
 
     def _ops_coverage(self, week_start, emp_map=None):
         """Team coverage = logged hours / expected hours over the delivery team."""
@@ -243,7 +289,8 @@ class LinkederpDashboardOps(models.Model):
 
     def _ops_dashboard_widgets(self, date_from=False, date_to=False, filters=False):
         week_start = self._ops_selected_week(filters)
-        emp_map = self._ops_primary_employees()
+        sub_team = self._ops_selected_subteam(filters)
+        emp_map = self._ops_primary_employees(sub_team=sub_team)
         team_user_ids = list(emp_map.keys())
 
         rate, on_time, total, cutoff, pass_domain = self._ops_pass_rate(
@@ -307,7 +354,40 @@ class LinkederpDashboardOps(models.Model):
             "span": 3,
             "error": False,
         }
-        return [pass_card, coverage_card]
+
+        bill_rate, billable_hours, expected_billable = self._ops_billability(
+            week_start, emp_map=emp_map
+        )
+        billability_domain = self._ops_billable_domain(week_start)
+        if team_user_ids:
+            billability_domain = billability_domain + [("user_id", "in", team_user_ids)]
+        billability_card = {
+            "id": "ops_billability",
+            "name": _("Billability"),
+            "type": "kpi",
+            "model": "account.analytic.line",
+            "mode": "computed",
+            "measure": _("%(billable)s / %(expected)s billable hrs") % {
+                "billable": self._ops_short_hours(billable_hours),
+                "expected": self._ops_short_hours(expected_billable),
+            },
+            "groupby": "",
+            "color": self._ops_pass_rate_color(bill_rate),
+            "help": _("Team %(team)s · reviewed %(week)s · billable hours vs 75%% of "
+                      "expected hours") % {
+                "team": OPS_TEAM_VALUE,
+                "week": self._ops_week_label(week_start),
+            },
+            "value": float(bill_rate),
+            "format": "percent",
+            "domain": self._json_safe(billability_domain),
+            "points": [],
+            "rows": [],
+            "columns": [],
+            "span": 3,
+            "error": False,
+        }
+        return [pass_card, coverage_card, billability_card]
 
     def _ops_short_hours(self, hours):
         hours = round(hours or 0, 1)
