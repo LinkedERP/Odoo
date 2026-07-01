@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Inherit Form View to Modify it -->
+        <record id="edit_project_linkederp" model="ir.ui.view">
+            <field name="name">project.project.form.linkederp</field>
+            <field name="model">project.project</field>
+            <field name="inherit_id" ref="project.edit_project"/>
+            <field name="arch" type="xml">
+
+                <xpath expr="/form/sheet/group/group/field[@name='company_id']" position="after">
+                    <field name="message_partner_ids" widget="many2many_tags_avatar"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

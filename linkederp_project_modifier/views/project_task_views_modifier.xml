@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <record id="view_task_form2" model="ir.ui.view">
+            <field name="name">project.task.form</field>
+            <field name="model">project.task</field>
+            <field name="inherit_id" ref="project.view_task_form2"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='recurrence_id']" position="after">
+                    <field name="available_sale_line_domain" invisible="1"/>
+                    <field name="sale_order_completed" invisible="1"/>
+                </xpath>
+                <xpath expr="//field[@name='timesheet_ids']" position="attributes">
+                    <attribute name="readonly">sale_order_completed</attribute>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

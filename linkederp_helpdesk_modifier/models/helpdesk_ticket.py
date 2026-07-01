@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import timedelta, datetime, date as date_type
 from odoo import models, fields, api, _
@@ -7,6 +8,63 @@ REMINDER_DAYS = 3  # Send reminder after this many working days without a respon
 class HelpdeskTicket(models.Model):
     """Extend helpdesk ticket with auto email reminder logic."""
     _inherit = 'helpdesk.ticket'
+
+    sale_order_completed = fields.Boolean(compute='_compute_sale_order_complete', store=False)
+
+    @api.depends("sale_order_id","project_id")
+    def _compute_sale_order_complete(self):
+        for task in self:
+            if task.sale_order_id:
+                task.sale_order_completed =  task.sale_order_id.x_studio_completed
+
+    available_sale_line_domain = fields.Char(
+        compute='_compute_available_sale_line_domain',
+    )
+
+    @api.depends('sale_order_id')
+    def _compute_available_sale_line_domain(self):
+        for ticket in self:
+            so = ticket.sale_order_id
+            if so:
+                ticket.available_sale_line_domain = json.dumps([
+                    ('id', 'in', so.order_line.ids)
+                ])
+            else:
+                ticket.available_sale_line_domain = json.dumps([])
+
+    sale_line_id = fields.Many2one(
+        'sale.order.line', string="Sales Order Item", tracking=True,
+        compute="_compute_sale_line_id", store=True, readonly=False,
+        domain="available_sale_line_domain",
+        help="Sales Order Item to which the time spent on this ticket will be added in order to be invoiced to your customer.\n"
+             "By default the last prepaid sales order item that has time remaining will be selected.\n"
+             "Remove the sales order item in order to make this ticket non-billable.\n"
+             "You can also change or remove the sales order item of each timesheet entry individually.")
+
+    # A05: roll-up task for this ticket; defaults from the team, editable per ticket
+
+    team_project_id = fields.Many2one(
+        'project.project',
+        related='team_id.project_id',
+        store=False,
+    )
+
+
+    task_id = fields.Many2one(
+        'project.task', string='Roll-up Task', tracking=True, readonly=True,
+        domain="[('project_id', '=', team_project_id)]",
+        compute="_compute_task_id",
+        help='Project task to which time logged on this ticket is attributed, '
+             'so ticket effort is visible at task level. Defaults from the team.',
+    )
+
+    @api.depends('team_id')
+    def _compute_task_id(self):
+        for ticket in self:
+            if ticket.team_id.project_task_id:
+                ticket.task_id = ticket.team_id.project_task_id
+            elif not ticket.task_id:
+                ticket.task_id = False
 
     last_reminder_sent = fields.Date(
         string='Last Reminder Sent',
