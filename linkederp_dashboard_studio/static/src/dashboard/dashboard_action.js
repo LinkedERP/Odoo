@@ -24,6 +24,7 @@ export class LinkedERPDashboardAction extends Component {
             dashboards: [],
             widgets: [],
             crmFilters: { enabled: false },
+            opsFilters: { enabled: false },
             filters: this.defaultFilters(),
             initialDashboardId,
         });
@@ -37,6 +38,8 @@ export class LinkedERPDashboardAction extends Component {
             "applyFilters",
             "resetFilters",
             "setFilter",
+            "onWeekChange",
+            "isWeekSelected",
             "openRecords",
             "formatNumber",
             "formatWidgetValue",
@@ -72,6 +75,7 @@ export class LinkedERPDashboardAction extends Component {
             userId: "",
             teamId: "",
             stageId: "",
+            week: "",
         };
     }
 
@@ -107,6 +111,7 @@ export class LinkedERPDashboardAction extends Component {
                         user_id: this.state.filters.userId || false,
                         team_id: this.state.filters.teamId || false,
                         stage_id: this.state.filters.stageId || false,
+                        week: this.state.filters.week || false,
                     },
                 }
             );
@@ -114,6 +119,7 @@ export class LinkedERPDashboardAction extends Component {
             this.state.dashboard = payload.dashboard || false;
             this.state.widgets = payload.widgets || [];
             this.state.crmFilters = payload.crm_filters || { enabled: false };
+            this.state.opsFilters = payload.ops_filters || { enabled: false };
             if (this.state.dashboard) {
                 this.saveDashboardId(this.state.dashboard.id);
             }
@@ -149,6 +155,16 @@ export class LinkedERPDashboardAction extends Component {
 
     setFilter(key, value) {
         this.state.filters[key] = value;
+    }
+
+    async onWeekChange(ev) {
+        this.state.filters.week = ev.target.value;
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    isWeekSelected(value) {
+        const current = this.state.filters.week || this.state.opsFilters.selected;
+        return `${current}` === `${value}`;
     }
 
     async openRecords(model, domain) {

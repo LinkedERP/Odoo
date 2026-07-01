@@ -18,6 +18,7 @@ continue to apply.
         "web",
         "sale_management",
         "crm",
+        "hr_timesheet",
     ],
     "data": [
         "security/dashboard_security.xml",

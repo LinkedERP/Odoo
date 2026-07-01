@@ -85,6 +85,12 @@ class LinkederpDashboard(models.Model):
                     date_to=date_to,
                     filters=filters,
                 )
+            elif dashboard._is_ops_dashboard():
+                widgets = dashboard._ops_dashboard_widgets(
+                    date_from=date_from,
+                    date_to=date_to,
+                    filters=filters,
+                )
 
         return {
             "dashboards": [
@@ -108,6 +114,9 @@ class LinkederpDashboard(models.Model):
             "widgets": widgets,
             "crm_filters": dashboard._dashboard_crm_filter_options(date_from=date_from, date_to=date_to)
             if dashboard
+            else {"enabled": False},
+            "ops_filters": dashboard._ops_filter_options(filters)
+            if dashboard and dashboard._is_ops_dashboard()
             else {"enabled": False},
         }
 

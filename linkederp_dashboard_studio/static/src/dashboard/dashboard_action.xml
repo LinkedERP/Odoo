@@ -66,8 +66,19 @@
                                 t-esc="optionLabel(option)"/>
                         </t>
                     </select>
-                    <input class="form-control" type="date" t-model="state.filters.dateFrom"/>
-                    <input class="form-control" type="date" t-model="state.filters.dateTo"/>
+                    <select
+                        t-if="state.opsFilters.enabled"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onWeekChange">
+                        <t t-foreach="state.opsFilters.weeks" t-as="option" t-key="option.value">
+                            <option
+                                t-att-value="option.value"
+                                t-att-selected="isWeekSelected(option.value)"
+                                t-esc="option.label"/>
+                        </t>
+                    </select>
+                    <input t-if="!state.opsFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom"/>
+                    <input t-if="!state.opsFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo"/>
                     <button class="btn btn-primary" type="button" t-on-click="applyFilters" title="Apply filters">
                         <i class="fa fa-filter"/>
                     </button>
