@@ -12,6 +12,12 @@ OPS_DASHBOARD_NAME = "Ops Performance"
 # How many past weeks to offer in the week selector.
 WEEK_OPTIONS_COUNT = 26
 
+# Restrict the dashboard to a single team. This is the Studio "Team" selection
+# field on hr.employee; the filter is applied against the user's default-company
+# employee, and is skipped automatically on databases without the field.
+OPS_TEAM_FIELD = "x_studio_selection_field_ih_1jsfannnb"
+OPS_TEAM_VALUE = "Operations"
+
 
 class LinkederpDashboardOps(models.Model):
     _inherit = "linkederp.dashboard"
@@ -97,22 +103,24 @@ class LinkederpDashboardOps(models.Model):
             ("date", "<=", fields.Date.to_string(week_end)),
         ]
 
-    def _ops_pass_rate(self, week_start):
-        """Return (rate, on_time, total, cutoff_date).
+    def _ops_pass_rate(self, week_start, user_ids=None):
+        """Return (rate, on_time, total, cutoff_date, base_domain).
 
         Pass = a project timesheet line dated in the reviewed week whose
         Created-on date is on/before the Monday of the following week.
-        Counted across all companies.
+        Counted across all companies, optionally restricted to a set of users.
         """
         cutoff = week_start + timedelta(days=7)  # Monday of the following week
         base = self._ops_timesheet_week_domain(week_start)
+        if user_ids is not None:
+            base = base + [("user_id", "in", user_ids)]
         Line = self.env["account.analytic.line"].with_context(active_test=False)
         total = Line.search_count(base)
         on_time = Line.search_count(
             base + [("create_date", "<=", "%s 23:59:59" % fields.Date.to_string(cutoff))]
         )
         rate = round(on_time / total * 100, 1) if total else 0.0
-        return rate, on_time, total, cutoff
+        return rate, on_time, total, cutoff, base
 
     def _ops_pass_rate_color(self, rate):
         if rate >= 100:
@@ -131,9 +139,10 @@ class LinkederpDashboardOps(models.Model):
         default-company employee, even though the user may log time for other
         companies' projects.
         """
-        employees = self.env["hr.employee"].search(
-            [("user_id", "!=", False), ("active", "=", True)]
-        )
+        domain = [("user_id", "!=", False), ("active", "=", True)]
+        if OPS_TEAM_FIELD in self.env["hr.employee"]._fields:
+            domain.append((OPS_TEAM_FIELD, "=", OPS_TEAM_VALUE))
+        employees = self.env["hr.employee"].search(domain)
         by_user_company = {}
         for emp in employees:
             by_user_company.setdefault((emp.user_id.id, emp.company_id.id), emp)
@@ -192,9 +201,10 @@ class LinkederpDashboardOps(models.Model):
             result[emp.id] = max(0.0, (len(work_days) - len(covered)) * hours_per_day)
         return result
 
-    def _ops_expected_hours_by_user(self, week_start):
+    def _ops_expected_hours_by_user(self, week_start, emp_map=None):
         """{user_id: expected hours} for the reviewed week."""
-        emp_map = self._ops_primary_employees()
+        if emp_map is None:
+            emp_map = self._ops_primary_employees()
         if not emp_map:
             return {}
         employees = self.env["hr.employee"].browse([emp.id for emp in emp_map.values()])
@@ -221,9 +231,9 @@ class LinkederpDashboardOps(models.Model):
             if row.get("user_id")
         }
 
-    def _ops_coverage(self, week_start):
+    def _ops_coverage(self, week_start, emp_map=None):
         """Team coverage = logged hours / expected hours over the delivery team."""
-        expected = self._ops_expected_hours_by_user(week_start)
+        expected = self._ops_expected_hours_by_user(week_start, emp_map=emp_map)
         logged = self._ops_logged_hours_by_user(week_start)
         population = list(expected.keys())
         total_expected = sum(expected.values())
@@ -233,7 +243,12 @@ class LinkederpDashboardOps(models.Model):
 
     def _ops_dashboard_widgets(self, date_from=False, date_to=False, filters=False):
         week_start = self._ops_selected_week(filters)
-        rate, on_time, total, cutoff = self._ops_pass_rate(week_start)
+        emp_map = self._ops_primary_employees()
+        team_user_ids = list(emp_map.keys())
+
+        rate, on_time, total, cutoff, pass_domain = self._ops_pass_rate(
+            week_start, user_ids=team_user_ids
+        )
 
         pass_card = {
             "id": "ops_pass_rate",
@@ -247,13 +262,14 @@ class LinkederpDashboardOps(models.Model):
             },
             "groupby": "",
             "color": self._ops_pass_rate_color(rate),
-            "help": _("Reviewed %(week)s · on time = created on/before %(cutoff)s") % {
+            "help": _("Team %(team)s · reviewed %(week)s · on time = created on/before %(cutoff)s") % {
+                "team": OPS_TEAM_VALUE,
                 "week": self._ops_week_label(week_start),
                 "cutoff": cutoff.strftime("%d %b %Y"),
             },
             "value": float(rate),
             "format": "percent",
-            "domain": self._json_safe(self._ops_timesheet_week_domain(week_start)),
+            "domain": self._json_safe(pass_domain),
             "points": [],
             "rows": [],
             "columns": [],
@@ -261,7 +277,10 @@ class LinkederpDashboardOps(models.Model):
             "error": False,
         }
 
-        cov_rate, logged_hours, expected_hours = self._ops_coverage(week_start)
+        cov_rate, logged_hours, expected_hours = self._ops_coverage(week_start, emp_map=emp_map)
+        coverage_domain = self._ops_timesheet_week_domain(week_start)
+        if team_user_ids:
+            coverage_domain = coverage_domain + [("user_id", "in", team_user_ids)]
         coverage_card = {
             "id": "ops_coverage",
             "name": _("Time Entry Coverage"),
@@ -274,13 +293,14 @@ class LinkederpDashboardOps(models.Model):
             },
             "groupby": "",
             "color": self._ops_pass_rate_color(cov_rate),
-            "help": _("Reviewed %(week)s · hours logged (all companies) vs expected "
-                      "(default-company calendar, leaves & holidays removed)") % {
+            "help": _("Team %(team)s · reviewed %(week)s · hours logged (all companies) vs "
+                      "expected (default-company calendar, leaves & holidays removed)") % {
+                "team": OPS_TEAM_VALUE,
                 "week": self._ops_week_label(week_start),
             },
             "value": float(cov_rate),
             "format": "percent",
-            "domain": self._json_safe(self._ops_timesheet_week_domain(week_start)),
+            "domain": self._json_safe(coverage_domain),
             "points": [],
             "rows": [],
             "columns": [],
