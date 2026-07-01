@@ -1,9 +1,10 @@
 # models/account_analytic_line.py
+import json
+
+from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 from odoo.fields import Domain
-from odoo import api, fields, models
 from odoo.tools.misc import unquote
-import json
 
 
 class AccountAnalyticLine(models.Model):
@@ -32,7 +33,7 @@ class AccountAnalyticLine(models.Model):
         domain = Domain([
             ('allow_timesheets', '=', True),
             ('is_template', '=', False),
-            ('x_is_reinvoice_completed', '=', False),  # ← pakai field baru, bukan reinvoiced_sale_order_id
+            ('x_is_reinvoice_completed', '=', False),  # use the computed flag, not reinvoiced_sale_order_id directly
         ])
         if not self.env.user.has_group('hr_timesheet.group_timesheet_manager'):
             domain &= (

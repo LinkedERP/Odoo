@@ -20,11 +20,14 @@ class ProjectTask(models.Model):
 
     sale_order_completed = fields.Boolean(compute='_compute_sale_order_complete', store=False)
 
-    @api.depends("sale_order_id","project_id")
+    @api.depends("sale_order_id", "project_sale_order_id")
     def _compute_sale_order_complete(self):
         for task in self:
-            if task.project_sale_order_id or task.sale_order_id:
-                task.sale_order_completed =  task.sale_order_id.x_studio_completed or task.project_sale_order_id.x_studio_completed
+            # Task counts as completed when either its own SO or the project SO is flagged complete.
+            task.sale_order_completed = bool(
+                task.sale_order_id.x_studio_completed
+                or task.project_sale_order_id.x_studio_completed
+            )
 
     sale_line_id = fields.Many2one(
         'sale.order.line', 'Sales Order Item',
