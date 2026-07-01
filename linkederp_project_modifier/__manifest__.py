@@ -1,7 +1,17 @@
 {
     'name': 'LinkedERP Project Modifier',
-    'version': '1.1.0',
+    'version': '1.1.1',
     'summary': 'Adjustment for project and task views, also will related with time sheet',
+    'description': """
+LinkedERP Project Modifier
+==========================
+
+View and billing adjustments for projects and tasks:
+
+* Task timesheets become read-only once the task or project sale order is completed.
+* Task Sales Order Item scoped to the project sale order's own lines.
+* Project followers shown on the project form as avatar tags.
+""",
     'category': 'Project',
     'author': 'Muhammad Bintang',
     'website': 'https://linkederp.com',

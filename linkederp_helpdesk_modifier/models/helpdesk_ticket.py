@@ -11,11 +11,10 @@ class HelpdeskTicket(models.Model):
 
     sale_order_completed = fields.Boolean(compute='_compute_sale_order_complete', store=False)
 
-    @api.depends("sale_order_id","project_id")
+    @api.depends("sale_order_id")
     def _compute_sale_order_complete(self):
-        for task in self:
-            if task.sale_order_id:
-                task.sale_order_completed =  task.sale_order_id.x_studio_completed
+        for ticket in self:
+            ticket.sale_order_completed = bool(ticket.sale_order_id.x_studio_completed)
 
     available_sale_line_domain = fields.Char(
         compute='_compute_available_sale_line_domain',
