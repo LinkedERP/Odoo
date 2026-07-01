@@ -23,8 +23,11 @@ class ProjectTask(models.Model):
     @api.depends("sale_order_id","project_id")
     def _compute_sale_order_complete(self):
         for task in self:
-            if task.project_sale_order_id or task.sale_order_id:
-                task.sale_order_completed =  task.sale_order_id.x_studio_completed or task.project_sale_order_id.x_studio_completed
+            task.sale_order_completed = False
+            if task.sale_order_id and task.sale_order_id.x_studio_completed:
+                task.sale_order_completed = True
+            elif task.project_sale_order_id and task.project_sale_order_id.x_studio_completed:
+                task.sale_order_completed = True
 
     sale_line_id = fields.Many2one(
         'sale.order.line', 'Sales Order Item',
