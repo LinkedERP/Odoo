@@ -1,8 +1,8 @@
 {
-    'name': 'Timesheet Cross Company Blocker',
-    'version': '1.0.2',
+    'name': 'Timesheet LinkedERP modifier',
+    'version': '1.1.0',
     'summary': 'Project and User company should be same while filling Timesheet',
-    'category': 'Accounting',
+    'category': 'Services/Timesheets',
     'author': 'JV',
     'website': 'https://Linkederp.com',
     'license': 'AGPL-3',

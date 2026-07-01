@@ -1,6 +1,6 @@
 {
     'name': 'LinkedERP Project Modifier',
-    'version': '1.0.1',
+    'version': '1.1.0',
     'summary': 'Adjustment for project and task views, also will related with time sheet',
     'category': 'Project',
     'author': 'Muhammad Bintang',

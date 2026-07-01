@@ -18,6 +18,14 @@ class ProjectTask(models.Model):
             else:
                 task.available_sale_line_domain = json.dumps([])
 
+    sale_order_completed = fields.Boolean(compute='_compute_sale_order_complete', store=False)
+
+    @api.depends("sale_order_id","project_id")
+    def _compute_sale_order_complete(self):
+        for task in self:
+            if task.project_sale_order_id or task.sale_order_id:
+                task.sale_order_completed =  task.sale_order_id.x_studio_completed or task.project_sale_order_id.x_studio_completed
+
     sale_line_id = fields.Many2one(
         'sale.order.line', 'Sales Order Item',
         copy=True, tracking=True, index='btree_not_null', recursive=True,
