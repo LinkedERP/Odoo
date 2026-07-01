@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="hr_timesheet_line_tree_linkederp" model="ir.ui.view">
+            <field name="name">account.analytic.line.list.linkederp</field>
+            <field name="model">account.analytic.line</field>
+            <field name="inherit_id" ref="hr_timesheet.hr_timesheet_line_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='project_id']" position="attributes">
+                    <attribute name="options">{'no_create': True}</attribute>
+                </xpath>
+                <xpath expr="//field[@name='task_id']" position="replace">
+                    <field name="task_id" optional="show"
+                           options="{'no_create_edit': True, 'no_open': True, 'no_create': True}"
+                           widget="task_with_hours"
+                           context="{'default_project_id': project_id, 'search_default_my_tasks': True, 'search_default_open_tasks': True}"
+                           readonly="readonly_timesheet"/>
+                    <field name="available_sale_line_domain" column_invisible="1"/>
+                </xpath>
+                <xpath expr="//field[@name='helpdesk_ticket_id']" position="replace">
+                    <field name="helpdesk_ticket_id"
+                           readonly="readonly_timesheet" optional="show"
+                           context="{'search_default_my_ticket': True, 'search_default_is_open': True, 'search_view_ref': 'helpdesk.helpdesk_ticket_view_search_analysis', 'default_project_id': project_id}"
+                           options="{'no_open': True,'no_create': True}"
+                           groups="helpdesk_timesheet.group_use_helpdesk_timesheet"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="helpdesk_ticket_view_form_inherit_linked" model="ir.ui.view">
+            <field name="name">helpdesk.ticket.form.inherit.linked</field>
+            <field name="model">helpdesk.ticket</field>
+            <field name="inherit_id" ref="helpdesk_sale_timesheet.helpdesk_ticket_view_form_inherit_helpdesk_sale_timesheet"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='timesheet_ids']/list" position="inside">
+                    <field name="available_sale_line_domain" column_invisible="1"/>
+                </xpath>
+                <xpath expr="//field[@name='timesheet_ids']/list/field[@name='so_line'][1]" position="attributes">
+                    <attribute name="domain">available_sale_line_domain</attribute>
+                </xpath>
+                <xpath expr="//field[@name='timesheet_ids']/list/field[@name='so_line'][2]" position="attributes">
+                    <attribute name="domain">available_sale_line_domain</attribute>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="view_task_form2_inherit_linkederp" model="ir.ui.view">
+            <field name="name">project.task.form2.inherit.linkederp</field>
+            <field name="model">project.task</field>
+            <field name="inherit_id" ref="sale_timesheet.project_task_view_form_inherit_sale_timesheet"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='timesheet_ids']/list" position="inside">
+                    <field name="available_sale_line_domain" column_invisible="1"/>
+                </xpath>
+                <xpath expr="//field[@name='timesheet_ids']/list/field[@name='so_line'][1]" position="attributes">
+                    <attribute name="domain">available_sale_line_domain</attribute>
+                </xpath>
+                <xpath expr="//field[@name='timesheet_ids']/list/field[@name='so_line'][2]" position="attributes">
+                    <attribute name="domain">available_sale_line_domain</attribute>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

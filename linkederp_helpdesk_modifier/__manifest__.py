@@ -1,6 +1,6 @@
 {
     'name': 'LinkedERP Helpdesk Modifier',
-    'version': '1.0.3',
+    'version': '1.1.0',
     'summary': 'Auto email reminder for unanswered helpdesk tickets after 3 days',
     'category': 'Helpdesk',
     'author': 'LinkedERP',
@@ -8,13 +8,16 @@
     'license': 'LGPL-3',
     'depends': [
         'helpdesk',
+        'helpdesk_sale',
         'mail',
         'hr_timesheet',
+        'helpdesk_sale_timesheet',
     ],
     'data': [
         'data/mail_template_data.xml',
         'data/ir_cron_data.xml',
         'views/helpdesk_team_views.xml',
+        'views/helpdesk_ticket_views.xml',
     ],
     'installable': True,
     'application': False,
