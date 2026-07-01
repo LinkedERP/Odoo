@@ -9,13 +9,16 @@ class HelpdeskTicket(models.Model):
     """Extend helpdesk ticket with auto email reminder logic."""
     _inherit = 'helpdesk.ticket'
 
-    sale_order_completed = fields.Boolean(compute='_compute_sale_order_complete', store=False)
 
-    @api.depends("sale_order_id","project_id")
+    sale_order_completed = fields.Boolean(
+        compute="_compute_sale_order_complete",
+        store=False,
+    )
+
+    @api.depends("sale_order_id.x_studio_completed")
     def _compute_sale_order_complete(self):
         for task in self:
-            if task.sale_order_id:
-                task.sale_order_completed =  task.sale_order_id.x_studio_completed
+            task.sale_order_completed = bool(task.sale_order_id.x_studio_completed)
 
     available_sale_line_domain = fields.Char(
         compute='_compute_available_sale_line_domain',
