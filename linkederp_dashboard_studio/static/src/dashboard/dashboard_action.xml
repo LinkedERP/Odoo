@@ -92,27 +92,18 @@
                     <section
                         t-att-class="'o_lds_widget o_lds_widget_' + widget.type + (widget.span ? ' o_lds_span_' + widget.span : '')"
                         t-att-style="'--lds-accent:' + (widget.color || '#2563eb')">
-                        <t t-if="widget.type === 'section'">
-                            <div class="o_lds_section_band">
-                                <h2 t-esc="widget.name"/>
-                                <span t-if="widget.note" t-esc="widget.note"/>
-                            </div>
-                        </t>
-                        <header t-else="" class="o_lds_widget_header">
+                        <header class="o_lds_widget_header">
                             <div>
                                 <h2 t-esc="widget.name"/>
                                 <span t-if="widget.help" t-esc="widget.help"/>
                             </div>
-                            <div class="o_lds_widget_header_aside">
-                                <span t-if="widget.badge" class="o_lds_badge" t-esc="widget.badge"/>
-                                <button
-                                    class="btn btn-sm btn-link"
-                                    type="button"
-                                    t-on-click="() => openRecords(widget.model, widget.domain)"
-                                    title="Open records">
-                                    <i class="fa fa-external-link"/>
-                                </button>
-                            </div>
+                            <button
+                                class="btn btn-sm btn-link"
+                                type="button"
+                                t-on-click="() => openRecords(widget.model, widget.domain)"
+                                title="Open records">
+                                <i class="fa fa-external-link"/>
+                            </button>
                         </header>
 
                         <div t-if="widget.error" class="o_lds_widget_error">
@@ -127,12 +118,6 @@
                                 t-on-click="() => openRecords(widget.model, widget.domain)">
                                 <span class="o_lds_kpi_value" t-esc="formatWidgetValue(widget)"/>
                                 <span class="o_lds_kpi_caption" t-esc="widget.measure"/>
-                                <span
-                                    t-if="widget.delta"
-                                    t-att-class="'o_lds_kpi_delta o_lds_tone_' + widget.delta.tone">
-                                    <i t-att-class="deltaIconClass(widget.delta)"/>
-                                    <span t-esc="widget.delta.text"/>
-                                </span>
                             </button>
                         </t>
 
@@ -197,10 +182,6 @@
                                     </t>
                                 </div>
                                 <div class="o_lds_column_plot">
-                                    <span
-                                        t-if="widget.target"
-                                        class="o_lds_column_target"
-                                        t-att-style="columnTargetStyle(widget)"/>
                                     <t t-foreach="widget.points" t-as="point" t-key="point.label">
                                         <button
                                             class="o_lds_column_item"
@@ -341,7 +322,7 @@
                                             <tr t-on-click="() => openRecords(widget.model, row.domain)">
                                                 <td class="text-start" t-esc="row.label"/>
                                                 <t t-foreach="widget.columns" t-as="column" t-key="column.key">
-                                                    <td t-att-class="matrixCellClass(row, column)" t-esc="matrixCellValue(row, column)"/>
+                                                    <td class="text-center" t-esc="matrixCellValue(row, column)"/>
                                                 </t>
                                             </tr>
                                         </t>
