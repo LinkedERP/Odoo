@@ -32,6 +32,10 @@ OPS_EXCLUDED_STAGES = ["Done", "On Hold", "Cancelled", "Internal"]
 # Expected billable hours are this share of total expected hours.
 BILLABLE_SHARE = 0.75
 
+# Exception resources whose expected hours always equal their actual logged
+# hours (matched on a name token, case-insensitive), so their coverage is 100%.
+OPS_EXPECTED_EQUALS_ACTUAL = ("ferry", "imke")
+
 # Employee eligibility (Studio date fields on hr.employee).
 # Ramp-up: expected hours start on the Monday of the week RAMP_WEEKS after joining.
 # Exit: expected hours stop after the week before the DOE (Date of Exit) week.
@@ -280,6 +284,15 @@ class LinkederpDashboardOps(models.Model):
             result[emp.id] = max(0.0, (len(work_days) - len(covered)) * hours_per_day)
         return result
 
+    def _ops_exception_user_ids(self, emp_map):
+        """Users whose expected hours always equal their actual logged hours."""
+        result = []
+        for uid, emp in emp_map.items():
+            tokens = (emp.user_id.name or "").lower().replace(",", " ").split()
+            if any(token in OPS_EXPECTED_EQUALS_ACTUAL for token in tokens):
+                result.append(uid)
+        return result
+
     def _ops_expected_hours_by_user(self, week_start, emp_map=None):
         """{user_id: expected hours} for the reviewed week."""
         if emp_map is None:
@@ -289,7 +302,14 @@ class LinkederpDashboardOps(models.Model):
         employees = self.env["hr.employee"].browse([emp.id for emp in emp_map.values()])
         week_end = week_start + timedelta(days=6)
         by_emp = self._ops_employee_expected_hours(employees, week_start, week_end)
-        return {uid: by_emp.get(emp.id, 0.0) for uid, emp in emp_map.items()}
+        result = {uid: by_emp.get(emp.id, 0.0) for uid, emp in emp_map.items()}
+        # Exception resources: expected hours = actual logged hours.
+        exception_uids = self._ops_exception_user_ids(emp_map)
+        if exception_uids:
+            logged = self._ops_logged_hours_by_user(week_start)
+            for uid in exception_uids:
+                result[uid] = logged.get(uid, 0.0)
+        return result
 
     def _ops_logged_hours_by_user(self, week_start, billable_only=False):
         """{user_id: logged project hours} across all companies for the week.
