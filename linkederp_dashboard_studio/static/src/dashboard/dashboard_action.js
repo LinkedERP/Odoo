@@ -381,13 +381,19 @@ export class LinkedERPDashboardAction extends Component {
         const min = Math.min(...values);
         const range = max - min || 1;
         const n = values.length;
-        return points.map((point, index) => ({
-            x: n === 1 ? 150 : 12 + (index / (n - 1)) * 276,
-            y: 90 - ((Number(point.value || 0) - min) / range) * 66,
-            color: point.color || "#003E99",
-            label: point.label,
-            detail: point.detail,
-        }));
+        return points.map((point, index) => {
+            const x = n === 1 ? 150 : 12 + (index / (n - 1)) * 276;
+            const y = 90 - ((Number(point.value || 0) - min) / range) * 66;
+            return {
+                x,
+                y,
+                leftPct: (x / 300) * 100,
+                topPct: y,
+                color: point.color || "#003E99",
+                label: point.label,
+                detail: point.detail,
+            };
+        });
     }
 
     trendLinePoints(widget) {

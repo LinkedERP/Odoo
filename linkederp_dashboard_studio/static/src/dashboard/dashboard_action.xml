@@ -154,17 +154,19 @@
                                 class="o_lds_trend"
                                 type="button"
                                 t-on-click="() => openRecords(widget.model, widget.domain)">
-                                <svg class="o_lds_trend_svg" viewBox="0 0 300 100" preserveAspectRatio="none" role="img">
-                                    <polyline class="o_lds_trend_line" t-att-points="trendLinePoints(widget)"/>
+                                <div class="o_lds_trend_plot">
+                                    <svg class="o_lds_trend_svg" viewBox="0 0 300 100" preserveAspectRatio="none" role="img">
+                                        <polyline class="o_lds_trend_line" t-att-points="trendLinePoints(widget)"/>
+                                    </svg>
                                     <t t-foreach="trendMarkers(widget)" t-as="m" t-key="m_index">
-                                        <circle t-att-cx="m.x" t-att-cy="m.y" r="3.5" t-att-fill="m.color"/>
-                                        <circle
-                                            t-att-cx="m.x" t-att-cy="m.y" r="9" fill="transparent"
+                                        <span
+                                            class="o_lds_trend_dot"
+                                            t-att-style="'left:' + m.leftPct + '%; top:' + m.topPct + '%; background:' + m.color + ';'"
                                             t-on-mouseenter="(ev) => showDetail(ev, m)"
                                             t-on-mousemove="moveDetail"
                                             t-on-mouseleave="hideDetail"/>
                                     </t>
-                                </svg>
+                                </div>
                                 <div class="o_lds_trend_labels">
                                     <t t-foreach="widget.points" t-as="point" t-key="point.label">
                                         <span t-esc="point.label"/>
