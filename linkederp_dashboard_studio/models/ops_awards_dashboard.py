@@ -73,14 +73,27 @@ class LinkederpDashboardOpsAwards(models.Model):
         return bool(weeks) and weeks[-1] + timedelta(days=6) < today
 
     def _awards_default_month(self):
-        """Most recent month whose LAST week has fully ended."""
+        """Most recent month whose calendar days have all passed.
+
+        Note: this month's LAST ISO week may still be in flight for the first
+        few days (its Sunday falls in the new month) — the scoreboard then
+        covers the completed weeks only and the selector label says
+        "final week pending" until it ends. Deliberate per Akshay (2026-07-02).
+        """
         today = fields.Date.context_today(self)
-        month = date(today.year, today.month, 1)
-        for _i in range(3):
-            month = self._awards_prev_month(month)
-            if self._awards_month_complete(month, today):
-                return month
-        return month
+        return self._awards_prev_month(date(today.year, today.month, 1))
+
+    def _awards_completed_weeks(self, month_first):
+        """The month's weeks that have fully ended.
+
+        A final week still in progress is excluded from the scoreboard and
+        drill-down domains; it joins automatically once it completes.
+        """
+        today = fields.Date.context_today(self)
+        return [
+            week for week in self._awards_month_weeks(month_first)
+            if week + timedelta(days=6) < today
+        ]
 
     def _awards_month_value(self, month_first):
         return "%04d-%02d" % (month_first.year, month_first.month)
@@ -100,13 +113,17 @@ class LinkederpDashboardOpsAwards(models.Model):
         return self._awards_default_month()
 
     def _awards_month_options(self):
+        today = fields.Date.context_today(self)
         month = self._awards_default_month()
         options = []
         for _i in range(MONTH_OPTIONS_COUNT):
+            label = self._awards_month_label(month)
+            if not self._awards_month_complete(month, today):
+                label = _("%s · final week pending") % label
             options.append(
                 {
                     "value": self._awards_month_value(month),
-                    "label": self._awards_month_label(month),
+                    "label": label,
                 }
             )
             month = self._awards_prev_month(month)
@@ -141,9 +158,10 @@ class LinkederpDashboardOpsAwards(models.Model):
         (hour-weighted). Every squad appears in "teams" even with no members.
         Employees need >= AWARDS_MIN_ELIGIBLE_WEEKS eligible weeks; exception
         resources (expected = actual) are kept in team totals but dropped from
-        the employee list.
+        the employee list. Only fully-ended weeks count (an in-flight final
+        week is excluded until it completes).
         """
-        weeks = self._awards_month_weeks(month_first)
+        weeks = self._awards_completed_weeks(month_first)
         primary_map = self._ops_primary_employees()
         exception_uids = set(self._ops_exception_user_ids(primary_map))
 
@@ -242,8 +260,8 @@ class LinkederpDashboardOpsAwards(models.Model):
         return "%s%%" % self._ops_short_hours(value)
 
     def _awards_month_domain(self, month_first, uids=None):
-        """Timesheet-line domain covering the month's weeks (for drill-down)."""
-        weeks = self._awards_month_weeks(month_first)
+        """Timesheet-line domain covering the month's completed weeks."""
+        weeks = self._awards_completed_weeks(month_first)
         if not weeks:
             return []
         domain = [
