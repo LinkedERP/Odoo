@@ -522,6 +522,128 @@ class LinkederpDashboardOps(models.Model):
         rate = round(total_logged / total_expected * 100, 1) if total_expected else 0.0
         return rate, total_logged, total_expected
 
+    # ------------------------------------------------------------------
+    # SLA / Helpdesk
+    # ------------------------------------------------------------------
+    def _ops_networkdays(self, start_date, end_date):
+        """Excel-style NETWORKDAYS: working days (Mon-Fri) between the two
+        dates, inclusive of both ends."""
+        if not start_date or start_date > end_date:
+            return 0
+        total_days = (end_date - start_date).days + 1
+        full_weeks, remainder = divmod(total_days, 7)
+        working = full_weeks * 5
+        start_weekday = start_date.weekday()
+        for offset in range(remainder):
+            if (start_weekday + offset) % 7 < 5:
+                working += 1
+        return working
+
+    def _ops_sla_card(self, wid, name, ticket_ids, color, caption):
+        return {
+            "id": wid,
+            "name": name,
+            "type": "kpi",
+            "model": "helpdesk.ticket",
+            "mode": "computed",
+            "measure": caption,
+            "groupby": "",
+            "color": color,
+            "help": "",
+            "value": float(len(ticket_ids)),
+            "format": "integer",
+            "domain": self._json_safe([("id", "in", ticket_ids)]),
+            "points": [],
+            "rows": [],
+            "columns": [],
+            "span": 4,
+            "error": False,
+        }
+
+    def _ops_sla_widgets(self, sub_team):
+        if "helpdesk.ticket" not in self.env:
+            return []
+        Stage = self.env["helpdesk.stage"]
+        closed_ids = Stage.search([("fold", "=", True)]).ids
+        onhold_ids = Stage.search([("name", "ilike", "hold")]).ids
+
+        domain = []
+        if closed_ids:
+            domain.append(("stage_id", "not in", closed_ids))
+        if sub_team:
+            member_uids = list(self._ops_primary_employees(sub_team=sub_team).keys())
+            domain.append(("user_id", "in", member_uids))
+
+        today = fields.Date.context_today(self)
+        tickets = self.env["helpdesk.ticket"].search_read(
+            domain, ["stage_id", "create_date", "commercial_partner_id"]
+        )
+
+        ids_610, ids_g10, ids_hold = [], [], []
+        customers = {}
+        for ticket in tickets:
+            stage = ticket["stage_id"][0] if ticket["stage_id"] else False
+            if stage in onhold_ids:
+                ids_hold.append(ticket["id"])
+                continue
+            age = self._ops_networkdays(fields.Date.to_date(ticket["create_date"]), today)
+            if 6 <= age <= 10:
+                key = "d610"
+                ids_610.append(ticket["id"])
+            elif age > 10:
+                key = "dg10"
+                ids_g10.append(ticket["id"])
+            else:
+                continue
+            partner = ticket["commercial_partner_id"]
+            pid = partner[0] if partner else 0
+            record = customers.setdefault(
+                pid, {"name": partner[1] if partner else _("Unknown"), "d610": [], "dg10": []}
+            )
+            record[key].append(ticket["id"])
+
+        rows = []
+        for record in customers.values():
+            rows.append({
+                "label": record["name"],
+                "d610": len(record["d610"]),
+                "dg10": len(record["dg10"]),
+                "domain": self._json_safe([("id", "in", record["d610"] + record["dg10"])]),
+            })
+        rows.sort(key=lambda row: (-row["dg10"], -row["d610"], row["label"].lower()))
+
+        table = {
+            "id": "ops_sla_customers",
+            "name": _("Ageing tickets by customer"),
+            "type": "matrix",
+            "model": "helpdesk.ticket",
+            "mode": "computed",
+            "measure": "",
+            "groupby": _("Customer"),
+            "color": "#1d4ed8",
+            "help": _("open, not on hold · ageing = working days since created"),
+            "value": float(len(rows)),
+            "format": "integer",
+            "domain": [],
+            "points": [],
+            "rows": rows,
+            "columns": [
+                {"key": "d610", "label": _("6-10 Days"), "format": "integer"},
+                {"key": "dg10", "label": _(">10 Days"), "format": "integer"},
+            ],
+            "span": 12,
+            "error": False,
+        }
+        return [
+            self._ops_sla_card("ops_sla_610", _("Open 6–10 Days"), ids_610, "#c98a1b",
+                               _("open 6–10 working days")),
+            self._ops_sla_card("ops_sla_g10", _("Open >10 Days"), ids_g10, "#b03030",
+                               _("open more than 10 working days")),
+            self._ops_sla_card("ops_sla_hold", _("On Hold Tickets"), ids_hold, "#c98a1b",
+                               _("tickets on hold")),
+            table,
+        ]
+
     def _ops_dashboard_widgets(self, date_from=False, date_to=False, filters=False):
         week_start = self._ops_selected_week(filters)
         sub_team = self._ops_selected_subteam(filters)
@@ -619,7 +741,7 @@ class LinkederpDashboardOps(models.Model):
             billability_trend,
             planning_trend,
             project_review,
-        ]
+        ] + self._ops_sla_widgets(sub_team)
 
     def _ops_trend_widget(self, wid, name, model, series, kind):
         points = []
