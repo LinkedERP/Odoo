@@ -73,7 +73,13 @@ class LinkederpDashboardOpsAwards(models.Model):
         return bool(weeks) and weeks[-1] + timedelta(days=6) < today
 
     def _awards_default_month(self):
-        """Most recent month whose calendar days have all passed."""
+        """Most recent month whose calendar days have all passed.
+
+        Note: this month's LAST ISO week may still be in flight for the first
+        few days (its Sunday falls in the new month) — the scoreboard then
+        covers the completed weeks only and the selector label says
+        "final week pending" until it ends. Deliberate per Akshay (2026-07-02).
+        """
         today = fields.Date.context_today(self)
         return self._awards_prev_month(date(today.year, today.month, 1))
 
