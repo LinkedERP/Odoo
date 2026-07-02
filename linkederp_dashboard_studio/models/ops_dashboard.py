@@ -794,7 +794,17 @@ class LinkederpDashboardOps(models.Model):
                 display_ccy = project.company_id.currency_id or project.currency_id
                 if order:
                     so_amount = order.currency_id._convert(order.amount_untaxed, display_ccy, project.company_id, today)
-                    invoiced = order.currency_id._convert(order.amount_invoiced, display_ccy, project.company_id, today)
+                    # Untaxed invoiced = posted customer invoices minus credit notes,
+                    # converted to the company currency.
+                    invoiced = 0.0
+                    for move in order.invoice_ids:
+                        if move.state != "posted":
+                            continue
+                        sign = 1 if move.move_type == "out_invoice" else (-1 if move.move_type == "out_refund" else 0)
+                        if sign:
+                            invoiced += sign * move.currency_id._convert(
+                                move.amount_untaxed, display_ccy, project.company_id, today
+                            )
                 else:
                     so_amount = 0.0
                     invoiced = 0.0
