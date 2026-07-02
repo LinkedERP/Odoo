@@ -731,23 +731,32 @@ class LinkederpDashboardOps(models.Model):
             return "warn"
         return "bad"
 
-    def _ops_project_cost(self, project, cost_chunks, target_currency, date):
+    def _ops_cost_domain(self, project):
+        """Timesheets counted as this project's cost: those linked to the
+        project's Sale Order items (matches the customer-facing cost); falls
+        back to all of the project's timesheets when there is no Sale Order."""
+        if project.sale_order_id:
+            return [("so_line.order_id", "=", project.sale_order_id.id)]
+        return [("project_id", "=", project.id)]
+
+    def _ops_project_cost(self, project, target_currency, date):
         """Actual cost in target currency: sum of timesheet cost (company ccy),
         converted; falls back to hours x hourly cost when the cost is zero."""
         company = project.company_id
+        domain = self._ops_cost_domain(project)
+        Line = self.env["account.analytic.line"]
         cost = 0.0
         hours = 0.0
-        for currency_id, amount, unit in cost_chunks:
-            hours += unit
+        for row in Line.read_group(domain, ["amount:sum", "unit_amount:sum"], ["currency_id"], lazy=False):
+            cur = row.get("currency_id")
+            amount = row.get("amount") or 0.0
+            hours += row.get("unit_amount") or 0.0
             if amount:
-                source = self.env["res.currency"].browse(currency_id) if currency_id else company.currency_id
+                source = self.env["res.currency"].browse(cur[0]) if cur else company.currency_id
                 cost += abs(source._convert(amount, target_currency, company, date))
         if cost < 0.01 and hours > 0:
-            groups = self.env["account.analytic.line"].read_group(
-                [("project_id", "=", project.id)], ["unit_amount:sum"], ["employee_id"], lazy=False
-            )
             raw = 0.0
-            for row in groups:
+            for row in Line.read_group(domain, ["unit_amount:sum"], ["employee_id"], lazy=False):
                 emp = row.get("employee_id")
                 if emp:
                     raw += (row.get("unit_amount") or 0.0) * (self.env["hr.employee"].browse(emp[0]).hourly_cost or 0.0)
@@ -772,20 +781,6 @@ class LinkederpDashboardOps(models.Model):
             if so_ids:
                 so_map = {so.id: so for so in self.env["sale.order"].browse(so_ids)}
 
-            cost_by_project = {}
-            if projects:
-                for row in self.env["account.analytic.line"].read_group(
-                    [("project_id", "in", projects.ids)],
-                    ["amount:sum", "unit_amount:sum"],
-                    ["project_id", "currency_id"],
-                    lazy=False,
-                ):
-                    pid = row["project_id"][0]
-                    cur = row.get("currency_id")
-                    cost_by_project.setdefault(pid, []).append(
-                        (cur[0] if cur else False, row.get("amount") or 0.0, row.get("unit_amount") or 0.0)
-                    )
-
             today = fields.Date.context_today(self)
             for project in projects:
                 order = so_map.get(project.sale_order_id.id) if project.sale_order_id else None
@@ -794,11 +789,15 @@ class LinkederpDashboardOps(models.Model):
                 display_ccy = project.company_id.currency_id or project.currency_id
                 if order:
                     so_amount = order.currency_id._convert(order.amount_untaxed, display_ccy, project.company_id, today)
-                    # Untaxed invoiced = posted customer invoices minus credit notes,
-                    # converted to the company currency.
+                    # Untaxed invoiced = posted customer invoices/credit notes that
+                    # have been sent or paid (drafts excluded), in company currency.
                     invoiced = 0.0
                     for move in order.invoice_ids:
                         if move.state != "posted":
+                            continue
+                        if not (move.is_move_sent or move.payment_state in (
+                            "in_payment", "paid", "partial", "reversed"
+                        )):
                             continue
                         sign = 1 if move.move_type == "out_invoice" else (-1 if move.move_type == "out_refund" else 0)
                         if sign:
@@ -808,9 +807,7 @@ class LinkederpDashboardOps(models.Model):
                 else:
                     so_amount = 0.0
                     invoiced = 0.0
-                cost = self._ops_project_cost(
-                    project, cost_by_project.get(project.id, []), display_ccy, today
-                )
+                cost = self._ops_project_cost(project, display_ccy, today)
                 # Margin = (revenue - cost) / revenue (higher is better).
                 prof_so = (so_amount - cost) / so_amount * 100 if so_amount else None
                 prof_inv = (invoiced - cost) / invoiced * 100 if invoiced else None
