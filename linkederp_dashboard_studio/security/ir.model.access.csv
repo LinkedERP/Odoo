@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_linkederp_dashboard_user,linkederp.dashboard user,model_linkederp_dashboard,base.group_user,1,0,0,0
+access_linkederp_dashboard_manager,linkederp.dashboard manager,model_linkederp_dashboard,linkederp_dashboard_studio.group_dashboard_studio_manager,1,1,1,1
+access_linkederp_dashboard_widget_user,linkederp.dashboard.widget user,model_linkederp_dashboard_widget,base.group_user,1,0,0,0
+access_linkederp_dashboard_widget_manager,linkederp.dashboard.widget manager,model_linkederp_dashboard_widget,linkederp_dashboard_studio.group_dashboard_studio_manager,1,1,1,1
