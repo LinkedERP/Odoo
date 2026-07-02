@@ -25,6 +25,16 @@ OPS_SUBTEAM_FIELD = "x_studio_selection_field_8lf_1jsfbg0sl"
 # Expected billable hours are this share of total expected hours.
 BILLABLE_SHARE = 0.75
 
+# Employee eligibility (Studio date fields on hr.employee).
+# Ramp-up: expected hours start on the Monday of the week RAMP_WEEKS after joining.
+# Exit: expected hours stop after the week before the DOE (Date of Exit) week.
+OPS_JOIN_FIELD = "x_studio_date_of_joining"
+OPS_EXIT_FIELD = "x_studio_doe"
+OPS_RAMP_WEEKS = 4
+
+# Planning always looks this many weeks ahead of the selected week.
+PLANNING_WEEKS = 8
+
 
 class LinkederpDashboardOps(models.Model):
     _inherit = "linkederp.dashboard"
@@ -179,6 +189,37 @@ class LinkederpDashboardOps(models.Model):
                 result[user.id] = primary
         return result
 
+    def _ops_is_employee_eligible(self, employee, week_start):
+        """Employee counts for a reviewed week only within their active window.
+
+        - Ramp-up: from the Monday of the week OPS_RAMP_WEEKS after joining.
+        - Exit: through the week before the DOE (Date of Exit) week.
+        """
+        fields_map = self.env["hr.employee"]._fields
+        if OPS_JOIN_FIELD in fields_map:
+            join_date = employee[OPS_JOIN_FIELD]
+            if join_date:
+                ramp_start = self._ops_week_start(join_date) + timedelta(days=7 * OPS_RAMP_WEEKS)
+                if week_start < ramp_start:
+                    return False
+        if OPS_EXIT_FIELD in fields_map:
+            exit_date = employee[OPS_EXIT_FIELD]
+            if exit_date:
+                last_week = self._ops_week_start(exit_date) - timedelta(days=7)
+                if week_start > last_week:
+                    return False
+        return True
+
+    def _ops_eligible_employees(self, week_start, sub_team=None, primary_map=None):
+        """{user_id: employee} restricted to those eligible for the given week."""
+        if primary_map is None:
+            primary_map = self._ops_primary_employees(sub_team=sub_team)
+        return {
+            uid: emp
+            for uid, emp in primary_map.items()
+            if self._ops_is_employee_eligible(emp, week_start)
+        }
+
     def _ops_employee_expected_hours(self, employees, week_start, week_end):
         """{employee_id: expected hours} net of leaves & public holidays."""
         if not employees:
@@ -277,6 +318,44 @@ class LinkederpDashboardOps(models.Model):
         rate = round(total_billable / expected_billable * 100, 1) if expected_billable else 0.0
         return rate, total_billable, expected_billable
 
+    def _ops_planned_hours_by_user(self, week_start):
+        """{user_id: planned hours} from planning slots starting in the week."""
+        if "planning.slot" not in self.env:
+            return {}
+        week_end = week_start + timedelta(days=6)
+        rows = self.env["planning.slot"].read_group(
+            [
+                ("user_id", "!=", False),
+                ("start_datetime", ">=", "%s 00:00:00" % fields.Date.to_string(week_start)),
+                ("start_datetime", "<=", "%s 23:59:59" % fields.Date.to_string(week_end)),
+            ],
+            ["allocated_hours:sum"],
+            ["user_id"],
+            lazy=False,
+        )
+        return {
+            row["user_id"][0]: (row.get("allocated_hours") or 0.0)
+            for row in rows
+            if row.get("user_id")
+        }
+
+    def _ops_planning(self, selected_week, primary_map):
+        """Avg planning % over the next PLANNING_WEEKS weeks = planned / expected."""
+        weeks = [selected_week + timedelta(days=7 * i) for i in range(1, PLANNING_WEEKS + 1)]
+        total_planned = 0.0
+        total_expected = 0.0
+        for week in weeks:
+            emp_map = self._ops_eligible_employees(week, primary_map=primary_map)
+            if not emp_map:
+                continue
+            expected = self._ops_expected_hours_by_user(week, emp_map=emp_map)
+            planned = self._ops_planned_hours_by_user(week)
+            population = list(expected.keys())
+            total_expected += sum(expected.values())
+            total_planned += sum(planned.get(uid, 0.0) for uid in population)
+        rate = round(total_planned / total_expected * 100, 1) if total_expected else 0.0
+        return rate, total_planned, total_expected, weeks
+
     def _ops_coverage(self, week_start, emp_map=None):
         """Team coverage = logged hours / expected hours over the delivery team."""
         expected = self._ops_expected_hours_by_user(week_start, emp_map=emp_map)
@@ -290,7 +369,8 @@ class LinkederpDashboardOps(models.Model):
     def _ops_dashboard_widgets(self, date_from=False, date_to=False, filters=False):
         week_start = self._ops_selected_week(filters)
         sub_team = self._ops_selected_subteam(filters)
-        emp_map = self._ops_primary_employees(sub_team=sub_team)
+        primary_map = self._ops_primary_employees(sub_team=sub_team)
+        emp_map = self._ops_eligible_employees(week_start, primary_map=primary_map)
         team_user_ids = list(emp_map.keys())
 
         rate, on_time, total, cutoff, pass_domain = self._ops_pass_rate(
@@ -387,7 +467,45 @@ class LinkederpDashboardOps(models.Model):
             "span": 3,
             "error": False,
         }
-        return [pass_card, coverage_card, billability_card]
+
+        plan_rate, planned_hours, planned_expected, plan_weeks = self._ops_planning(
+            week_start, primary_map
+        )
+        plan_first, plan_last = plan_weeks[0], plan_weeks[-1]
+        planning_domain = [
+            ("start_datetime", ">=", "%s 00:00:00" % fields.Date.to_string(plan_first)),
+            ("start_datetime", "<=", "%s 23:59:59" % fields.Date.to_string(plan_last + timedelta(days=6))),
+        ]
+        if team_user_ids:
+            planning_domain = planning_domain + [("user_id", "in", team_user_ids)]
+        planning_card = {
+            "id": "ops_planning",
+            "name": _("Planning"),
+            "type": "kpi",
+            "model": "planning.slot",
+            "mode": "computed",
+            "measure": _("%(planned)s / %(expected)s hrs · next %(n)s weeks") % {
+                "planned": self._ops_short_hours(planned_hours),
+                "expected": self._ops_short_hours(planned_expected),
+                "n": PLANNING_WEEKS,
+            },
+            "groupby": "",
+            "color": self._ops_pass_rate_color(plan_rate),
+            "help": _("Team %(team)s · %(first)s → %(last)s · planned hours vs expected hours") % {
+                "team": OPS_TEAM_VALUE,
+                "first": self._ops_week_label(plan_first),
+                "last": self._ops_week_label(plan_last),
+            },
+            "value": float(plan_rate),
+            "format": "percent",
+            "domain": self._json_safe(planning_domain),
+            "points": [],
+            "rows": [],
+            "columns": [],
+            "span": 3,
+            "error": False,
+        }
+        return [pass_card, coverage_card, billability_card, planning_card]
 
     def _ops_short_hours(self, hours):
         hours = round(hours or 0, 1)
