@@ -88,8 +88,19 @@
                                 t-esc="option.label"/>
                         </t>
                     </select>
-                    <input t-if="!state.opsFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom"/>
-                    <input t-if="!state.opsFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo"/>
+                    <select
+                        t-if="state.awardsFilters.enabled"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onMonthChange">
+                        <t t-foreach="state.awardsFilters.months" t-as="option" t-key="option.value">
+                            <option
+                                t-att-value="option.value"
+                                t-att-selected="isMonthSelected(option.value)"
+                                t-esc="option.label"/>
+                        </t>
+                    </select>
+                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom"/>
+                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo"/>
                     <button class="btn btn-primary" type="button" t-on-click="applyFilters" title="Apply filters">
                         <i class="fa fa-filter"/>
                     </button>
@@ -147,6 +158,38 @@
                                 <span class="o_lds_kpi_value" t-esc="formatWidgetValue(widget)"/>
                                 <span class="o_lds_kpi_caption" t-esc="widget.measure"/>
                             </button>
+                        </t>
+
+                        <t t-elif="widget.type === 'awardcard'">
+                            <button
+                                t-att-class="'o_lds_award' + (widget.accent ? ' o_lds_award_accent' : '')"
+                                type="button"
+                                t-on-click="() => openRecords(widget.model, widget.domain)">
+                                <span class="o_lds_award_icon"><i t-att-class="'fa ' + widget.icon"/></span>
+                                <span class="o_lds_award_winner" t-esc="widget.winner"/>
+                                <span class="o_lds_award_caption" t-esc="widget.caption"/>
+                                <span class="o_lds_award_badges">
+                                    <t t-foreach="widget.badges" t-as="badge" t-key="badge_index">
+                                        <span class="o_lds_award_badge" t-esc="badge"/>
+                                    </t>
+                                </span>
+                            </button>
+                        </t>
+
+                        <t t-elif="widget.type === 'podium'">
+                            <div class="o_lds_podium">
+                                <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                    <button
+                                        class="o_lds_podium_item"
+                                        type="button"
+                                        t-on-click="() => openRecords(widget.model, point.domain)">
+                                        <strong class="o_lds_podium_value" t-esc="formatNumber(point.value)"/>
+                                        <span class="o_lds_podium_bar" t-att-style="podiumBarStyle(widget, point)"/>
+                                        <span class="o_lds_podium_name" t-esc="point.label"/>
+                                        <span t-att-class="'o_lds_podium_rank' + (point.rank === 1 ? ' o_lds_podium_rank_first' : '')" t-esc="point.rank_label"/>
+                                    </button>
+                                </t>
+                            </div>
                         </t>
 
                         <t t-elif="widget.type === 'trendline'">
@@ -368,7 +411,7 @@
                         </t>
 
                         <t t-elif="widget.type === 'matrix'">
-                            <div class="o_lds_matrix_wrap">
+                            <div t-att-class="'o_lds_matrix_wrap' + (widget.compact ? ' o_lds_matrix_compact' : '')">
                                 <table class="table table-sm">
                                     <thead>
                                         <tr>
@@ -381,7 +424,10 @@
                                     <tbody>
                                         <t t-foreach="widget.rows" t-as="row" t-key="row.label">
                                             <tr t-on-click="() => openRecords(widget.model, row.domain)">
-                                                <td class="text-start" t-esc="row.label"/>
+                                                <td class="text-start">
+                                                    <span t-esc="row.label"/>
+                                                    <small t-if="row.sub" class="o_lds_row_sub" t-esc="row.sub"/>
+                                                </td>
                                                 <t t-foreach="widget.columns" t-as="column" t-key="column.key">
                                                     <td t-att-class="matrixCellAlign(column) + matrixCellTone(row, column)" t-esc="matrixCellValue(row, column)"/>
                                                 </t>

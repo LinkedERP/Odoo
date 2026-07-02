@@ -8,6 +8,7 @@ const PALETTE = ["#2563eb", "#059669", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2
 const SELECTED_DASHBOARD_KEY = "linkederp_dashboard_studio.selected_dashboard_id";
 const SELECTED_WEEK_KEY = "linkederp_dashboard_studio.ops_week";
 const SELECTED_OPS_TEAM_KEY = "linkederp_dashboard_studio.ops_team";
+const SELECTED_MONTH_KEY = "linkederp_dashboard_studio.awards_month";
 
 export class LinkedERPDashboardAction extends Component {
     setup() {
@@ -27,6 +28,7 @@ export class LinkedERPDashboardAction extends Component {
             widgets: [],
             crmFilters: { enabled: false },
             opsFilters: { enabled: false },
+            awardsFilters: { enabled: false },
             filters: this.defaultFilters(),
             tooltip: { visible: false, x: 0, y: 0, title: "", detail: null },
             initialDashboardId,
@@ -45,6 +47,9 @@ export class LinkedERPDashboardAction extends Component {
             "isWeekSelected",
             "onOpsTeamChange",
             "isOpsTeamSelected",
+            "onMonthChange",
+            "isMonthSelected",
+            "podiumBarStyle",
             "openRecords",
             "formatNumber",
             "formatWidgetValue",
@@ -91,6 +96,7 @@ export class LinkedERPDashboardAction extends Component {
             stageId: "",
             week: window.localStorage.getItem(SELECTED_WEEK_KEY) || "",
             opsTeam: window.localStorage.getItem(SELECTED_OPS_TEAM_KEY) || "",
+            month: window.localStorage.getItem(SELECTED_MONTH_KEY) || "",
         };
     }
 
@@ -128,6 +134,7 @@ export class LinkedERPDashboardAction extends Component {
                         stage_id: this.state.filters.stageId || false,
                         week: this.state.filters.week || false,
                         ops_team: this.state.filters.opsTeam || false,
+                        month: this.state.filters.month || false,
                     },
                 }
             );
@@ -136,6 +143,7 @@ export class LinkedERPDashboardAction extends Component {
             this.state.widgets = payload.widgets || [];
             this.state.crmFilters = payload.crm_filters || { enabled: false };
             this.state.opsFilters = payload.ops_filters || { enabled: false };
+            this.state.awardsFilters = payload.awards_filters || { enabled: false };
             if (this.state.dashboard) {
                 this.saveDashboardId(this.state.dashboard.id);
             }
@@ -160,6 +168,7 @@ export class LinkedERPDashboardAction extends Component {
     async resetFilters() {
         window.localStorage.removeItem(SELECTED_WEEK_KEY);
         window.localStorage.removeItem(SELECTED_OPS_TEAM_KEY);
+        window.localStorage.removeItem(SELECTED_MONTH_KEY);
         this.state.filters = this.defaultFilters();
         await this.applyFilters();
     }
@@ -195,6 +204,25 @@ export class LinkedERPDashboardAction extends Component {
     isOpsTeamSelected(value) {
         const current = this.state.filters.opsTeam || this.state.opsFilters.selected_team || "";
         return `${current}` === `${value}`;
+    }
+
+    async onMonthChange(ev) {
+        this.state.filters.month = ev.target.value;
+        window.localStorage.setItem(SELECTED_MONTH_KEY, ev.target.value || "");
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    isMonthSelected(value) {
+        const current = this.state.filters.month || this.state.awardsFilters.selected;
+        return `${current}` === `${value}`;
+    }
+
+    podiumBarStyle(widget, point) {
+        const values = (widget.points || []).map((p) => Number(p.value || 0));
+        const max = Math.max(...values, 1);
+        const height = Math.max(12, (Number(point.value || 0) / max) * 150);
+        const color = point.rank === 1 ? (widget.color || "#1d4ed8") : "#cbd5e1";
+        return `height: ${height}px; background: ${color};`;
     }
 
     async openRecords(model, domain) {

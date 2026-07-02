@@ -9,7 +9,7 @@ ready-to-use Sales/CRM dashboard pack. Dashboard data is read through normal
 Odoo ORM calls, so user access rights, record rules, and multi-company rules
 continue to apply.
     """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "category": "Productivity/Dashboards",
     "author": "LinkedERP",
     "website": "https://linkederp.com",
