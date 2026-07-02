@@ -154,6 +154,7 @@
                                 class="o_lds_trend"
                                 type="button"
                                 t-on-click="() => openRecords(widget.model, widget.domain)">
+                                <span class="o_lds_trend_title" t-esc="widget.name"/>
                                 <div class="o_lds_trend_plot">
                                     <svg class="o_lds_trend_svg" viewBox="0 0 300 100" preserveAspectRatio="none" role="img">
                                         <polyline class="o_lds_trend_line" t-att-points="trendLinePoints(widget)"/>

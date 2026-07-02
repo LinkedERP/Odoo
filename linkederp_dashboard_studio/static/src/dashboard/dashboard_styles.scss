@@ -487,6 +487,7 @@
     .o_lds_columns {
         display: grid;
         grid-template-columns: 42px minmax(0, 1fr);
+        align-items: start;
         gap: 10px;
     }
 
@@ -495,10 +496,11 @@
         height: 184px;
         flex-direction: column;
         justify-content: space-between;
-        padding: 0 0 40px;
+        padding: 0;
         color: #64748b;
         font-size: 10px;
         font-weight: 700;
+        line-height: 1;
         text-align: right;
     }
 
@@ -816,9 +818,18 @@
         background: transparent;
     }
 
+    .o_lds_trend_title {
+        display: block;
+        margin-bottom: 6px;
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 700;
+        text-align: left;
+    }
+
     .o_lds_trend_plot {
         position: relative;
-        height: 120px;
+        height: 110px;
     }
 
     .o_lds_trend_svg {

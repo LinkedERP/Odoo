@@ -586,10 +586,10 @@ class LinkederpDashboardOps(models.Model):
         # Time-entry trend lines (last 8 weeks) next to each KPI card.
         pass_points, cov_points = self._ops_time_entry_series(week_start, primary_map)
         pass_trend = self._ops_trendline_widget(
-            "ops_pass_trend", _("Pass Rate trend"), "account.analytic.line", pass_points
+            "ops_pass_trend", _("Pass Rate — last 8 weeks"), "account.analytic.line", pass_points
         )
         coverage_trend = self._ops_trendline_widget(
-            "ops_coverage_trend", _("Coverage trend"), "account.analytic.line", cov_points
+            "ops_coverage_trend", _("Coverage — last 8 weeks"), "account.analytic.line", cov_points
         )
 
         # Trend charts (each carries its own avg % badge; the standalone
@@ -721,6 +721,9 @@ class LinkederpDashboardOps(models.Model):
             return "—"
         return "%s%%" % self._ops_short_hours(round(value, 1))
 
+    def _ops_date_text(self, value):
+        return value.strftime("%d %b %Y") if value else "—"
+
     def _ops_margin_tone(self, value):
         """Green > 40%, amber 20-40%, red below 20% (or negative)."""
         if value is None:
@@ -740,8 +743,8 @@ class LinkederpDashboardOps(models.Model):
         return [("project_id", "=", project.id)]
 
     def _ops_project_cost(self, project, target_currency, date):
-        """Actual cost in target currency: sum of timesheet cost (company ccy),
-        converted; falls back to hours x hourly cost when the cost is zero."""
+        """Return (cost in target currency, actual hours) for the SO-linked
+        timesheets; cost falls back to hours x hourly cost when it is zero."""
         company = project.company_id
         domain = self._ops_cost_domain(project)
         Line = self.env["account.analytic.line"]
@@ -762,7 +765,7 @@ class LinkederpDashboardOps(models.Model):
                     raw += (row.get("unit_amount") or 0.0) * (self.env["hr.employee"].browse(emp[0]).hourly_cost or 0.0)
             if raw:
                 cost = abs(company.currency_id._convert(raw, target_currency, company, date))
-        return cost
+        return cost, hours
 
     def _ops_project_widget(self, sub_team):
         lead_uids = self._ops_lead_user_ids(sub_team)
@@ -807,7 +810,7 @@ class LinkederpDashboardOps(models.Model):
                 else:
                     so_amount = 0.0
                     invoiced = 0.0
-                cost = self._ops_project_cost(project, display_ccy, today)
+                cost, actual_hours = self._ops_project_cost(project, display_ccy, today)
                 # Margin = (revenue - cost) / revenue (higher is better).
                 prof_so = (so_amount - cost) / so_amount * 100 if so_amount else None
                 prof_inv = (invoiced - cost) / invoiced * 100 if invoiced else None
@@ -815,6 +818,10 @@ class LinkederpDashboardOps(models.Model):
                     "label": project.name,
                     "domain": self._json_safe([("id", "=", project.id)]),
                     "stage": project.stage_id.name or "",
+                    "start": self._ops_date_text(project.date_start),
+                    "end": self._ops_date_text(project.date),
+                    "planned_hrs": self._ops_short_hours(project.allocated_hours),
+                    "actual_hrs": self._ops_short_hours(actual_hours),
                     "so_amount": self._ops_money(so_amount, display_ccy) if order else "—",
                     "invoiced": self._ops_money(invoiced, display_ccy) if order else "—",
                     "cost": self._ops_money(cost, display_ccy),
@@ -844,6 +851,10 @@ class LinkederpDashboardOps(models.Model):
             "rows": rows,
             "columns": [
                 {"key": "stage", "label": _("Stage"), "format": "text"},
+                {"key": "start", "label": _("Start"), "format": "text"},
+                {"key": "end", "label": _("Expected End"), "format": "text"},
+                {"key": "planned_hrs", "label": _("Planned h (SO)"), "format": "money"},
+                {"key": "actual_hrs", "label": _("Actual h"), "format": "money"},
                 {"key": "so_amount", "label": _("SO Amount"), "format": "money"},
                 {"key": "invoiced", "label": _("Invoiced"), "format": "money"},
                 {"key": "cost", "label": _("Actual Cost"), "format": "money"},
