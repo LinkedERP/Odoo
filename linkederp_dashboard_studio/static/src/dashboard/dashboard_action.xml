@@ -157,9 +157,12 @@
                                 <svg class="o_lds_trend_svg" viewBox="0 0 300 100" preserveAspectRatio="none" role="img">
                                     <polyline class="o_lds_trend_line" t-att-points="trendLinePoints(widget)"/>
                                     <t t-foreach="trendMarkers(widget)" t-as="m" t-key="m_index">
-                                        <circle t-att-cx="m.x" t-att-cy="m.y" r="3.5" t-att-fill="m.color">
-                                            <title t-esc="m.title"/>
-                                        </circle>
+                                        <circle t-att-cx="m.x" t-att-cy="m.y" r="3.5" t-att-fill="m.color"/>
+                                        <circle
+                                            t-att-cx="m.x" t-att-cy="m.y" r="9" fill="transparent"
+                                            t-on-mouseenter="(ev) => showDetail(ev, m)"
+                                            t-on-mousemove="moveDetail"
+                                            t-on-mouseleave="hideDetail"/>
                                     </t>
                                 </svg>
                                 <div class="o_lds_trend_labels">
@@ -239,8 +242,10 @@
                                         <button
                                             class="o_lds_column_item"
                                             type="button"
-                                            t-att-title="point.label + ': ' + formatPointValue(widget, point.value)"
-                                            t-on-click="() => openRecords(widget.model, point.domain)">
+                                            t-on-click="() => openRecords(widget.model, point.domain)"
+                                            t-on-mouseenter="(ev) => showDetail(ev, point)"
+                                            t-on-mousemove="moveDetail"
+                                            t-on-mouseleave="hideDetail">
                                             <span class="o_lds_column_bar_wrap">
                                                 <span class="o_lds_column_bar" t-att-style="columnStyle(widget, point, point_index)">
                                                     <strong t-esc="formatPointValue(widget, point.value)"/>
@@ -406,6 +411,39 @@
                         </t>
                     </section>
                 </t>
+            </div>
+
+            <div t-if="state.tooltip.visible" class="o_lds_tooltip" t-att-style="tooltipStyle()">
+                <div class="o_lds_tt_title" t-if="state.tooltip.title" t-esc="state.tooltip.title"/>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <t t-foreach="state.tooltip.detail.cols" t-as="c" t-key="c_index">
+                                <th t-esc="c"/>
+                            </t>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="state.tooltip.detail.rows" t-as="r" t-key="r_index">
+                            <tr>
+                                <td class="o_lds_tt_name" t-esc="r.name"/>
+                                <t t-foreach="r.cells" t-as="cell" t-key="cell_index">
+                                    <td t-esc="cell"/>
+                                </t>
+                            </tr>
+                        </t>
+                        <tr t-if="state.tooltip.detail.more" class="o_lds_tt_more">
+                            <td t-att-colspan="state.tooltip.detail.cols.length + 1" t-esc="state.tooltip.detail.more"/>
+                        </tr>
+                        <tr class="o_lds_tt_total">
+                            <td class="o_lds_tt_name" t-esc="state.tooltip.detail.total.name"/>
+                            <t t-foreach="state.tooltip.detail.total.cells" t-as="cell" t-key="cell_index">
+                                <td t-esc="cell"/>
+                            </t>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </t>

@@ -360,19 +360,17 @@ class LinkederpDashboardOps(models.Model):
         for week in weeks:
             emp_map = self._ops_eligible_employees(week, primary_map=primary_map)
             expected = self._ops_expected_hours_by_user(week, emp_map=emp_map)
-            population = list(expected.keys())
-            row = {
-                "week": week,
-                "expected": sum(expected.values()),
-                "users": population,
-            }
             if planned:
-                slots = self._ops_planned_hours_by_user(week)
-                row["planned"] = sum(slots.get(uid, 0.0) for uid in population)
-            if billable:
-                bill = self._ops_logged_hours_by_user(week, billable_only=True)
-                row["billable"] = sum(bill.get(uid, 0.0) for uid in population)
-            series.append(row)
+                actual = self._ops_planned_hours_by_user(week)
+            else:
+                actual = self._ops_logged_hours_by_user(week, billable_only=True)
+            series.append({
+                "week": week,
+                "users": list(expected.keys()),
+                "names": self._ops_names_map(emp_map),
+                "expected_by_user": expected,
+                "actual_by_user": actual,
+            })
         return series
 
     def _ops_trend_color(self, rate):
@@ -380,6 +378,57 @@ class LinkederpDashboardOps(models.Model):
 
     def _ops_marker_color(self, rate):
         return "#2e7d2e" if rate >= 100 else "#b03030"
+
+    # ------------------------------------------------------------------
+    # Per-employee hover detail
+    # ------------------------------------------------------------------
+    def _ops_names_map(self, emp_map):
+        return {uid: emp.user_id.name for uid, emp in emp_map.items()}
+
+    def _ops_detail_payload(self, uids, names, expected, actual, headers,
+                            expected_factor=1.0, integer=False, max_rows=15):
+        """Employee-level table for a tooltip: {cols, rows, total, more}."""
+        def fmt(value):
+            return "%d" % round(value) if integer else self._ops_short_hours(value)
+
+        data = []
+        total_e = 0.0
+        total_a = 0.0
+        for uid in uids:
+            exp = expected.get(uid, 0.0) * expected_factor
+            act = actual.get(uid, 0.0)
+            total_e += exp
+            total_a += act
+            data.append((names.get(uid, _("Unknown")), exp, act))
+        data.sort(key=lambda item: (-item[1], item[0].lower()))
+
+        rows = []
+        for name, exp, act in data[:max_rows]:
+            pct = round(act / exp * 100, 1) if exp else 0.0
+            rows.append({"name": name, "cells": [fmt(exp), fmt(act), "%s%%" % self._ops_short_hours(pct)]})
+        more = _("+%s more") % (len(data) - max_rows) if len(data) > max_rows else ""
+        total_pct = round(total_a / total_e * 100, 1) if total_e else 0.0
+        total = {
+            "name": _("Total"),
+            "cells": [fmt(total_e), fmt(total_a), "%s%%" % self._ops_short_hours(total_pct)],
+        }
+        return {"cols": headers, "rows": rows, "total": total, "more": more}
+
+    def _ops_passrate_counts_by_user(self, week_start, uids):
+        """({user_id: total lines}, {user_id: on-time lines}) for the week."""
+        cutoff = week_start + timedelta(days=7)
+        base = self._ops_timesheet_week_domain(week_start)
+        if uids:
+            base = base + [("user_id", "in", uids)]
+        Line = self.env["account.analytic.line"].with_context(active_test=False)
+        totals = Line.read_group(base, ["__count"], ["user_id"], lazy=False)
+        on_time = Line.read_group(
+            base + [("create_date", "<=", "%s 23:59:59" % fields.Date.to_string(cutoff))],
+            ["__count"], ["user_id"], lazy=False,
+        )
+        total_by_user = {r["user_id"][0]: r.get("__count", 0) for r in totals if r.get("user_id")}
+        ontime_by_user = {r["user_id"][0]: r.get("__count", 0) for r in on_time if r.get("user_id")}
+        return total_by_user, ontime_by_user
 
     def _ops_time_entry_series(self, selected_week, primary_map):
         """Return (pass_points, coverage_points) for the last TREND_WEEKS weeks."""
@@ -389,17 +438,34 @@ class LinkederpDashboardOps(models.Model):
         for week in weeks:
             emp_map = self._ops_eligible_employees(week, primary_map=primary_map)
             uids = list(emp_map.keys())
+            names = self._ops_names_map(emp_map)
             label = self._ops_week_num(week)
 
-            prate, _on, _tot, _cutoff, pass_domain = self._ops_pass_rate(week, user_ids=uids)
+            # Pass rate (line-count based, per user).
+            total_lines, ontime_lines = self._ops_passrate_counts_by_user(week, uids)
+            tot = sum(total_lines.values())
+            on = sum(ontime_lines.values())
+            prate = round(on / tot * 100, 1) if tot else 0.0
+            pass_domain = self._ops_timesheet_week_domain(week)
+            if uids:
+                pass_domain = pass_domain + [("user_id", "in", uids)]
             pass_points.append({
                 "label": label,
                 "value": prate,
                 "color": self._ops_marker_color(prate),
                 "domain": self._json_safe(pass_domain),
+                "detail": self._ops_detail_payload(
+                    uids, names, total_lines, ontime_lines,
+                    [_("Lines"), _("On time"), _("%")], integer=True,
+                ),
             })
 
-            crate, _logged, _expected = self._ops_coverage(week, emp_map=emp_map)
+            # Coverage (logged hours vs expected hours, per user).
+            expected = self._ops_expected_hours_by_user(week, emp_map=emp_map)
+            logged = self._ops_logged_hours_by_user(week)
+            total_e = sum(expected.values())
+            total_l = sum(logged.get(uid, 0.0) for uid in uids)
+            crate = round(total_l / total_e * 100, 1) if total_e else 0.0
             cov_domain = self._ops_timesheet_week_domain(week)
             if uids:
                 cov_domain = cov_domain + [("user_id", "in", uids)]
@@ -408,6 +474,10 @@ class LinkederpDashboardOps(models.Model):
                 "value": crate,
                 "color": self._ops_marker_color(crate),
                 "domain": self._json_safe(cov_domain),
+                "detail": self._ops_detail_payload(
+                    uids, names, expected, logged,
+                    [_("Expected h"), _("Actual h"), _("%")],
+                ),
             })
         return pass_points, cov_points
 
@@ -547,27 +617,39 @@ class LinkederpDashboardOps(models.Model):
         total_den = 0.0
         for row in series:
             week = row["week"]
+            uids = row["users"]
+            expected = row["expected_by_user"]
+            actual = row["actual_by_user"]
+            num = sum(actual.get(uid, 0.0) for uid in uids)
             if kind == "billable":
-                den = row["expected"] * BILLABLE_SHARE
-                num = row["billable"]
+                den = sum(expected.values()) * BILLABLE_SHARE
                 domain = self._ops_billable_domain(week)
+                detail = self._ops_detail_payload(
+                    uids, row["names"], expected, actual,
+                    [_("Exp. bill h"), _("Billable h"), _("%")],
+                    expected_factor=BILLABLE_SHARE,
+                )
             else:
-                den = row["expected"]
-                num = row["planned"]
+                den = sum(expected.values())
                 domain = [
                     ("start_datetime", ">=", "%s 00:00:00" % fields.Date.to_string(week)),
                     ("start_datetime", "<=", "%s 23:59:59" % fields.Date.to_string(week + timedelta(days=6))),
                 ]
+                detail = self._ops_detail_payload(
+                    uids, row["names"], expected, actual,
+                    [_("Expected h"), _("Planned h"), _("%")],
+                )
             value = round(num / den * 100, 1) if den else 0.0
             total_num += num
             total_den += den
-            if row["users"]:
-                domain = domain + [("user_id", "in", row["users"])]
+            if uids:
+                domain = domain + [("user_id", "in", uids)]
             points.append({
                 "label": self._ops_week_num(week),
                 "value": value,
                 "color": self._ops_trend_color(value),
                 "domain": self._json_safe(domain),
+                "detail": detail,
             })
         avg = round(total_num / total_den * 100, 1) if total_den else 0.0
         return {

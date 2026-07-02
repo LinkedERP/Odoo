@@ -28,6 +28,7 @@ export class LinkedERPDashboardAction extends Component {
             crmFilters: { enabled: false },
             opsFilters: { enabled: false },
             filters: this.defaultFilters(),
+            tooltip: { visible: false, x: 0, y: 0, title: "", detail: null },
             initialDashboardId,
         });
 
@@ -65,6 +66,10 @@ export class LinkedERPDashboardAction extends Component {
             "linePoints",
             "trendLinePoints",
             "trendMarkers",
+            "showDetail",
+            "moveDetail",
+            "hideDetail",
+            "tooltipStyle",
             "legendColor",
         ]) {
             this[method] = this[method].bind(this);
@@ -380,7 +385,8 @@ export class LinkedERPDashboardAction extends Component {
             x: n === 1 ? 150 : 12 + (index / (n - 1)) * 276,
             y: 90 - ((Number(point.value || 0) - min) / range) * 66,
             color: point.color || "#003E99",
-            title: `${point.label}: ${this.formatNumber(Number(point.value || 0))}%`,
+            label: point.label,
+            detail: point.detail,
         }));
     }
 
@@ -390,6 +396,40 @@ export class LinkedERPDashboardAction extends Component {
 
     trendMarkers(widget) {
         return this.trendCoords(widget);
+    }
+
+    showDetail(ev, point) {
+        if (!point || !point.detail) {
+            return;
+        }
+        this.state.tooltip = {
+            visible: true,
+            x: ev.clientX,
+            y: ev.clientY,
+            title: point.label || "",
+            detail: point.detail,
+        };
+    }
+
+    moveDetail(ev) {
+        if (this.state.tooltip.visible) {
+            this.state.tooltip.x = ev.clientX;
+            this.state.tooltip.y = ev.clientY;
+        }
+    }
+
+    hideDetail() {
+        this.state.tooltip.visible = false;
+    }
+
+    tooltipStyle() {
+        const t = this.state.tooltip;
+        // Flip to the left / up near the viewport edges so the panel stays on-screen.
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const left = t.x + 300 > w ? t.x - 300 : t.x + 16;
+        const top = t.y + 240 > h ? Math.max(8, t.y - 240) : t.y + 16;
+        return `left: ${left}px; top: ${top}px;`;
     }
 
     legendColor(index) {
