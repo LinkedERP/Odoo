@@ -316,8 +316,12 @@ class LinkederpDashboardOpsAwards(models.Model):
         prev_label = self._awards_month_label(prev_first)
         team_labels = dict(self._awards_team_labels())
 
-        prev_team_rank = {team["key"]: team["rank"] for team in prev_board["teams"]}
-        prev_team_score = {team["key"]: team["score"] for team in prev_board["teams"]}
+        prev_team_rank = {
+            team["key"]: team["rank"] for team in prev_board["teams"] if team["uids"]
+        }
+        prev_team_score = {
+            team["key"]: team["score"] for team in prev_board["teams"] if team["uids"]
+        }
         prev_emp_rank = {emp["uid"]: emp["rank"] for emp in prev_board["employees"]}
         prev_has_data = any(team["uids"] for team in prev_board["teams"]) or bool(
             prev_board["employees"]
@@ -388,7 +392,7 @@ class LinkederpDashboardOpsAwards(models.Model):
                 if not team["uids"] or team["key"] not in prev_team_score:
                     continue
                 gain = team["score"] - prev_team_score[team["key"]]
-                if gain > 0 and (best_gain is None or gain > best_gain[1]):
+                if round(gain) >= 1 and (best_gain is None or gain > best_gain[1]):
                     best_gain = (team, gain)
         if best_gain:
             team, gain = best_gain
@@ -428,6 +432,7 @@ class LinkederpDashboardOpsAwards(models.Model):
             }
             for team in board["teams"]
         ]
+        podium["domain"] = self._json_safe(self._awards_month_domain(month_first))
         widgets.append(podium)
 
         # Standings ------------------------------------------------------------
@@ -439,6 +444,7 @@ class LinkederpDashboardOpsAwards(models.Model):
                 "groupby": _("Team"),
                 "compact": True,
                 "columns": self._awards_standings_columns(prev_label),
+                "domain": self._json_safe(self._awards_month_domain(month_first)),
             }
         )
         for team in board["teams"]:
@@ -466,6 +472,7 @@ class LinkederpDashboardOpsAwards(models.Model):
                 "groupby": _("Employee"),
                 "compact": True,
                 "columns": self._awards_standings_columns(prev_label),
+                "domain": self._json_safe(self._awards_month_domain(month_first)),
             }
         )
         for emp in board["employees"][:AWARDS_EMPLOYEE_TOP_N]:
