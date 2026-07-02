@@ -54,6 +54,7 @@ export class LinkedERPDashboardAction extends Component {
             "barStyle",
             "columnGridLines",
             "columnStyle",
+            "columnTargetStyle",
             "comparisonBarStyle",
             "stackSegmentStyle",
             "gaugeStyle",
@@ -242,7 +243,21 @@ export class LinkedERPDashboardAction extends Component {
 
     maxPointValue(widget) {
         const values = (widget.points || []).map((point) => Number(point.value || 0));
-        return Math.max(...values, 1);
+        if (widget.target) {
+            values.push(Number(widget.target));
+        }
+        // 12% headroom so the tallest bar's value label (and the target line) stay visible.
+        return Math.max(...values, 1) * 1.12;
+    }
+
+    columnTargetStyle(widget) {
+        const target = Number(widget.target || 0);
+        if (!target) {
+            return "display: none;";
+        }
+        // Bar plot area is 184px tall on a baseline 42px above the plot floor.
+        const bottom = 42 + (target / this.maxPointValue(widget)) * 184;
+        return `bottom: ${bottom}px;`;
     }
 
     barStyle(widget, point) {

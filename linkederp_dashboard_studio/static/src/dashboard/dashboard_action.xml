@@ -119,13 +119,19 @@
                                 <h2 t-esc="widget.name"/>
                                 <span t-if="widget.help" t-esc="widget.help"/>
                             </div>
-                            <button
-                                class="btn btn-sm btn-link"
-                                type="button"
-                                t-on-click="() => openRecords(widget.model, widget.domain)"
-                                title="Open records">
-                                <i class="fa fa-external-link"/>
-                            </button>
+                            <div class="o_lds_widget_header_aside">
+                                <span
+                                    t-if="widget.badge"
+                                    t-att-class="'o_lds_badge ' + (widget.value >= (widget.target || 0) ? 'o_lds_tone_good' : 'o_lds_tone_bad')"
+                                    t-esc="widget.badge"/>
+                                <button
+                                    class="btn btn-sm btn-link"
+                                    type="button"
+                                    t-on-click="() => openRecords(widget.model, widget.domain)"
+                                    title="Open records">
+                                    <i class="fa fa-external-link"/>
+                                </button>
+                            </div>
                         </header>
 
                         <div t-if="widget.error" class="o_lds_widget_error">
@@ -204,6 +210,10 @@
                                     </t>
                                 </div>
                                 <div class="o_lds_column_plot">
+                                    <span
+                                        t-if="widget.target"
+                                        class="o_lds_column_target"
+                                        t-att-style="columnTargetStyle(widget)"/>
                                     <t t-foreach="widget.points" t-as="point" t-key="point.label">
                                         <button
                                             class="o_lds_column_item"

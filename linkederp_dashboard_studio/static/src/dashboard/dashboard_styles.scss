@@ -759,6 +759,39 @@
         background: #ffffff;
         color: #64748b;
     }
+
+    .o_lds_widget_header_aside {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .o_lds_badge {
+        font-size: 13px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .o_lds_tone_good {
+        color: #2e7d2e;
+    }
+
+    .o_lds_tone_bad {
+        color: #b03030;
+    }
+
+    .o_lds_column_plot {
+        position: relative;
+    }
+
+    .o_lds_column_target {
+        position: absolute;
+        left: 0;
+        right: 0;
+        border-top: 1px dotted rgba(0, 0, 0, 0.5);
+        pointer-events: none;
+        z-index: 0;
+    }
 }
 
 @media (max-width: 1200px) {
