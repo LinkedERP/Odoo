@@ -27,7 +27,7 @@ OPS_SUBTEAM_FIELD = "x_studio_selection_field_8lf_1jsfbg0sl"
 OPS_MANAGES_FIELD = "x_manages_team"
 
 # Project stages excluded from the project list.
-OPS_EXCLUDED_STAGES = ["Done", "On Hold", "Cancelled", "Internal"]
+OPS_EXCLUDED_STAGES = ["Done", "On Hold", "Cancelled", "Internal", "Support"]
 
 # Expected billable hours are this share of total expected hours.
 BILLABLE_SHARE = 0.75
