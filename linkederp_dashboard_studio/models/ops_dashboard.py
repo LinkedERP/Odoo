@@ -721,8 +721,8 @@ class LinkederpDashboardOps(models.Model):
             return "—"
         return "%s%%" % self._ops_short_hours(round(value, 1))
 
-    def _ops_project_cost(self, project, cost_chunks, so_currency, date):
-        """Actual cost in SO currency: sum of timesheet cost (company ccy),
+    def _ops_project_cost(self, project, cost_chunks, target_currency, date):
+        """Actual cost in target currency: sum of timesheet cost (company ccy),
         converted; falls back to hours x hourly cost when the cost is zero."""
         company = project.company_id
         cost = 0.0
@@ -731,7 +731,7 @@ class LinkederpDashboardOps(models.Model):
             hours += unit
             if amount:
                 source = self.env["res.currency"].browse(currency_id) if currency_id else company.currency_id
-                cost += abs(source._convert(amount, so_currency, company, date))
+                cost += abs(source._convert(amount, target_currency, company, date))
         if cost < 0.01 and hours > 0:
             groups = self.env["account.analytic.line"].read_group(
                 [("project_id", "=", project.id)], ["unit_amount:sum"], ["employee_id"], lazy=False
@@ -742,7 +742,7 @@ class LinkederpDashboardOps(models.Model):
                 if emp:
                     raw += (row.get("unit_amount") or 0.0) * (self.env["hr.employee"].browse(emp[0]).hourly_cost or 0.0)
             if raw:
-                cost = abs(company.currency_id._convert(raw, so_currency, company, date))
+                cost = abs(company.currency_id._convert(raw, target_currency, company, date))
         return cost
 
     def _ops_project_widget(self, sub_team):
@@ -779,11 +779,17 @@ class LinkederpDashboardOps(models.Model):
             today = fields.Date.context_today(self)
             for project in projects:
                 order = so_map.get(project.sale_order_id.id) if project.sale_order_id else None
-                so_currency = order.currency_id if order else project.currency_id
-                so_amount = order.amount_untaxed if order else 0.0
-                invoiced = order.amount_invoiced if order else 0.0
+                # Display everything in the project's registering-company currency
+                # (Mrelate -> INR, Linked ERP (Pty) -> ZAR, PT Istana -> IDR).
+                display_ccy = project.company_id.currency_id or project.currency_id
+                if order:
+                    so_amount = order.currency_id._convert(order.amount_untaxed, display_ccy, project.company_id, today)
+                    invoiced = order.currency_id._convert(order.amount_invoiced, display_ccy, project.company_id, today)
+                else:
+                    so_amount = 0.0
+                    invoiced = 0.0
                 cost = self._ops_project_cost(
-                    project, cost_by_project.get(project.id, []), so_currency, today
+                    project, cost_by_project.get(project.id, []), display_ccy, today
                 )
                 prof_so = cost / so_amount * 100 if so_amount else None
                 prof_inv = cost / invoiced * 100 if invoiced else None
@@ -791,9 +797,9 @@ class LinkederpDashboardOps(models.Model):
                     "label": project.name,
                     "domain": self._json_safe([("id", "=", project.id)]),
                     "stage": project.stage_id.name or "",
-                    "so_amount": self._ops_money(so_amount, so_currency) if order else "—",
-                    "invoiced": self._ops_money(invoiced, so_currency) if order else "—",
-                    "cost": self._ops_money(cost, so_currency),
+                    "so_amount": self._ops_money(so_amount, display_ccy) if order else "—",
+                    "invoiced": self._ops_money(invoiced, display_ccy) if order else "—",
+                    "cost": self._ops_money(cost, display_ccy),
                     "prof_so": self._ops_pct_text(prof_so),
                     "prof_inv": self._ops_pct_text(prof_inv),
                 })
@@ -807,7 +813,7 @@ class LinkederpDashboardOps(models.Model):
             "measure": "",
             "groupby": _("Project"),
             "color": "#1d4ed8",
-            "help": _("Managed by %(who)s · amounts in each project's SO currency · "
+            "help": _("Managed by %(who)s · amounts in each project's company currency · "
                       "excludes Done / On Hold / Cancelled") % {"who": managed_by},
             "value": float(len(rows)),
             "format": "integer",
