@@ -709,6 +709,42 @@ class LinkederpDashboardOps(models.Model):
     def _ops_lead_user_ids(self, sub_team=None):
         return list({emp.user_id.id for emp in self._ops_lead_employees(sub_team) if emp.user_id})
 
+    def _ops_money(self, amount, currency):
+        symbol = currency.symbol or currency.name or ""
+        text = "{:,.0f}".format(round(amount or 0))
+        if currency.position == "after":
+            return "%s %s" % (text, symbol)
+        return "%s%s" % (symbol, text)
+
+    def _ops_pct_text(self, value):
+        if value is None:
+            return "—"
+        return "%s%%" % self._ops_short_hours(round(value, 1))
+
+    def _ops_project_cost(self, project, cost_chunks, so_currency, date):
+        """Actual cost in SO currency: sum of timesheet cost (company ccy),
+        converted; falls back to hours x hourly cost when the cost is zero."""
+        company = project.company_id
+        cost = 0.0
+        hours = 0.0
+        for currency_id, amount, unit in cost_chunks:
+            hours += unit
+            if amount:
+                source = self.env["res.currency"].browse(currency_id) if currency_id else company.currency_id
+                cost += abs(source._convert(amount, so_currency, company, date))
+        if cost < 0.01 and hours > 0:
+            groups = self.env["account.analytic.line"].read_group(
+                [("project_id", "=", project.id)], ["unit_amount:sum"], ["employee_id"], lazy=False
+            )
+            raw = 0.0
+            for row in groups:
+                emp = row.get("employee_id")
+                if emp:
+                    raw += (row.get("unit_amount") or 0.0) * (self.env["hr.employee"].browse(emp[0]).hourly_cost or 0.0)
+            if raw:
+                cost = abs(company.currency_id._convert(raw, so_currency, company, date))
+        return cost
+
     def _ops_project_widget(self, sub_team):
         lead_uids = self._ops_lead_user_ids(sub_team)
         lead_names = sorted({emp.user_id.name for emp in self._ops_lead_employees(sub_team) if emp.user_id})
@@ -719,12 +755,47 @@ class LinkederpDashboardOps(models.Model):
                 ("user_id", "in", lead_uids),
                 ("stage_id.name", "not in", OPS_EXCLUDED_STAGES),
             ]
-            for project in self.env["project.project"].search(domain, order="name"):
+            projects = self.env["project.project"].search(domain, order="name")
+
+            so_map = {}
+            so_ids = [p.sale_order_id.id for p in projects if p.sale_order_id]
+            if so_ids:
+                so_map = {so.id: so for so in self.env["sale.order"].browse(so_ids)}
+
+            cost_by_project = {}
+            if projects:
+                for row in self.env["account.analytic.line"].read_group(
+                    [("project_id", "in", projects.ids)],
+                    ["amount:sum", "unit_amount:sum"],
+                    ["project_id", "currency_id"],
+                    lazy=False,
+                ):
+                    pid = row["project_id"][0]
+                    cur = row.get("currency_id")
+                    cost_by_project.setdefault(pid, []).append(
+                        (cur[0] if cur else False, row.get("amount") or 0.0, row.get("unit_amount") or 0.0)
+                    )
+
+            today = fields.Date.context_today(self)
+            for project in projects:
+                order = so_map.get(project.sale_order_id.id) if project.sale_order_id else None
+                so_currency = order.currency_id if order else project.currency_id
+                so_amount = order.amount_untaxed if order else 0.0
+                invoiced = order.amount_invoiced if order else 0.0
+                cost = self._ops_project_cost(
+                    project, cost_by_project.get(project.id, []), so_currency, today
+                )
+                prof_so = cost / so_amount * 100 if so_amount else None
+                prof_inv = cost / invoiced * 100 if invoiced else None
                 rows.append({
                     "label": project.name,
                     "domain": self._json_safe([("id", "=", project.id)]),
                     "stage": project.stage_id.name or "",
-                    "manager": project.user_id.name or "",
+                    "so_amount": self._ops_money(so_amount, so_currency) if order else "—",
+                    "invoiced": self._ops_money(invoiced, so_currency) if order else "—",
+                    "cost": self._ops_money(cost, so_currency),
+                    "prof_so": self._ops_pct_text(prof_so),
+                    "prof_inv": self._ops_pct_text(prof_inv),
                 })
         managed_by = ", ".join(lead_names) if lead_names else _("no team lead mapped")
         return {
@@ -736,7 +807,8 @@ class LinkederpDashboardOps(models.Model):
             "measure": "",
             "groupby": _("Project"),
             "color": "#1d4ed8",
-            "help": _("Managed by %(who)s · excludes Done / On Hold / Cancelled") % {"who": managed_by},
+            "help": _("Managed by %(who)s · amounts in each project's SO currency · "
+                      "excludes Done / On Hold / Cancelled") % {"who": managed_by},
             "value": float(len(rows)),
             "format": "integer",
             "domain": self._json_safe(domain),
@@ -744,7 +816,11 @@ class LinkederpDashboardOps(models.Model):
             "rows": rows,
             "columns": [
                 {"key": "stage", "label": _("Stage"), "format": "text"},
-                {"key": "manager", "label": _("Project Manager"), "format": "text"},
+                {"key": "so_amount", "label": _("SO Amount"), "format": "money"},
+                {"key": "invoiced", "label": _("Invoiced"), "format": "money"},
+                {"key": "cost", "label": _("Actual Cost"), "format": "money"},
+                {"key": "prof_so", "label": _("% Prof (SO)"), "format": "money"},
+                {"key": "prof_inv", "label": _("% Prof (Inv)"), "format": "money"},
             ],
             "span": 12,
             "error": False,

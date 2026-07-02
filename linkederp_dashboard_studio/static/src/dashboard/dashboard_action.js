@@ -62,6 +62,7 @@ export class LinkedERPDashboardAction extends Component {
             "funnelStyle",
             "pointShare",
             "matrixCellValue",
+            "matrixCellAlign",
             "pieStyle",
             "linePoints",
             "trendLinePoints",
@@ -331,10 +332,20 @@ export class LinkedERPDashboardAction extends Component {
     }
 
     matrixCellValue(row, column) {
-        if (column.format === "text") {
+        if (column.format === "text" || column.format === "money") {
             return row[column.key] || "";
         }
         return this.formatByType(row[column.key], column.format);
+    }
+
+    matrixCellAlign(column) {
+        if (column.format === "text") {
+            return "text-start";
+        }
+        if (column.format === "money") {
+            return "text-end";
+        }
+        return "text-center";
     }
 
     pieStyle(widget) {
