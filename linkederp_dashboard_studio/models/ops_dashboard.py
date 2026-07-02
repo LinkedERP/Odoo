@@ -378,6 +378,60 @@ class LinkederpDashboardOps(models.Model):
     def _ops_trend_color(self, rate):
         return "#2e7d2e" if rate >= 75 else "#b03030"
 
+    def _ops_marker_color(self, rate):
+        return "#2e7d2e" if rate >= 100 else "#b03030"
+
+    def _ops_time_entry_series(self, selected_week, primary_map):
+        """Return (pass_points, coverage_points) for the last TREND_WEEKS weeks."""
+        weeks = [selected_week - timedelta(days=7 * i) for i in range(TREND_WEEKS - 1, -1, -1)]
+        pass_points = []
+        cov_points = []
+        for week in weeks:
+            emp_map = self._ops_eligible_employees(week, primary_map=primary_map)
+            uids = list(emp_map.keys())
+            label = self._ops_week_num(week)
+
+            prate, _on, _tot, _cutoff, pass_domain = self._ops_pass_rate(week, user_ids=uids)
+            pass_points.append({
+                "label": label,
+                "value": prate,
+                "color": self._ops_marker_color(prate),
+                "domain": self._json_safe(pass_domain),
+            })
+
+            crate, _logged, _expected = self._ops_coverage(week, emp_map=emp_map)
+            cov_domain = self._ops_timesheet_week_domain(week)
+            if uids:
+                cov_domain = cov_domain + [("user_id", "in", uids)]
+            cov_points.append({
+                "label": label,
+                "value": crate,
+                "color": self._ops_marker_color(crate),
+                "domain": self._json_safe(cov_domain),
+            })
+        return pass_points, cov_points
+
+    def _ops_trendline_widget(self, wid, name, model, points):
+        return {
+            "id": wid,
+            "name": name,
+            "type": "trendline",
+            "model": model,
+            "mode": "computed",
+            "measure": "",
+            "groupby": "",
+            "color": "#38bdf8",
+            "help": "",
+            "value": float(points[-1]["value"]) if points else 0.0,
+            "format": "percent",
+            "domain": points[-1]["domain"] if points else [],
+            "points": points,
+            "rows": [],
+            "columns": [],
+            "span": 4,
+            "error": False,
+        }
+
     def _ops_week_num(self, week_start):
         return "W%02d" % week_start.isocalendar()[1]
 
@@ -414,18 +468,14 @@ class LinkederpDashboardOps(models.Model):
             },
             "groupby": "",
             "color": self._ops_pass_rate_color(rate),
-            "help": _("Team %(team)s · reviewed %(week)s · on time = created on/before %(cutoff)s") % {
-                "team": OPS_TEAM_VALUE,
-                "week": self._ops_week_label(week_start),
-                "cutoff": cutoff.strftime("%d %b %Y"),
-            },
+            "help": _("on time ≤ %s") % cutoff.strftime("%d %b"),
             "value": float(rate),
             "format": "percent",
             "domain": self._json_safe(pass_domain),
             "points": [],
             "rows": [],
             "columns": [],
-            "span": 4,
+            "span": 2,
             "error": False,
         }
 
@@ -445,20 +495,25 @@ class LinkederpDashboardOps(models.Model):
             },
             "groupby": "",
             "color": self._ops_pass_rate_color(cov_rate),
-            "help": _("Team %(team)s · reviewed %(week)s · hours logged (all companies) vs "
-                      "expected (default-company calendar, leaves & holidays removed)") % {
-                "team": OPS_TEAM_VALUE,
-                "week": self._ops_week_label(week_start),
-            },
+            "help": _("logged vs expected"),
             "value": float(cov_rate),
             "format": "percent",
             "domain": self._json_safe(coverage_domain),
             "points": [],
             "rows": [],
             "columns": [],
-            "span": 4,
+            "span": 2,
             "error": False,
         }
+
+        # Time-entry trend lines (last 8 weeks) next to each KPI card.
+        pass_points, cov_points = self._ops_time_entry_series(week_start, primary_map)
+        pass_trend = self._ops_trendline_widget(
+            "ops_pass_trend", _("Pass Rate trend"), "account.analytic.line", pass_points
+        )
+        coverage_trend = self._ops_trendline_widget(
+            "ops_coverage_trend", _("Coverage trend"), "account.analytic.line", cov_points
+        )
 
         # Trend charts (each carries its own avg % badge; the standalone
         # Billability / Planning cards were folded into these).
@@ -477,7 +532,14 @@ class LinkederpDashboardOps(models.Model):
             kind="planned",
         )
 
-        return [pass_card, coverage_card, billability_trend, planning_trend]
+        return [
+            pass_card,
+            pass_trend,
+            coverage_card,
+            coverage_trend,
+            billability_trend,
+            planning_trend,
+        ]
 
     def _ops_trend_widget(self, wid, name, model, series, kind):
         points = []

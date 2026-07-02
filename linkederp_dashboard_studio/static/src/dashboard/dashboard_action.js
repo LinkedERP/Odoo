@@ -63,6 +63,8 @@ export class LinkedERPDashboardAction extends Component {
             "matrixCellValue",
             "pieStyle",
             "linePoints",
+            "trendLinePoints",
+            "trendMarkers",
             "legendColor",
         ]) {
             this[method] = this[method].bind(this);
@@ -362,6 +364,31 @@ export class LinkedERPDashboardAction extends Component {
                 return `${x},${y}`;
             })
             .join(" ");
+    }
+
+    trendCoords(widget) {
+        const points = widget.points || [];
+        const values = points.map((point) => Number(point.value || 0));
+        if (!values.length) {
+            return [];
+        }
+        const max = Math.max(...values);
+        const min = Math.min(...values);
+        const range = max - min || 1;
+        const n = values.length;
+        return points.map((point, index) => ({
+            x: n === 1 ? 150 : 12 + (index / (n - 1)) * 276,
+            y: 90 - ((Number(point.value || 0) - min) / range) * 66,
+            color: point.color || "#38bdf8",
+        }));
+    }
+
+    trendLinePoints(widget) {
+        return this.trendCoords(widget).map((c) => `${c.x},${c.y}`).join(" ");
+    }
+
+    trendMarkers(widget) {
+        return this.trendCoords(widget);
     }
 
     legendColor(index) {

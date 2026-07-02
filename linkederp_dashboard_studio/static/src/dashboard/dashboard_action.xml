@@ -114,7 +114,7 @@
                     <section
                         t-att-class="'o_lds_widget o_lds_widget_' + widget.type + (widget.span ? ' o_lds_span_' + widget.span : '')"
                         t-att-style="'--lds-accent:' + (widget.color || '#2563eb')">
-                        <header class="o_lds_widget_header">
+                        <header t-if="widget.type !== 'trendline'" class="o_lds_widget_header">
                             <div>
                                 <h2 t-esc="widget.name"/>
                                 <span t-if="widget.help" t-esc="widget.help"/>
@@ -146,6 +146,25 @@
                                 t-on-click="() => openRecords(widget.model, widget.domain)">
                                 <span class="o_lds_kpi_value" t-esc="formatWidgetValue(widget)"/>
                                 <span class="o_lds_kpi_caption" t-esc="widget.measure"/>
+                            </button>
+                        </t>
+
+                        <t t-elif="widget.type === 'trendline'">
+                            <button
+                                class="o_lds_trend"
+                                type="button"
+                                t-on-click="() => openRecords(widget.model, widget.domain)">
+                                <svg class="o_lds_trend_svg" viewBox="0 0 300 100" preserveAspectRatio="none" role="img">
+                                    <polyline class="o_lds_trend_line" t-att-points="trendLinePoints(widget)"/>
+                                    <t t-foreach="trendMarkers(widget)" t-as="m" t-key="m_index">
+                                        <circle t-att-cx="m.x" t-att-cy="m.y" r="3.5" t-att-fill="m.color"/>
+                                    </t>
+                                </svg>
+                                <div class="o_lds_trend_labels">
+                                    <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                        <span t-esc="point.label"/>
+                                    </t>
+                                </div>
                             </button>
                         </t>
 
