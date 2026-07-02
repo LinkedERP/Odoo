@@ -157,7 +157,9 @@
                                 <svg class="o_lds_trend_svg" viewBox="0 0 300 100" preserveAspectRatio="none" role="img">
                                     <polyline class="o_lds_trend_line" t-att-points="trendLinePoints(widget)"/>
                                     <t t-foreach="trendMarkers(widget)" t-as="m" t-key="m_index">
-                                        <circle t-att-cx="m.x" t-att-cy="m.y" r="3.5" t-att-fill="m.color"/>
+                                        <circle t-att-cx="m.x" t-att-cy="m.y" r="3.5" t-att-fill="m.color">
+                                            <title t-esc="m.title"/>
+                                        </circle>
                                     </t>
                                 </svg>
                                 <div class="o_lds_trend_labels">

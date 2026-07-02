@@ -379,7 +379,8 @@ export class LinkedERPDashboardAction extends Component {
         return points.map((point, index) => ({
             x: n === 1 ? 150 : 12 + (index / (n - 1)) * 276,
             y: 90 - ((Number(point.value || 0) - min) / range) * 66,
-            color: point.color || "#38bdf8",
+            color: point.color || "#003E99",
+            title: `${point.label}: ${this.formatNumber(Number(point.value || 0))}%`,
         }));
     }
 
