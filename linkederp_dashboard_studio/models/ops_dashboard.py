@@ -27,7 +27,7 @@ OPS_SUBTEAM_FIELD = "x_studio_selection_field_8lf_1jsfbg0sl"
 OPS_MANAGES_FIELD = "x_manages_team"
 
 # Project stages excluded from the project list.
-OPS_EXCLUDED_STAGES = ["Done", "On Hold", "Cancelled"]
+OPS_EXCLUDED_STAGES = ["Done", "On Hold", "Cancelled", "Internal"]
 
 # Expected billable hours are this share of total expected hours.
 BILLABLE_SHARE = 0.75
@@ -721,6 +721,16 @@ class LinkederpDashboardOps(models.Model):
             return "—"
         return "%s%%" % self._ops_short_hours(round(value, 1))
 
+    def _ops_margin_tone(self, value):
+        """Green > 40%, amber 20-40%, red below 20% (or negative)."""
+        if value is None:
+            return ""
+        if value > 40:
+            return "good"
+        if value >= 20:
+            return "warn"
+        return "bad"
+
     def _ops_project_cost(self, project, cost_chunks, target_currency, date):
         """Actual cost in target currency: sum of timesheet cost (company ccy),
         converted; falls back to hours x hourly cost when the cost is zero."""
@@ -791,8 +801,9 @@ class LinkederpDashboardOps(models.Model):
                 cost = self._ops_project_cost(
                     project, cost_by_project.get(project.id, []), display_ccy, today
                 )
-                prof_so = cost / so_amount * 100 if so_amount else None
-                prof_inv = cost / invoiced * 100 if invoiced else None
+                # Margin = (revenue - cost) / revenue (higher is better).
+                prof_so = (so_amount - cost) / so_amount * 100 if so_amount else None
+                prof_inv = (invoiced - cost) / invoiced * 100 if invoiced else None
                 rows.append({
                     "label": project.name,
                     "domain": self._json_safe([("id", "=", project.id)]),
@@ -802,6 +813,10 @@ class LinkederpDashboardOps(models.Model):
                     "cost": self._ops_money(cost, display_ccy),
                     "prof_so": self._ops_pct_text(prof_so),
                     "prof_inv": self._ops_pct_text(prof_inv),
+                    "tones": {
+                        "prof_so": self._ops_margin_tone(prof_so),
+                        "prof_inv": self._ops_margin_tone(prof_inv),
+                    },
                 })
         managed_by = ", ".join(lead_names) if lead_names else _("no team lead mapped")
         return {

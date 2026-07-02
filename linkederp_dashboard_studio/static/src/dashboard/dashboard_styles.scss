@@ -859,6 +859,21 @@
         }
     }
 
+    .o_lds_cell_good {
+        color: #2e7d2e;
+        font-weight: 700;
+    }
+
+    .o_lds_cell_warn {
+        color: #c98a1b;
+        font-weight: 700;
+    }
+
+    .o_lds_cell_bad {
+        color: #b03030;
+        font-weight: 700;
+    }
+
     .o_lds_tooltip {
         position: fixed;
         z-index: 1080;

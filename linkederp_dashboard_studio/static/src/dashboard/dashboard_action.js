@@ -63,6 +63,7 @@ export class LinkedERPDashboardAction extends Component {
             "pointShare",
             "matrixCellValue",
             "matrixCellAlign",
+            "matrixCellTone",
             "pieStyle",
             "linePoints",
             "trendLinePoints",
@@ -339,13 +340,18 @@ export class LinkedERPDashboardAction extends Component {
     }
 
     matrixCellAlign(column) {
+        let align = "text-center";
         if (column.format === "text") {
-            return "text-start";
+            align = "text-start";
+        } else if (column.format === "money") {
+            align = "text-end";
         }
-        if (column.format === "money") {
-            return "text-end";
-        }
-        return "text-center";
+        return align;
+    }
+
+    matrixCellTone(row, column) {
+        const tone = row.tones && row.tones[column.key];
+        return tone ? ` o_lds_cell_${tone}` : "";
     }
 
     pieStyle(widget) {
