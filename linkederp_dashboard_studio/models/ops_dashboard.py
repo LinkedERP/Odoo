@@ -22,6 +22,13 @@ OPS_TEAM_VALUE = "Operations"
 # dashboard slicer next to the week filter.
 OPS_SUBTEAM_FIELD = "x_studio_selection_field_8lf_1jsfbg0sl"
 
+# "Manages Team" Studio selection on hr.employee: maps a squad to its team lead
+# (project manager). Used to filter the project list by project manager.
+OPS_MANAGES_FIELD = "x_manages_team"
+
+# Project stages excluded from the project list.
+OPS_EXCLUDED_STAGES = ["Done", "On Hold", "Cancelled"]
+
 # Expected billable hours are this share of total expected hours.
 BILLABLE_SHARE = 0.75
 
@@ -602,6 +609,8 @@ class LinkederpDashboardOps(models.Model):
             kind="planned",
         )
 
+        project_review = self._ops_project_widget(sub_team)
+
         return [
             pass_card,
             pass_trend,
@@ -609,6 +618,7 @@ class LinkederpDashboardOps(models.Model):
             coverage_trend,
             billability_trend,
             planning_trend,
+            project_review,
         ]
 
     def _ops_trend_widget(self, wid, name, model, series, kind):
@@ -682,3 +692,60 @@ class LinkederpDashboardOps(models.Model):
         if hours == int(hours):
             return "%d" % int(hours)
         return "%.1f" % hours
+
+    # ------------------------------------------------------------------
+    # Project review
+    # ------------------------------------------------------------------
+    def _ops_lead_employees(self, sub_team=None):
+        """Employees flagged as team leads (Manages Team), optionally one squad."""
+        Employee = self.env["hr.employee"]
+        if OPS_MANAGES_FIELD not in Employee._fields:
+            return Employee.browse()
+        domain = [(OPS_MANAGES_FIELD, "!=", False)]
+        if sub_team:
+            domain = [(OPS_MANAGES_FIELD, "=", sub_team)]
+        return Employee.search(domain)
+
+    def _ops_lead_user_ids(self, sub_team=None):
+        return list({emp.user_id.id for emp in self._ops_lead_employees(sub_team) if emp.user_id})
+
+    def _ops_project_widget(self, sub_team):
+        lead_uids = self._ops_lead_user_ids(sub_team)
+        lead_names = sorted({emp.user_id.name for emp in self._ops_lead_employees(sub_team) if emp.user_id})
+        rows = []
+        domain = []
+        if lead_uids and "project.project" in self.env:
+            domain = [
+                ("user_id", "in", lead_uids),
+                ("stage_id.name", "not in", OPS_EXCLUDED_STAGES),
+            ]
+            for project in self.env["project.project"].search(domain, order="name"):
+                rows.append({
+                    "label": project.name,
+                    "domain": self._json_safe([("id", "=", project.id)]),
+                    "stage": project.stage_id.name or "",
+                    "manager": project.user_id.name or "",
+                })
+        managed_by = ", ".join(lead_names) if lead_names else _("no team lead mapped")
+        return {
+            "id": "ops_projects",
+            "name": _("Project Review"),
+            "type": "matrix",
+            "model": "project.project",
+            "mode": "computed",
+            "measure": "",
+            "groupby": _("Project"),
+            "color": "#1d4ed8",
+            "help": _("Managed by %(who)s · excludes Done / On Hold / Cancelled") % {"who": managed_by},
+            "value": float(len(rows)),
+            "format": "integer",
+            "domain": self._json_safe(domain),
+            "points": [],
+            "rows": rows,
+            "columns": [
+                {"key": "stage", "label": _("Stage"), "format": "text"},
+                {"key": "manager", "label": _("Project Manager"), "format": "text"},
+            ],
+            "span": 12,
+            "error": False,
+        }

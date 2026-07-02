@@ -373,7 +373,7 @@
                                         <tr>
                                             <th class="text-start" t-esc="widget.groupby"/>
                                             <t t-foreach="widget.columns" t-as="column" t-key="column.key">
-                                                <th class="text-center" t-esc="column.label"/>
+                                                <th t-att-class="column.format === 'text' ? 'text-start' : 'text-center'" t-esc="column.label"/>
                                             </t>
                                         </tr>
                                     </thead>
@@ -382,7 +382,7 @@
                                             <tr t-on-click="() => openRecords(widget.model, row.domain)">
                                                 <td class="text-start" t-esc="row.label"/>
                                                 <t t-foreach="widget.columns" t-as="column" t-key="column.key">
-                                                    <td class="text-center" t-esc="matrixCellValue(row, column)"/>
+                                                    <td t-att-class="column.format === 'text' ? 'text-start' : 'text-center'" t-esc="matrixCellValue(row, column)"/>
                                                 </t>
                                             </tr>
                                         </t>

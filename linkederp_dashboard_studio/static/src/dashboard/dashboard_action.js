@@ -331,6 +331,9 @@ export class LinkedERPDashboardAction extends Component {
     }
 
     matrixCellValue(row, column) {
+        if (column.format === "text") {
+            return row[column.key] || "";
+        }
         return this.formatByType(row[column.key], column.format);
     }
 
