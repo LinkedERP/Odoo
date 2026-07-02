@@ -35,6 +35,12 @@ OPS_RAMP_WEEKS = 4
 # Planning always looks this many weeks ahead of the selected week.
 PLANNING_WEEKS = 8
 
+# Billability trend looks this many weeks back (including the selected week).
+TREND_WEEKS = 8
+
+# Trend bars turn red below this billability/planning %.
+TREND_TARGET = 75.0
+
 
 class LinkederpDashboardOps(models.Model):
     _inherit = "linkederp.dashboard"
@@ -339,22 +345,41 @@ class LinkederpDashboardOps(models.Model):
             if row.get("user_id")
         }
 
-    def _ops_planning(self, selected_week, primary_map):
-        """Avg planning % over the next PLANNING_WEEKS weeks = planned / expected."""
+    def _ops_planning_series(self, selected_week, primary_map):
+        """Per-week [{week, expected, planned, users}] for the next PLANNING_WEEKS weeks."""
         weeks = [selected_week + timedelta(days=7 * i) for i in range(1, PLANNING_WEEKS + 1)]
-        total_planned = 0.0
-        total_expected = 0.0
+        return self._ops_hours_series(weeks, primary_map, planned=True)
+
+    def _ops_billability_series(self, selected_week, primary_map):
+        """Per-week [{week, expected, billable, users}] for the last TREND_WEEKS weeks."""
+        weeks = [selected_week - timedelta(days=7 * i) for i in range(TREND_WEEKS - 1, -1, -1)]
+        return self._ops_hours_series(weeks, primary_map, billable=True)
+
+    def _ops_hours_series(self, weeks, primary_map, planned=False, billable=False):
+        series = []
         for week in weeks:
             emp_map = self._ops_eligible_employees(week, primary_map=primary_map)
-            if not emp_map:
-                continue
             expected = self._ops_expected_hours_by_user(week, emp_map=emp_map)
-            planned = self._ops_planned_hours_by_user(week)
             population = list(expected.keys())
-            total_expected += sum(expected.values())
-            total_planned += sum(planned.get(uid, 0.0) for uid in population)
-        rate = round(total_planned / total_expected * 100, 1) if total_expected else 0.0
-        return rate, total_planned, total_expected, weeks
+            row = {
+                "week": week,
+                "expected": sum(expected.values()),
+                "users": population,
+            }
+            if planned:
+                slots = self._ops_planned_hours_by_user(week)
+                row["planned"] = sum(slots.get(uid, 0.0) for uid in population)
+            if billable:
+                bill = self._ops_logged_hours_by_user(week, billable_only=True)
+                row["billable"] = sum(bill.get(uid, 0.0) for uid in population)
+            series.append(row)
+        return series
+
+    def _ops_trend_color(self, rate):
+        return "#2e7d2e" if rate >= 75 else "#b03030"
+
+    def _ops_week_num(self, week_start):
+        return "W%02d" % week_start.isocalendar()[1]
 
     def _ops_coverage(self, week_start, emp_map=None):
         """Team coverage = logged hours / expected hours over the delivery team."""
@@ -468,10 +493,11 @@ class LinkederpDashboardOps(models.Model):
             "error": False,
         }
 
-        plan_rate, planned_hours, planned_expected, plan_weeks = self._ops_planning(
-            week_start, primary_map
-        )
-        plan_first, plan_last = plan_weeks[0], plan_weeks[-1]
+        plan_series = self._ops_planning_series(week_start, primary_map)
+        planned_hours = sum(row["planned"] for row in plan_series)
+        planned_expected = sum(row["expected"] for row in plan_series)
+        plan_rate = round(planned_hours / planned_expected * 100, 1) if planned_expected else 0.0
+        plan_first, plan_last = plan_series[0]["week"], plan_series[-1]["week"]
         planning_domain = [
             ("start_datetime", ">=", "%s 00:00:00" % fields.Date.to_string(plan_first)),
             ("start_datetime", "<=", "%s 23:59:59" % fields.Date.to_string(plan_last + timedelta(days=6))),
@@ -505,7 +531,94 @@ class LinkederpDashboardOps(models.Model):
             "span": 3,
             "error": False,
         }
-        return [pass_card, coverage_card, billability_card, planning_card]
+
+        # Billability trend - last 8 weeks (red below 75%).
+        bill_series = self._ops_billability_series(week_start, primary_map)
+        bill_points = []
+        for row in bill_series:
+            week = row["week"]
+            exp_billable = row["expected"] * BILLABLE_SHARE
+            value = round(row["billable"] / exp_billable * 100, 1) if exp_billable else 0.0
+            domain = self._ops_billable_domain(week)
+            if row["users"]:
+                domain = domain + [("user_id", "in", row["users"])]
+            bill_points.append({
+                "label": self._ops_week_num(week),
+                "value": value,
+                "color": self._ops_trend_color(value),
+                "domain": self._json_safe(domain),
+            })
+        billability_trend = {
+            "id": "ops_billability_trend",
+            "name": _("Billability — last 8 weeks"),
+            "type": "column",
+            "model": "account.analytic.line",
+            "mode": "computed",
+            "measure": _("Billability %"),
+            "groupby": _("Week"),
+            "color": "#2e7d2e",
+            "help": _("Team %(team)s · red below %(target)s%%") % {
+                "team": OPS_TEAM_VALUE,
+                "target": self._ops_short_hours(TREND_TARGET),
+            },
+            "value": 0.0,
+            "format": "percent",
+            "domain": [],
+            "points": bill_points,
+            "rows": [],
+            "columns": [],
+            "span": 6,
+            "error": False,
+        }
+
+        # Planning trend - next 8 weeks (red below 75%).
+        plan_points = []
+        for row in plan_series:
+            week = row["week"]
+            value = round(row["planned"] / row["expected"] * 100, 1) if row["expected"] else 0.0
+            domain = [
+                ("start_datetime", ">=", "%s 00:00:00" % fields.Date.to_string(week)),
+                ("start_datetime", "<=", "%s 23:59:59" % fields.Date.to_string(week + timedelta(days=6))),
+            ]
+            if row["users"]:
+                domain = domain + [("user_id", "in", row["users"])]
+            plan_points.append({
+                "label": self._ops_week_num(week),
+                "value": value,
+                "color": self._ops_trend_color(value),
+                "domain": self._json_safe(domain),
+            })
+        planning_trend = {
+            "id": "ops_planning_trend",
+            "name": _("Planning — next 8 weeks"),
+            "type": "column",
+            "model": "planning.slot",
+            "mode": "computed",
+            "measure": _("Planning %"),
+            "groupby": _("Week"),
+            "color": "#2e7d2e",
+            "help": _("Team %(team)s · red below %(target)s%%") % {
+                "team": OPS_TEAM_VALUE,
+                "target": self._ops_short_hours(TREND_TARGET),
+            },
+            "value": 0.0,
+            "format": "percent",
+            "domain": [],
+            "points": plan_points,
+            "rows": [],
+            "columns": [],
+            "span": 6,
+            "error": False,
+        }
+
+        return [
+            pass_card,
+            coverage_card,
+            billability_card,
+            planning_card,
+            billability_trend,
+            planning_trend,
+        ]
 
     def _ops_short_hours(self, hours):
         hours = round(hours or 0, 1)

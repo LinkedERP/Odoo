@@ -6,6 +6,8 @@ import { useService } from "@web/core/utils/hooks";
 
 const PALETTE = ["#2563eb", "#059669", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777", "#475569"];
 const SELECTED_DASHBOARD_KEY = "linkederp_dashboard_studio.selected_dashboard_id";
+const SELECTED_WEEK_KEY = "linkederp_dashboard_studio.ops_week";
+const SELECTED_OPS_TEAM_KEY = "linkederp_dashboard_studio.ops_team";
 
 export class LinkedERPDashboardAction extends Component {
     setup() {
@@ -77,8 +79,8 @@ export class LinkedERPDashboardAction extends Component {
             userId: "",
             teamId: "",
             stageId: "",
-            week: "",
-            opsTeam: "",
+            week: window.localStorage.getItem(SELECTED_WEEK_KEY) || "",
+            opsTeam: window.localStorage.getItem(SELECTED_OPS_TEAM_KEY) || "",
         };
     }
 
@@ -146,6 +148,8 @@ export class LinkedERPDashboardAction extends Component {
     }
 
     async resetFilters() {
+        window.localStorage.removeItem(SELECTED_WEEK_KEY);
+        window.localStorage.removeItem(SELECTED_OPS_TEAM_KEY);
         this.state.filters = this.defaultFilters();
         await this.applyFilters();
     }
@@ -163,6 +167,7 @@ export class LinkedERPDashboardAction extends Component {
 
     async onWeekChange(ev) {
         this.state.filters.week = ev.target.value;
+        window.localStorage.setItem(SELECTED_WEEK_KEY, ev.target.value || "");
         await this.load(this.state.dashboard && this.state.dashboard.id);
     }
 
@@ -173,6 +178,7 @@ export class LinkedERPDashboardAction extends Component {
 
     async onOpsTeamChange(ev) {
         this.state.filters.opsTeam = ev.target.value;
+        window.localStorage.setItem(SELECTED_OPS_TEAM_KEY, ev.target.value || "");
         await this.load(this.state.dashboard && this.state.dashboard.id);
     }
 
@@ -252,9 +258,12 @@ export class LinkedERPDashboardAction extends Component {
     columnStyle(widget, point, index) {
         const value = Number(point.value || 0);
         const height = value ? Math.max(4, (value / this.maxPointValue(widget)) * 100) : 0;
-        const color = widget.id === "ai_call_outcomes"
-            ? PALETTE[index % PALETTE.length]
-            : widget.color || "#2563eb";
+        let color = widget.color || "#2563eb";
+        if (point.color) {
+            color = point.color;
+        } else if (widget.id === "ai_call_outcomes") {
+            color = PALETTE[index % PALETTE.length];
+        }
         return `height: ${height}%; background: ${color};`;
     }
 
