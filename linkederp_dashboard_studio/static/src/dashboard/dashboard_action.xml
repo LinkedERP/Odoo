@@ -302,6 +302,11 @@
                                             t-on-mouseenter="(ev) => showDetail(ev, m)"
                                             t-on-mousemove="moveDetail"
                                             t-on-mouseleave="hideDetail"/>
+                                        <span
+                                            t-if="widget.show_values"
+                                            class="o_lds_trend_value"
+                                            t-att-style="'left:' + m.leftPct + '%; top:' + m.valueTopPct + '%;'"
+                                            t-esc="formatByType(m.value, widget.format)"/>
                                     </t>
                                 </div>
                                 <div class="o_lds_trend_labels">

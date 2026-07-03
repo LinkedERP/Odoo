@@ -4,6 +4,11 @@ from .ops_dashboard import OPS_EXCLUDED_STAGES, TREND_TARGET
 
 OPS_MGMT_DASHBOARD_NAME = "Ops Management"
 
+# Studio "Nature" selection on project.project: Support / Project / Internal.
+# Internal & Support natures are excluded from all P&L views.
+PROJECT_NATURE_FIELD = "x_studio_nature"
+EXCLUDED_NATURES = ["Internal", "Support"]
+
 MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
@@ -113,11 +118,17 @@ class LinkederpDashboardOpsMgmt(models.Model):
                 [("name", "=", "USD")], limit=1)
         return usd or self.env.company.currency_id
 
+    def _mgmt_nature_domain(self):
+        Project = self.env["project.project"]
+        if PROJECT_NATURE_FIELD in Project._fields:
+            return [(PROJECT_NATURE_FIELD, "not in", EXCLUDED_NATURES)]
+        return []
+
     def _mgmt_closed_projects(self, year, lead_uids=None):
         """Done projects belonging to `year`: end date year, else write_date
         year. `lead_uids` narrows to one squad's project-manager users."""
         Project = self.env["project.project"]
-        domain = [("stage_id.name", "=", "Done")]
+        domain = [("stage_id.name", "=", "Done")] + self._mgmt_nature_domain()
         if lead_uids is not None:
             domain.append(("user_id", "in", lead_uids))
         projects = Project.search(domain, order="name")
@@ -128,7 +139,8 @@ class LinkederpDashboardOpsMgmt(models.Model):
         return Project.browse(keep)
 
     def _mgmt_open_projects(self, lead_uids=None):
-        domain = [("stage_id.name", "not in", OPS_EXCLUDED_STAGES)]
+        domain = ([("stage_id.name", "not in", OPS_EXCLUDED_STAGES)]
+                  + self._mgmt_nature_domain())
         if lead_uids is not None:
             domain.append(("user_id", "in", lead_uids))
         return self.env["project.project"].search(domain, order="name")
@@ -226,6 +238,7 @@ class LinkederpDashboardOpsMgmt(models.Model):
             "value": float(values[-1] if values else 0.0),
             "format": "percent", "domain": [], "points": points,
             "rows": [], "columns": [], "span": 6, "error": False,
+            "show_values": True,
         }
 
     def _mgmt_customer_bar(self, wid, name, entries, help_text):
@@ -366,8 +379,9 @@ class LinkederpDashboardOpsMgmt(models.Model):
                     "prof": self._ops_pct_text(closed_prof), "n": len(closed_rows)},
                 "#7c3aed",
                 _("Done projects with %(year)s end date (no end date: last "
-                  "modified %(year)s): invoiced minus actual cost. Click to "
-                  "open the project table.%(scope)s%(note)s")
+                  "modified %(year)s), excluding Internal/Support nature: "
+                  "invoiced minus actual cost. Click to open the project "
+                  "table.%(scope)s%(note)s")
                 % {"year": year, "scope": project_scope_note, "note": usd_note},
                 modal_table=closed_matrix),
             self._mgmt_kpi(
@@ -375,9 +389,10 @@ class LinkederpDashboardOpsMgmt(models.Model):
                 _("%(n)s projects · %(skip)s without SO skipped") % {
                     "n": len(open_rows), "skip": skipped},
                 "#db2777",
-                _("Projects not Done / On Hold / Cancelled / Internal / "
-                  "Support, with a Sale Order: SO amount minus actual cost "
-                  "to date. Click to open the project table.%(scope)s%(note)s")
+                _("Projects not Done / On Hold / Cancelled (stage), excluding "
+                  "Internal/Support nature, with a Sale Order: SO amount "
+                  "minus actual cost to date. Click to open the project "
+                  "table.%(scope)s%(note)s")
                 % {"scope": project_scope_note, "note": usd_note},
                 modal_table=open_matrix),
         ]

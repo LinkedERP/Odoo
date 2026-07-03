@@ -596,6 +596,8 @@ export class LinkedERPDashboardAction extends Component {
                 y,
                 leftPct: (x / 300) * 100,
                 topPct: y,
+                valueTopPct: Math.max(2, y - 16),
+                value: point.value,
                 color: point.color || "#003E99",
                 label: point.label,
                 detail: point.detail,

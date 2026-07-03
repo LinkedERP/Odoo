@@ -1398,3 +1398,14 @@
         min-width: 0;
     }
 }
+
+// Data labels above trendline dots (opt-in via widget.show_values).
+.o_lds_trend_value {
+    position: absolute;
+    transform: translateX(-50%);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #0f172a;
+    pointer-events: none;
+    white-space: nowrap;
+}
