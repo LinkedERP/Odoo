@@ -239,17 +239,22 @@ class LinkederpDashboardOpsAwards(models.Model):
             for uid in uids:
                 rec = per_user.setdefault(
                     uid,
-                    {"expected": 0.0, "billable": 0.0, "lines": 0, "on_time": 0, "weeks": 0},
+                    {"expected": 0.0, "billable": 0.0, "exp_bill": 0.0,
+                     "lines": 0, "on_time": 0, "weeks": 0},
                 )
-                rec["expected"] += expected.get(uid, 0.0)
-                rec["billable"] += billable.get(uid, 0.0)
+                exp = expected.get(uid, 0.0)
+                bil = billable.get(uid, 0.0)
+                rec["expected"] += exp
+                rec["billable"] += bil
+                # Exception resources: expected billable = actual billable,
+                # mirroring the total-expected rule (per Akshay, 2026-07-03).
+                rec["exp_bill"] += bil if uid in exception_uids else exp * BILLABLE_SHARE
                 rec["lines"] += totals.get(uid, 0)
                 rec["on_time"] += on_time.get(uid, 0)
                 rec["weeks"] += 1
 
-        def rates(expected, billable, lines, on_time):
-            expected_billable = expected * BILLABLE_SHARE
-            bill = billable / expected_billable * 100 if expected_billable else 0.0
+        def rates(exp_bill, billable, lines, on_time):
+            bill = billable / exp_bill * 100 if exp_bill else 0.0
             ontime = on_time / lines * 100 if lines else 0.0
             return round(bill, 1), round(ontime, 1)
 
@@ -266,11 +271,11 @@ class LinkederpDashboardOpsAwards(models.Model):
                 uid for uid, team in team_by_user.items()
                 if team == value and uid in per_user
             ]
-            expected = sum(per_user[uid]["expected"] for uid in member_uids)
+            exp_bill = sum(per_user[uid]["exp_bill"] for uid in member_uids)
             billable = sum(per_user[uid]["billable"] for uid in member_uids)
             lines = sum(per_user[uid]["lines"] for uid in member_uids)
             on_time = sum(per_user[uid]["on_time"] for uid in member_uids)
-            bill, ontime = rates(expected, billable, lines, on_time)
+            bill, ontime = rates(exp_bill, billable, lines, on_time)
             teams.append(
                 {
                     "key": value,
@@ -296,7 +301,7 @@ class LinkederpDashboardOpsAwards(models.Model):
             if uid in exception_uids or rec["weeks"] < min_segments:
                 continue
             employee = primary_map.get(uid)
-            bill, ontime = rates(rec["expected"], rec["billable"], rec["lines"], rec["on_time"])
+            bill, ontime = rates(rec["exp_bill"], rec["billable"], rec["lines"], rec["on_time"])
             employees.append(
                 {
                     "uid": uid,
@@ -311,10 +316,11 @@ class LinkederpDashboardOpsAwards(models.Model):
         for index, employee in enumerate(employees):
             employee["rank"] = index + 1
 
-        org = {"expected": 0.0, "billable": 0.0, "lines": 0, "on_time": 0}
+        org = {"expected": 0.0, "billable": 0.0, "exp_bill": 0.0, "lines": 0, "on_time": 0}
         for rec in per_user.values():
             org["expected"] += rec["expected"]
             org["billable"] += rec["billable"]
+            org["exp_bill"] += rec["exp_bill"]
             org["lines"] += rec["lines"]
             org["on_time"] += rec["on_time"]
         org["uids"] = sorted(per_user)
@@ -423,7 +429,7 @@ class LinkederpDashboardOpsAwards(models.Model):
 
         # Overall KPIs (top row, extreme left) -------------------------------
         org = board["org"]
-        org_exp_bill = org["expected"] * BILLABLE_SHARE
+        org_exp_bill = org["exp_bill"]
         org_bill = round(org["billable"] / org_exp_bill * 100, 1) if org_exp_bill else 0.0
         org_late = org["lines"] - org["on_time"]
         org_fail = round(org_late / org["lines"] * 100, 1) if org["lines"] else 0.0
