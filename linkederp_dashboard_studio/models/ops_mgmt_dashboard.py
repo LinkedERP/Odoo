@@ -225,33 +225,18 @@ class LinkederpDashboardOpsMgmt(models.Model):
     # Widget builders
     # ------------------------------------------------------------------
     def _mgmt_kpi(self, wid, name, value, fmt, caption, color, help_text,
-                  modal_table=False):
+                  modal_table=False, points=None):
         return {
             "id": wid, "name": name, "type": "kpi",
             "model": "project.project", "mode": "computed",
             "measure": caption, "groupby": "", "color": color,
             "help": help_text, "value": float(value), "format": fmt,
-            "domain": [], "points": [], "rows": [], "columns": [],
+            # points, when given, render as a mini trend INSIDE the card.
+            "domain": [], "points": points or [], "rows": [], "columns": [],
             "span": 3, "error": False,
             # Clicking the card opens this matrix in a popup instead of a
             # record list.
             "modal_table": modal_table,
-        }
-
-    def _mgmt_trend(self, wid, name, points, help_text):
-        """Trend line, same renderer as the Ops dashboard trends."""
-        values = [p["value"] for p in points]
-        avg = round(sum(values) / len(values), 1) if values else 0.0
-        title = _("%(name)s · avg %(avg)s%%") % {
-            "name": name, "avg": self._ops_short_hours(avg)}
-        return {
-            "id": wid, "name": title, "type": "trendline",
-            "model": "account.analytic.line", "mode": "computed",
-            "measure": "", "groupby": "", "color": "#38bdf8",
-            "help": help_text,
-            "value": float(values[-1] if values else 0.0),
-            "format": "percent", "domain": [], "points": points,
-            "rows": [], "columns": [], "span": 6, "error": False,
         }
 
     def _mgmt_customer_bar(self, wid, name, entries, help_text):
@@ -378,7 +363,7 @@ class LinkederpDashboardOpsMgmt(models.Model):
                 "mgmt_accuracy", _("Time Entry Accuracy (YTD)"), accuracy, "percent",
                 _("%(on)s of %(lines)s lines on time") % {
                     "on": ytd["lines"] - ytd["late"], "lines": ytd["lines"]},
-                "#2563eb", pass_rule + scope_note),
+                "#2563eb", pass_rule + scope_note, points=acc_points),
             self._mgmt_kpi(
                 "mgmt_billability", _("Billability (YTD)"), billability, "percent",
                 _("%(bill)s of %(exp)s expected billable h") % {
@@ -386,7 +371,8 @@ class LinkederpDashboardOpsMgmt(models.Model):
                     "exp": self._ops_short_hours(ytd["exp_bill"])},
                 "#059669",
                 _("Billable hours vs expected billable (75%% of expected hours; "
-                  "exception resources count actual as expected).") + scope_note),
+                  "exception resources count actual as expected).") + scope_note,
+                points=bil_points),
             self._mgmt_kpi(
                 "mgmt_closed_pnl", _("Closed Project P&L (USD)"), closed_pnl, "usd",
                 _("%(prof)s profitability · %(n)s projects") % {
@@ -410,15 +396,6 @@ class LinkederpDashboardOpsMgmt(models.Model):
                 % {"scope": project_scope_note, "note": usd_note},
                 modal_table=open_matrix),
         ]
-        acc_trend = self._mgmt_trend(
-            "mgmt_accuracy_trend", _("Accuracy by Month"), acc_points,
-            _("On-time share per month (weeks grouped by their Monday). "
-              "Green dots at/above %s%%.")
-            % self._ops_short_hours(ACCURACY_TARGET))
-        bill_trend = self._mgmt_trend(
-            "mgmt_billability_trend", _("Billability by Month"), bil_points,
-            _("Billable vs expected billable per month. Green dots "
-              "at/above %s%%.") % self._ops_short_hours(TREND_TARGET))
         if has_projects:
             ranked = sorted(customer_pnl.items(),
                             key=lambda kv: kv[1]["pnl"], reverse=True)
@@ -431,25 +408,9 @@ class LinkederpDashboardOpsMgmt(models.Model):
                 "Customer P&L across the closed-%(year)s and open projects "
                 "above (invoiced/SO amount minus cost, USD)."
             ) % {"year": year}
-            # Two-column board layout: trends stacked on the left, customer
-            # charts stacked on the right (span-6 interleaving).
-            widgets += [
-                acc_trend,
-                self._mgmt_customer_bar(
-                    "mgmt_top_profit_customers",
-                    _("Top 5 Profitable Customers (USD)"), top5,
-                    customer_note + project_scope_note + usd_note),
-                bill_trend,
-                self._mgmt_customer_bar(
-                    "mgmt_bottom_customers",
-                    _("Bottom 5 Customers (USD)"), bottom5,
-                    _("The weakest customer relationships in scope — red is "
-                      "losing money, amber is barely profitable. ")
-                    + customer_note + project_scope_note + usd_note),
-            ]
 
-            # Bottom KPI row: money-in-the-tank and efficiency measures over
-            # the same project sets (nature/team scoping inherited).
+            # Money-in-the-tank and efficiency measures over the same
+            # project sets (nature/team scoping inherited).
             backlog = stats.get("backlog", 0.0)
             wip = stats.get("wip", 0.0)
             invoiced_all = stats.get("invoiced", 0.0)
@@ -463,6 +424,8 @@ class LinkederpDashboardOpsMgmt(models.Model):
                              if total_revenue else 0.0)
             top3_names = [k for k, _v in sorted(
                 customer_pnl.items(), key=lambda kv: -kv[1]["revenue"])[:3]]
+            # Layout: 2x2 KPI block on the left, customer charts stacked on
+            # the right — [backlog, wip, top5(6)] then [conc, ehr, bottom5(6)].
             widgets += [
                 self._mgmt_kpi(
                     "mgmt_backlog", _("Backlog (USD)"), backlog, "usd",
@@ -480,6 +443,10 @@ class LinkederpDashboardOpsMgmt(models.Model):
                       "invoiced (floored at zero per project) — money spent "
                       "that is not yet billed.%(scope)s%(note)s")
                     % {"scope": project_scope_note, "note": usd_note}),
+                self._mgmt_customer_bar(
+                    "mgmt_top_profit_customers",
+                    _("Top 5 Profitable Customers (USD)"), top5,
+                    customer_note + project_scope_note + usd_note),
                 self._mgmt_kpi(
                     "mgmt_concentration", _("Customer Concentration"),
                     round(concentration, 1), "percent",
@@ -502,7 +469,11 @@ class LinkederpDashboardOpsMgmt(models.Model):
                       "the hours worked on them — what an hour of our work "
                       "actually earns.%(scope)s%(note)s")
                     % {"scope": project_scope_note, "note": usd_note}),
+                self._mgmt_customer_bar(
+                    "mgmt_bottom_customers",
+                    _("Bottom 5 Customers (USD)"), bottom5,
+                    _("The weakest customer relationships in scope — red is "
+                      "losing money, amber is barely profitable. ")
+                    + customer_note + project_scope_note + usd_note),
             ]
-        else:
-            widgets += [acc_trend, bill_trend]
         return widgets

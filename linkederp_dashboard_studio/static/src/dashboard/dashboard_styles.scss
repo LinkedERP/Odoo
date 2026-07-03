@@ -1409,3 +1409,52 @@
     pointer-events: none;
     white-space: nowrap;
 }
+
+// KPI cards with an embedded mini trend (Ops Management accuracy/billability).
+.o_lds_kpi.o_lds_kpi_spark_mode {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    grid-template-rows: auto auto;
+    align-items: end;
+    column-gap: 14px;
+
+    .o_lds_kpi_value {
+        grid-column: 1;
+        grid-row: 1;
+        align-self: end;
+    }
+
+    .o_lds_kpi_caption {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .o_lds_kpi_spark {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        min-width: 0;
+
+        .o_lds_trend_plot {
+            position: relative;
+            height: 58px;
+        }
+
+        .o_lds_trend_svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .o_lds_trend_dot {
+            width: 7px;
+            height: 7px;
+        }
+
+        .o_lds_trend_labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2px;
+            color: #94a3b8;
+            font-size: 9px;
+        }
+    }
+}
