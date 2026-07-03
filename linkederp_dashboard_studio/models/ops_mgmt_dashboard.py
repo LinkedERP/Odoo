@@ -145,11 +145,13 @@ class LinkederpDashboardOpsMgmt(models.Model):
             domain.append(("user_id", "in", lead_uids))
         return self.env["project.project"].search(domain, order="name")
 
-    def _mgmt_project_rows(self, projects, usd, today, closed, customer_pnl=None):
+    def _mgmt_project_rows(self, projects, usd, today, closed,
+                           customer_pnl=None, stats=None):
         """(rows sorted by P&L desc, total_row, total_revenue, total_cost,
         skipped_no_so). Open mode counts only SO-linked projects. When
-        `customer_pnl` (a dict) is given, per-customer USD P&L accumulates
-        into it: {name: {"pnl": float, "ids": [project ids]}}."""
+        `customer_pnl` (a dict) is given, per-customer USD P&L + revenue
+        accumulate into it. When `stats` (a dict) is given, it accumulates
+        invoiced / hours (both sets) and backlog / wip (open set only)."""
         rows, tot_rev, tot_cost, skipped = [], 0.0, 0.0, 0
         for project in projects:
             if not closed and not project.sale_order_id:
@@ -161,12 +163,24 @@ class LinkederpDashboardOpsMgmt(models.Model):
             prof = fin["prof_inv"] if closed else fin["prof_so"]
             tot_rev += revenue
             tot_cost += fin["cost"]
+            if stats is not None:
+                stats["invoiced"] = stats.get("invoiced", 0.0) + fin["invoiced"]
+                stats["hours"] = stats.get("hours", 0.0) + fin["actual_hours"]
+                if not closed:
+                    stats["backlog"] = (stats.get("backlog", 0.0)
+                                        + fin["so_amount"] - fin["invoiced"])
+                    # WIP floors at zero per project so over-invoiced work
+                    # does not offset other projects' unbilled cost.
+                    stats["wip"] = (stats.get("wip", 0.0)
+                                    + max(fin["cost"] - fin["invoiced"], 0.0))
             if customer_pnl is not None:
                 partner = (project.sale_order_id.partner_id
                            if project.sale_order_id else project.partner_id)
                 key = (partner.name if partner else "") or _("No customer")
-                rec = customer_pnl.setdefault(key, {"pnl": 0.0, "ids": []})
+                rec = customer_pnl.setdefault(
+                    key, {"pnl": 0.0, "revenue": 0.0, "ids": []})
                 rec["pnl"] += pnl
+                rec["revenue"] += revenue
                 rec["ids"].append(project.id)
             row = {
                 "label": project.name,
@@ -238,7 +252,6 @@ class LinkederpDashboardOpsMgmt(models.Model):
             "value": float(values[-1] if values else 0.0),
             "format": "percent", "domain": [], "points": points,
             "rows": [], "columns": [], "span": 6, "error": False,
-            "show_values": True,
         }
 
     def _mgmt_customer_bar(self, wid, name, entries, help_text):
@@ -308,13 +321,14 @@ class LinkederpDashboardOpsMgmt(models.Model):
 
         has_projects = "project.project" in self.env and "sale.order" in self.env
         customer_pnl = {}
+        stats = {}
         if has_projects:
             closed_rows, closed_total, closed_rev, closed_cost, _skip = self._mgmt_project_rows(
                 self._mgmt_closed_projects(year, lead_uids=lead_uids), usd, today,
-                closed=True, customer_pnl=customer_pnl)
+                closed=True, customer_pnl=customer_pnl, stats=stats)
             open_rows, open_total, open_rev, open_cost, skipped = self._mgmt_project_rows(
                 self._mgmt_open_projects(lead_uids=lead_uids), usd, today,
-                closed=False, customer_pnl=customer_pnl)
+                closed=False, customer_pnl=customer_pnl, stats=stats)
         else:
             closed_rows, closed_total, closed_rev, closed_cost = [], {}, 0.0, 0.0
             open_rows, open_total, open_rev, open_cost, skipped = [], {}, 0.0, 0.0, 0
@@ -432,6 +446,62 @@ class LinkederpDashboardOpsMgmt(models.Model):
                     _("The weakest customer relationships in scope — red is "
                       "losing money, amber is barely profitable. ")
                     + customer_note + project_scope_note + usd_note),
+            ]
+
+            # Bottom KPI row: money-in-the-tank and efficiency measures over
+            # the same project sets (nature/team scoping inherited).
+            backlog = stats.get("backlog", 0.0)
+            wip = stats.get("wip", 0.0)
+            invoiced_all = stats.get("invoiced", 0.0)
+            hours_all = stats.get("hours", 0.0)
+            ehr = invoiced_all / hours_all if hours_all else 0.0
+            revenues = sorted((rec["revenue"] for rec in customer_pnl.values()),
+                              reverse=True)
+            total_revenue = sum(revenues)
+            top3_revenue = sum(revenues[:3])
+            concentration = (top3_revenue / total_revenue * 100
+                             if total_revenue else 0.0)
+            top3_names = [k for k, _v in sorted(
+                customer_pnl.items(), key=lambda kv: -kv[1]["revenue"])[:3]]
+            widgets += [
+                self._mgmt_kpi(
+                    "mgmt_backlog", _("Backlog (USD)"), backlog, "usd",
+                    _("sold, not yet invoiced · %s open projects") % len(open_rows),
+                    "#2563eb",
+                    _("Open SO-linked projects: SO amount minus invoiced — "
+                      "work already sold that still has to be delivered and "
+                      "billed.%(scope)s%(note)s")
+                    % {"scope": project_scope_note, "note": usd_note}),
+                self._mgmt_kpi(
+                    "mgmt_wip", _("Unbilled Work / WIP (USD)"), wip, "usd",
+                    _("cost burned, awaiting invoicing"),
+                    "#b45309",
+                    _("Open projects where cost to date exceeds what has been "
+                      "invoiced (floored at zero per project) — money spent "
+                      "that is not yet billed.%(scope)s%(note)s")
+                    % {"scope": project_scope_note, "note": usd_note}),
+                self._mgmt_kpi(
+                    "mgmt_concentration", _("Customer Concentration"),
+                    round(concentration, 1), "percent",
+                    _("top 3 of %(n)s customers: %(names)s") % {
+                        "n": len(customer_pnl),
+                        "names": ", ".join(top3_names) or "—"},
+                    "#7c3aed",
+                    _("Share of total revenue (invoiced + SO) held by the "
+                      "three biggest customers — dependency risk."
+                      "%(scope)s%(note)s")
+                    % {"scope": project_scope_note, "note": usd_note}),
+                self._mgmt_kpi(
+                    "mgmt_ehr", _("Effective Hourly Rate"),
+                    ehr, "usd",
+                    _("%(inv)s invoiced / %(hrs)s h worked") % {
+                        "inv": self._ops_money(invoiced_all, usd),
+                        "hrs": self._ops_short_hours(hours_all)},
+                    "#059669",
+                    _("Invoiced USD across all projects in scope divided by "
+                      "the hours worked on them — what an hour of our work "
+                      "actually earns.%(scope)s%(note)s")
+                    % {"scope": project_scope_note, "note": usd_note}),
             ]
         else:
             widgets += [acc_trend, bill_trend]
