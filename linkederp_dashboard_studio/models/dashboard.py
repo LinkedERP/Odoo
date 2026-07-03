@@ -103,6 +103,7 @@ class LinkederpDashboard(models.Model):
     @api.model
     def get_dashboard_payload(self, dashboard_id=False, date_from=False, date_to=False, filters=False):
         self.sudo()._ensure_packaged_dashboards()
+        self.sudo()._assign_default_buckets()
         dashboards = self.search([("active", "=", True)], order="sequence, name")
         dashboards = dashboards._visible_to_current_user()
 
@@ -191,8 +192,24 @@ class LinkederpDashboard(models.Model):
         self._ensure_ai_generated_leads_dashboard()
 
     @api.model
+    def _assign_default_buckets(self):
+        """One-time backfill: any dashboard without a bucket gets one by name.
+
+        The Sales & CRM starter is archived the first (and only) time it
+        receives its bucket, so un-archiving it later sticks.
+        """
+        unassigned = self.with_context(active_test=False).search(
+            [("bucket", "=", False)]
+        )
+        for dashboard in unassigned:
+            vals = {"bucket": DEFAULT_BUCKET_BY_NAME.get(dashboard.name, "management")}
+            if dashboard.name == "Sales & CRM Dashboard" and dashboard.active:
+                vals["active"] = False
+            dashboard.write(vals)
+
+    @api.model
     def _ensure_default_sales_crm_dashboard(self):
-        if self.search([("name", "=", "Sales & CRM Dashboard")], limit=1):
+        if self.with_context(active_test=False).search([("name", "=", "Sales & CRM Dashboard")], limit=1):
             return
         if "sale.order" not in self.env or "crm.lead" not in self.env:
             return
@@ -201,6 +218,7 @@ class LinkederpDashboard(models.Model):
             {
                 "name": _("Sales & CRM Dashboard"),
                 "sequence": 10,
+                "bucket": "sales",
                 "description": _(
                     "LinkedERP starter dashboard for sales orders, revenue, pipeline, and opportunity performance."
                 ),
@@ -345,7 +363,7 @@ class LinkederpDashboard(models.Model):
 
     @api.model
     def _ensure_ai_generated_leads_dashboard(self):
-        if self.search([("name", "=", "AI Generated Leads Performance")], limit=1):
+        if self.with_context(active_test=False).search([("name", "=", "AI Generated Leads Performance")], limit=1):
             return
         if "crm.lead" not in self.env:
             return
@@ -353,6 +371,7 @@ class LinkederpDashboard(models.Model):
             {
                 "name": _("AI Generated Leads Performance"),
                 "sequence": 20,
+                "bucket": "sales",
                 "description": _(
                     "Track AI-sourced CRM lead volume, calling work, meetings, suitability, ownership, and pipeline movement."
                 ),

@@ -64,7 +64,7 @@ class LinkederpDashboardOps(models.Model):
         self._ensure_ops_dashboard()
 
     def _ensure_ops_dashboard(self):
-        if self.search([("name", "=", OPS_DASHBOARD_NAME)], limit=1):
+        if self.with_context(active_test=False).search([("name", "=", OPS_DASHBOARD_NAME)], limit=1):
             return
         if "account.analytic.line" not in self.env:
             return
@@ -72,6 +72,7 @@ class LinkederpDashboardOps(models.Model):
             {
                 "name": OPS_DASHBOARD_NAME,
                 "sequence": 30,
+                "bucket": "ops",
                 "description": _(
                     "Weekly operations review. Select a week to review the team's "
                     "time-entry discipline and delivery."
