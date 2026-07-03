@@ -99,8 +99,8 @@
                                 t-esc="option.label"/>
                         </t>
                     </select>
-                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom"/>
-                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo"/>
+                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom"/>
+                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo"/>
                     <button class="btn btn-primary" type="button" t-on-click="applyFilters" title="Apply filters">
                         <i class="fa fa-filter"/>
                     </button>
@@ -136,6 +136,7 @@
                                     t-att-class="'o_lds_badge ' + (widget.value >= (widget.target || 0) ? 'o_lds_tone_good' : 'o_lds_tone_bad')"
                                     t-esc="widget.badge"/>
                                 <button
+                                    t-if="widget.model"
                                     class="btn btn-sm btn-link"
                                     type="button"
                                     t-on-click="() => openRecords(widget.model, widget.domain)"
@@ -216,6 +217,7 @@
                                             t-esc="m.point.fail + '%'"/>
                                         <button
                                             type="button"
+                                            t-att-title="m.point.label"
                                             t-att-class="'o_lds_dual_dot o_lds_dual_dot_bill' + (m.point.selected ? ' o_lds_dual_selected' : '')"
                                             t-att-style="'left:' + m.leftPct + '%; top:' + m.topBillPct + '%;'"
                                             t-on-click="() => onTeamWeekToggle(m.point.week)"
@@ -224,6 +226,7 @@
                                             t-on-mouseleave="hideDetail"/>
                                         <button
                                             type="button"
+                                            t-att-title="m.point.label"
                                             t-att-class="'o_lds_dual_dot o_lds_dual_dot_fail' + (m.point.selected ? ' o_lds_dual_selected' : '')"
                                             t-att-style="'left:' + m.leftPct + '%; top:' + m.topFailPct + '%;'"
                                             t-on-click="() => onTeamWeekToggle(m.point.week)"
