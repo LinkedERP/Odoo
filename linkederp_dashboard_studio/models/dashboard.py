@@ -97,6 +97,12 @@ class LinkederpDashboard(models.Model):
                     date_to=date_to,
                     filters=filters,
                 )
+            elif dashboard._is_weekly_dashboard():
+                widgets = dashboard._weekly_dashboard_widgets(
+                    date_from=date_from,
+                    date_to=date_to,
+                    filters=filters,
+                )
 
         return {
             "dashboards": [
@@ -126,6 +132,9 @@ class LinkederpDashboard(models.Model):
             else {"enabled": False},
             "awards_filters": dashboard._awards_filter_options(filters)
             if dashboard and dashboard._is_awards_dashboard()
+            else {"enabled": False},
+            "weekly_filters": dashboard._weekly_filter_options(filters)
+            if dashboard and dashboard._is_weekly_dashboard()
             else {"enabled": False},
         }
 

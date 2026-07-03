@@ -9,6 +9,7 @@ const SELECTED_DASHBOARD_KEY = "linkederp_dashboard_studio.selected_dashboard_id
 const SELECTED_WEEK_KEY = "linkederp_dashboard_studio.ops_week";
 const SELECTED_OPS_TEAM_KEY = "linkederp_dashboard_studio.ops_team";
 const SELECTED_MONTH_KEY = "linkederp_dashboard_studio.awards_month";
+const SELECTED_TEAM_WEEK_KEY = "linkederp_dashboard_studio.teams_week";
 
 export class LinkedERPDashboardAction extends Component {
     setup() {
@@ -29,6 +30,7 @@ export class LinkedERPDashboardAction extends Component {
             crmFilters: { enabled: false },
             opsFilters: { enabled: false },
             awardsFilters: { enabled: false },
+            weeklyFilters: { enabled: false },
             filters: this.defaultFilters(),
             tooltip: { visible: false, x: 0, y: 0, title: "", detail: null },
             initialDashboardId,
@@ -50,6 +52,11 @@ export class LinkedERPDashboardAction extends Component {
             "onMonthChange",
             "isMonthSelected",
             "podiumBarStyle",
+            "onTeamWeekToggle",
+            "clearTeamWeek",
+            "showDetailFor",
+            "dualLine",
+            "dualMarkers",
             "openRecords",
             "formatNumber",
             "formatWidgetValue",
@@ -97,6 +104,7 @@ export class LinkedERPDashboardAction extends Component {
             week: window.localStorage.getItem(SELECTED_WEEK_KEY) || "",
             opsTeam: window.localStorage.getItem(SELECTED_OPS_TEAM_KEY) || "",
             month: window.localStorage.getItem(SELECTED_MONTH_KEY) || "",
+            teamWeek: window.localStorage.getItem(SELECTED_TEAM_WEEK_KEY) || "",
         };
     }
 
@@ -135,6 +143,7 @@ export class LinkedERPDashboardAction extends Component {
                         week: this.state.filters.week || false,
                         ops_team: this.state.filters.opsTeam || false,
                         month: this.state.filters.month || false,
+                        team_week: this.state.filters.teamWeek || false,
                     },
                 }
             );
@@ -144,6 +153,11 @@ export class LinkedERPDashboardAction extends Component {
             this.state.crmFilters = payload.crm_filters || { enabled: false };
             this.state.opsFilters = payload.ops_filters || { enabled: false };
             this.state.awardsFilters = payload.awards_filters || { enabled: false };
+            this.state.weeklyFilters = payload.weekly_filters || { enabled: false };
+            if (this.state.weeklyFilters.enabled) {
+                this.state.filters.teamWeek = this.state.weeklyFilters.selected || "";
+                window.localStorage.setItem(SELECTED_TEAM_WEEK_KEY, this.state.filters.teamWeek);
+            }
             if (this.state.dashboard) {
                 this.saveDashboardId(this.state.dashboard.id);
             }
@@ -169,6 +183,7 @@ export class LinkedERPDashboardAction extends Component {
         window.localStorage.removeItem(SELECTED_WEEK_KEY);
         window.localStorage.removeItem(SELECTED_OPS_TEAM_KEY);
         window.localStorage.removeItem(SELECTED_MONTH_KEY);
+        window.localStorage.removeItem(SELECTED_TEAM_WEEK_KEY);
         this.state.filters = this.defaultFilters();
         await this.applyFilters();
     }
@@ -223,6 +238,70 @@ export class LinkedERPDashboardAction extends Component {
         const height = Math.max(12, (Number(point.value || 0) / max) * 150);
         const color = point.rank === 1 ? (widget.color || "#1d4ed8") : "#cbd5e1";
         return `height: ${height}px; background: ${color};`;
+    }
+
+    async onTeamWeekToggle(week) {
+        const current = this.state.filters.teamWeek || "";
+        this.state.filters.teamWeek = current === week ? "" : week;
+        window.localStorage.setItem(SELECTED_TEAM_WEEK_KEY, this.state.filters.teamWeek);
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    async clearTeamWeek() {
+        this.state.filters.teamWeek = "";
+        window.localStorage.removeItem(SELECTED_TEAM_WEEK_KEY);
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    showDetailFor(ev, label, detail) {
+        if (!detail) {
+            return;
+        }
+        this.state.tooltip = {
+            visible: true,
+            x: ev.clientX,
+            y: ev.clientY,
+            title: label || "",
+            detail,
+        };
+    }
+
+    dualCoords(widget) {
+        const points = widget.points || [];
+        const n = points.length;
+        if (!n) {
+            return [];
+        }
+        const values = [];
+        for (const p of points) {
+            values.push(Number(p.fail || 0));
+            values.push(Number(p.bill || 0));
+        }
+        const max = Math.max(...values, 100) * 1.08;
+        return points.map((p, i) => {
+            const x = n === 1 ? 300 : 16 + (i / (n - 1)) * 568;
+            const yFail = 128 - (Number(p.fail || 0) / max) * 118;
+            const yBill = 128 - (Number(p.bill || 0) / max) * 118;
+            return {
+                point: p,
+                x,
+                yFail,
+                yBill,
+                leftPct: (x / 600) * 100,
+                topFailPct: (yFail / 150) * 100,
+                topBillPct: (yBill / 150) * 100,
+            };
+        });
+    }
+
+    dualLine(widget, series) {
+        return this.dualCoords(widget)
+            .map((c) => `${c.x},${series === "fail" ? c.yFail : c.yBill}`)
+            .join(" ");
+    }
+
+    dualMarkers(widget) {
+        return this.dualCoords(widget);
     }
 
     async openRecords(model, domain) {
