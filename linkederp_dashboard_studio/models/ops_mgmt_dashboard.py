@@ -213,7 +213,7 @@ class LinkederpDashboardOpsMgmt(models.Model):
         }
 
     def _mgmt_trend(self, wid, name, points, help_text):
-        """Full-width trend line, same renderer as the Ops dashboard trends."""
+        """Trend line, same renderer as the Ops dashboard trends."""
         values = [p["value"] for p in points]
         avg = round(sum(values) / len(values), 1) if values else 0.0
         title = _("%(name)s · avg %(avg)s%%") % {
@@ -225,20 +225,24 @@ class LinkederpDashboardOpsMgmt(models.Model):
             "help": help_text,
             "value": float(values[-1] if values else 0.0),
             "format": "percent", "domain": [], "points": points,
-            "rows": [], "columns": [], "span": 12, "error": False,
+            "rows": [], "columns": [], "span": 6, "error": False,
         }
 
-    def _mgmt_customer_bar(self, wid, name, entries, color, help_text):
+    def _mgmt_customer_bar(self, wid, name, entries, help_text):
         points = [{
             "label": label,
             "value": float(round(rec["pnl"])),
-            "color": color,
+            # red = losing money, amber = weak positive, green = healthy
+            "color": ("#dc2626" if rec["pnl"] < 0
+                      else "#f59e0b" if rec["pnl"] < 1000
+                      else "#059669"),
             "domain": self._json_safe([("id", "in", rec["ids"])]),
         } for label, rec in entries]
         return {
             "id": wid, "name": name, "type": "bar",
             "model": "project.project", "mode": "computed",
-            "measure": _("P&L (USD)"), "groupby": _("Customer"), "color": color,
+            "measure": _("P&L (USD)"), "groupby": _("Customer"),
+            "color": "#2563eb",
             "help": help_text, "value": float(len(points)), "format": "usd",
             "domain": [], "points": points, "rows": [], "columns": [],
             "span": 6, "error": False,
@@ -376,36 +380,44 @@ class LinkederpDashboardOpsMgmt(models.Model):
                   "to date. Click to open the project table.%(scope)s%(note)s")
                 % {"scope": project_scope_note, "note": usd_note},
                 modal_table=open_matrix),
-            self._mgmt_trend(
-                "mgmt_accuracy_trend", _("Accuracy by Month"), acc_points,
-                _("On-time share per month (weeks grouped by their Monday). "
-                  "Green dots at/above %s%%.")
-                % self._ops_short_hours(ACCURACY_TARGET)),
-            self._mgmt_trend(
-                "mgmt_billability_trend", _("Billability by Month"), bil_points,
-                _("Billable vs expected billable per month. Green dots "
-                  "at/above %s%%.") % self._ops_short_hours(TREND_TARGET)),
         ]
+        acc_trend = self._mgmt_trend(
+            "mgmt_accuracy_trend", _("Accuracy by Month"), acc_points,
+            _("On-time share per month (weeks grouped by their Monday). "
+              "Green dots at/above %s%%.")
+            % self._ops_short_hours(ACCURACY_TARGET))
+        bill_trend = self._mgmt_trend(
+            "mgmt_billability_trend", _("Billability by Month"), bil_points,
+            _("Billable vs expected billable per month. Green dots "
+              "at/above %s%%.") % self._ops_short_hours(TREND_TARGET))
         if has_projects:
             ranked = sorted(customer_pnl.items(),
                             key=lambda kv: kv[1]["pnl"], reverse=True)
-            top_profit = [(k, v) for k, v in ranked if v["pnl"] > 0][:8]
-            top_loss = sorted(
-                [(k, v) for k, v in ranked if v["pnl"] < 0],
-                key=lambda kv: kv[1]["pnl"])[:8]
+            top5 = [(k, v) for k, v in ranked if v["pnl"] > 0][:5]
+            top_keys = {k for k, _v in top5}
+            bottom5 = sorted(
+                [(k, v) for k, v in ranked if k not in top_keys],
+                key=lambda kv: kv[1]["pnl"])[:5]
             customer_note = _(
                 "Customer P&L across the closed-%(year)s and open projects "
                 "above (invoiced/SO amount minus cost, USD)."
             ) % {"year": year}
-            widgets.append(self._mgmt_customer_bar(
-                "mgmt_top_profit_customers",
-                _("Top Customers — Earning (USD)"), top_profit, "#059669",
-                customer_note + project_scope_note + usd_note))
-            widgets.append(self._mgmt_customer_bar(
-                "mgmt_top_loss_customers",
-                _("Top Customers — Losing (USD)"), top_loss, "#dc2626",
-                (customer_note + project_scope_note + usd_note)
-                if top_loss else
-                _("No loss-making customers in scope — nothing to show. ")
-                + customer_note + project_scope_note + usd_note))
+            # Two-column board layout: trends stacked on the left, customer
+            # charts stacked on the right (span-6 interleaving).
+            widgets += [
+                acc_trend,
+                self._mgmt_customer_bar(
+                    "mgmt_top_profit_customers",
+                    _("Top 5 Profitable Customers (USD)"), top5,
+                    customer_note + project_scope_note + usd_note),
+                bill_trend,
+                self._mgmt_customer_bar(
+                    "mgmt_bottom_customers",
+                    _("Bottom 5 Customers (USD)"), bottom5,
+                    _("The weakest customer relationships in scope — red is "
+                      "losing money, amber is barely profitable. ")
+                    + customer_note + project_scope_note + usd_note),
+            ]
+        else:
+            widgets += [acc_trend, bill_trend]
         return widgets
