@@ -285,9 +285,15 @@ class LinkederpDashboardOpsAwards(models.Model):
         for index, team in enumerate(teams):
             team["rank"] = index + 1
 
+        # A young running month cannot offer AWARDS_MIN_ELIGIBLE_WEEKS segments
+        # yet — require at most what the period contains, so the employee
+        # standings are never structurally empty while the KPIs show data.
+        # Ended months always have >= 4 segments, so their rule is unchanged.
+        min_segments = min(AWARDS_MIN_ELIGIBLE_WEEKS, len(segments)) or AWARDS_MIN_ELIGIBLE_WEEKS
+
         employees = []
         for uid, rec in per_user.items():
-            if uid in exception_uids or rec["weeks"] < AWARDS_MIN_ELIGIBLE_WEEKS:
+            if uid in exception_uids or rec["weeks"] < min_segments:
                 continue
             employee = primary_map.get(uid)
             bill, ontime = rates(rec["expected"], rec["billable"], rec["lines"], rec["on_time"])
