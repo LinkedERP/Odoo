@@ -157,6 +157,7 @@ class LinkederpDashboard(models.Model):
                     filters=filters,
                 )
 
+        bucket_labels = dict(DASHBOARD_BUCKETS)
         return {
             "dashboards": [
                 {
@@ -164,8 +165,15 @@ class LinkederpDashboard(models.Model):
                     "name": item.name,
                     "description": item.description or "",
                     "color": item.color or "#2563eb",
+                    "bucket": item.bucket or "management",
+                    "bucket_label": bucket_labels.get(
+                        item.bucket or "management", _("Management")
+                    ),
                 }
                 for item in dashboards
+            ],
+            "bucket_order": [
+                {"key": key, "label": label} for key, label in DASHBOARD_BUCKETS
             ],
             "dashboard": dashboard
             and {

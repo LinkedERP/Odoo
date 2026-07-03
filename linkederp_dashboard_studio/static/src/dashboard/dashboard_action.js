@@ -26,6 +26,7 @@ export class LinkedERPDashboardAction extends Component {
             loading: true,
             dashboard: false,
             dashboards: [],
+            bucketOrder: [],
             widgets: [],
             crmFilters: { enabled: false },
             opsFilters: { enabled: false },
@@ -42,6 +43,7 @@ export class LinkedERPDashboardAction extends Component {
     bindTemplateMethods() {
         for (const method of [
             "onDashboardChange",
+            "bucketGroups",
             "applyFilters",
             "resetFilters",
             "setFilter",
@@ -123,6 +125,24 @@ export class LinkedERPDashboardAction extends Component {
         }
     }
 
+    bucketGroups() {
+        const order = this.state.bucketOrder || [];
+        const groups = [];
+        const known = new Set();
+        for (const bucket of order) {
+            known.add(bucket.key);
+            const dashboards = this.state.dashboards.filter((d) => d.bucket === bucket.key);
+            if (dashboards.length) {
+                groups.push({ key: bucket.key, label: bucket.label, dashboards });
+            }
+        }
+        const orphans = this.state.dashboards.filter((d) => !known.has(d.bucket));
+        if (orphans.length) {
+            groups.push({ key: "other", label: "Other", dashboards: orphans });
+        }
+        return groups;
+    }
+
     async load(dashboardId) {
         this.state.loading = true;
         try {
@@ -148,6 +168,7 @@ export class LinkedERPDashboardAction extends Component {
                 }
             );
             this.state.dashboards = payload.dashboards || [];
+            this.state.bucketOrder = payload.bucket_order || [];
             this.state.dashboard = payload.dashboard || false;
             this.state.widgets = payload.widgets || [];
             this.state.crmFilters = payload.crm_filters || { enabled: false };
