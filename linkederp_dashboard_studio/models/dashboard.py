@@ -29,6 +29,7 @@ DEFAULT_BUCKET_BY_NAME = {
     "Ops Performance": "ops",
     "Ops Monthly Awards": "management",
     "Ops Weekly Teams": "management",
+    "Ops Management": "management",
 }
 
 
@@ -163,6 +164,12 @@ class LinkederpDashboard(models.Model):
                     date_to=date_to,
                     filters=filters,
                 )
+            elif dashboard._is_mgmt_dashboard():
+                widgets = dashboard._mgmt_dashboard_widgets(
+                    date_from=date_from,
+                    date_to=date_to,
+                    filters=filters,
+                )
 
         bucket_labels = dict(DASHBOARD_BUCKETS)
         return {
@@ -203,6 +210,9 @@ class LinkederpDashboard(models.Model):
             else {"enabled": False},
             "weekly_filters": dashboard._weekly_filter_options(filters)
             if dashboard and dashboard._is_weekly_dashboard()
+            else {"enabled": False},
+            "mgmt_filters": dashboard._mgmt_filter_options(filters)
+            if dashboard and dashboard._is_mgmt_dashboard()
             else {"enabled": False},
         }
 
