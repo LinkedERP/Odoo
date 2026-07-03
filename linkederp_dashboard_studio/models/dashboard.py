@@ -5,6 +5,32 @@ from odoo import api, fields, models, _
 from odoo.exceptions import AccessError, UserError
 from odoo.osv import expression
 
+DASHBOARD_BUCKETS = [
+    ("sales", "Sales"),
+    ("ops", "Ops"),
+    ("finance", "Finance"),
+    ("hr", "HR"),
+    ("management", "Management"),
+]
+
+BUCKET_GROUP_XMLIDS = {
+    "sales": "linkederp_dashboard_studio.group_dashboard_bucket_sales",
+    "ops": "linkederp_dashboard_studio.group_dashboard_bucket_ops",
+    "finance": "linkederp_dashboard_studio.group_dashboard_bucket_finance",
+    "hr": "linkederp_dashboard_studio.group_dashboard_bucket_hr",
+    "management": "linkederp_dashboard_studio.group_dashboard_bucket_management",
+}
+
+MANAGER_GROUP_XMLID = "linkederp_dashboard_studio.group_dashboard_studio_manager"
+
+DEFAULT_BUCKET_BY_NAME = {
+    "Sales & CRM Dashboard": "sales",
+    "AI Generated Leads Performance": "sales",
+    "Ops Performance": "ops",
+    "Ops Monthly Awards": "management",
+    "Ops Weekly Teams": "management",
+}
+
 
 class LinkederpDashboard(models.Model):
     _name = "linkederp.dashboard"
@@ -16,6 +42,12 @@ class LinkederpDashboard(models.Model):
     active = fields.Boolean(default=True)
     description = fields.Text(translate=True)
     color = fields.Char(default="#2563eb")
+    bucket = fields.Selection(
+        DASHBOARD_BUCKETS,
+        string="Bucket",
+        help="Section of the dashboard selector this dashboard appears in. "
+        "Access is granted through the bucket's security group.",
+    )
     company_id = fields.Many2one(
         "res.company",
         string="Company",
@@ -27,7 +59,8 @@ class LinkederpDashboard(models.Model):
         "dashboard_id",
         "group_id",
         string="Visible to Groups",
-        help="Leave empty to make this dashboard visible to all internal users.",
+        help="Extra groups that can also see this dashboard, in addition to "
+        "its bucket's security group and Dashboard Managers.",
     )
     widget_ids = fields.One2many(
         "linkederp.dashboard.widget",
