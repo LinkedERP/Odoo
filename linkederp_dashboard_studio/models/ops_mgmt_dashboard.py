@@ -46,25 +46,48 @@ class LinkederpDashboardOpsMgmt(models.Model):
         self.ensure_one()
         return (self.name or "").strip().lower() == OPS_MGMT_DASHBOARD_NAME.lower()
 
+    def _mgmt_selected_team(self, filters=False):
+        """Validated squad value from the filters, or False for all teams."""
+        filters = filters or {}
+        value = filters.get("mgmt_team")
+        if value and value in {v for v, _label in self._awards_team_labels()}:
+            return value
+        return False
+
     def _mgmt_filter_options(self, filters=False):
-        # No controls; the flag only hides the generic date inputs.
-        return {"enabled": True}
+        team = self._mgmt_selected_team(filters)
+        return {
+            "enabled": True,
+            "teams": [
+                {"value": value, "label": label}
+                for value, label in self._awards_team_labels()
+            ],
+            "team": team or "",
+        }
 
     # ------------------------------------------------------------------
     # Monthly series (grouping the weekly org series by month)
     # ------------------------------------------------------------------
-    def _mgmt_monthly_recs(self):
-        """([(month, "Jan", rec)], ytd_rec) — weekly org recs grouped by the
-        month of each ISO week's Monday; YTD = sum over all YTD weeks."""
+    def _mgmt_monthly_recs(self, team=False):
+        """([(month, "Jan", rec)], ytd_rec) — weekly recs grouped by the month
+        of each ISO week's Monday; YTD = sum over all YTD weeks. `team`
+        narrows the scope to one squad (org-wide when falsy)."""
         series = self._weekly_series()
+
+        def scope(week):
+            entry = series["by_week"][week]
+            if team:
+                return entry["teams"].get(team) or self._weekly_blank_rec()
+            return entry["org"]
+
         by_month = {}
         for week in series["weeks"]:
-            by_month.setdefault(week.month, []).append(series["by_week"][week]["org"])
+            by_month.setdefault(week.month, []).append(scope(week))
         monthly = [
             (month, MONTH_LABELS[month - 1], self._weekly_sum(by_month[month]))
             for month in sorted(by_month)
         ]
-        ytd = self._weekly_sum([series["by_week"][w]["org"] for w in series["weeks"]])
+        ytd = self._weekly_sum([scope(w) for w in series["weeks"]])
         return monthly, ytd
 
     def _mgmt_accuracy_rate(self, rec):
@@ -90,19 +113,25 @@ class LinkederpDashboardOpsMgmt(models.Model):
                 [("name", "=", "USD")], limit=1)
         return usd or self.env.company.currency_id
 
-    def _mgmt_closed_projects(self, year):
-        """Done projects belonging to `year`: end date year, else write_date year."""
+    def _mgmt_closed_projects(self, year, lead_uids=None):
+        """Done projects belonging to `year`: end date year, else write_date
+        year. `lead_uids` narrows to one squad's project-manager users."""
         Project = self.env["project.project"]
-        projects = Project.search([("stage_id.name", "=", "Done")], order="name")
+        domain = [("stage_id.name", "=", "Done")]
+        if lead_uids is not None:
+            domain.append(("user_id", "in", lead_uids))
+        projects = Project.search(domain, order="name")
         keep = [
             p.id for p in projects
             if (p.date.year if p.date else (p.write_date and p.write_date.year)) == year
         ]
         return Project.browse(keep)
 
-    def _mgmt_open_projects(self):
-        return self.env["project.project"].search(
-            [("stage_id.name", "not in", OPS_EXCLUDED_STAGES)], order="name")
+    def _mgmt_open_projects(self, lead_uids=None):
+        domain = [("stage_id.name", "not in", OPS_EXCLUDED_STAGES)]
+        if lead_uids is not None:
+            domain.append(("user_id", "in", lead_uids))
+        return self.env["project.project"].search(domain, order="name")
 
     def _mgmt_project_rows(self, projects, usd, today, closed):
         """(rows sorted by P&L desc, total_row, total_revenue, total_cost,
@@ -199,12 +228,20 @@ class LinkederpDashboardOpsMgmt(models.Model):
         }
 
     def _mgmt_dashboard_widgets(self, date_from=False, date_to=False, filters=False):
-        monthly, ytd = self._mgmt_monthly_recs()
+        team = self._mgmt_selected_team(filters)
+        team_label = dict(self._awards_team_labels()).get(team) if team else ""
+        lead_uids = self._ops_lead_user_ids(team) if team else None
+        monthly, ytd = self._mgmt_monthly_recs(team=team)
         usd = self._mgmt_usd()
         today = fields.Date.context_today(self)
         year = today.year
         usd_note = ("" if usd.name == "USD"
                     else _(" ⚠ USD not found — amounts shown in %s.") % usd.name)
+        scope_note = _(" Scope: %s.") % team_label if team else ""
+        project_scope_note = (
+            _(" Scope: projects managed by the %s team lead.") % team_label
+            if team else ""
+        )
 
         accuracy = self._mgmt_accuracy_rate(ytd)
         billability = self._weekly_bill_rate(ytd)
@@ -228,9 +265,9 @@ class LinkederpDashboardOpsMgmt(models.Model):
         has_projects = "project.project" in self.env and "sale.order" in self.env
         if has_projects:
             closed_rows, closed_total, closed_rev, closed_cost, _skip = self._mgmt_project_rows(
-                self._mgmt_closed_projects(year), usd, today, closed=True)
+                self._mgmt_closed_projects(year, lead_uids=lead_uids), usd, today, closed=True)
             open_rows, open_total, open_rev, open_cost, skipped = self._mgmt_project_rows(
-                self._mgmt_open_projects(), usd, today, closed=False)
+                self._mgmt_open_projects(lead_uids=lead_uids), usd, today, closed=False)
         else:
             closed_rows, closed_total, closed_rev, closed_cost = [], {}, 0.0, 0.0
             open_rows, open_total, open_rev, open_cost, skipped = [], {}, 0.0, 0.0, 0
@@ -252,7 +289,8 @@ class LinkederpDashboardOpsMgmt(models.Model):
                     {"key": "pnl", "label": _("P&L (USD)"), "format": "money"},
                     {"key": "prof", "label": _("% Prof (Inv)"), "format": "money"},
                 ],
-                _("Amounts in USD at today's rates.%s") % usd_note)
+                _("Amounts in USD at today's rates.%(scope)s%(note)s")
+                % {"scope": project_scope_note, "note": usd_note})
             open_matrix = self._mgmt_matrix(
                 "mgmt_open_projects", _("Open Projects (P&L to date)"),
                 open_rows + [open_total],
@@ -266,8 +304,9 @@ class LinkederpDashboardOpsMgmt(models.Model):
                 ],
                 _("Excludes Done / On Hold / Cancelled / Internal / Support; "
                   "%(skip)s projects without a Sale Order skipped. Amounts in "
-                  "USD at today's rates.%(note)s")
-                % {"skip": skipped, "note": usd_note})
+                  "USD at today's rates.%(scope)s%(note)s")
+                % {"skip": skipped, "scope": project_scope_note,
+                   "note": usd_note})
 
         pass_rule = _("A line is on time if entered by 23:59 of the Monday "
                       "after its week. Delivery team, eligibility rules as "
@@ -278,7 +317,7 @@ class LinkederpDashboardOpsMgmt(models.Model):
                 "mgmt_accuracy", _("Time Entry Accuracy (YTD)"), accuracy, "percent",
                 _("%(on)s of %(lines)s lines on time") % {
                     "on": ytd["lines"] - ytd["late"], "lines": ytd["lines"]},
-                "#2563eb", pass_rule),
+                "#2563eb", pass_rule + scope_note),
             self._mgmt_kpi(
                 "mgmt_billability", _("Billability (YTD)"), billability, "percent",
                 _("%(bill)s of %(exp)s expected billable h") % {
@@ -286,7 +325,7 @@ class LinkederpDashboardOpsMgmt(models.Model):
                     "exp": self._ops_short_hours(ytd["exp_bill"])},
                 "#059669",
                 _("Billable hours vs expected billable (75%% of expected hours; "
-                  "exception resources count actual as expected).")),
+                  "exception resources count actual as expected).") + scope_note),
             self._mgmt_kpi(
                 "mgmt_closed_pnl", _("Closed Project P&L (USD)"), closed_pnl, "usd",
                 _("%(prof)s profitability · %(n)s projects") % {
@@ -294,8 +333,8 @@ class LinkederpDashboardOpsMgmt(models.Model):
                 "#7c3aed",
                 _("Done projects with %(year)s end date (no end date: last "
                   "modified %(year)s): invoiced minus actual cost. Click to "
-                  "open the project table.%(note)s")
-                % {"year": year, "note": usd_note},
+                  "open the project table.%(scope)s%(note)s")
+                % {"year": year, "scope": project_scope_note, "note": usd_note},
                 modal_table=closed_matrix),
             self._mgmt_kpi(
                 "mgmt_open_pnl", _("Open Project P&L (USD)"), open_pnl, "usd",
@@ -304,8 +343,8 @@ class LinkederpDashboardOpsMgmt(models.Model):
                 "#db2777",
                 _("Projects not Done / On Hold / Cancelled / Internal / "
                   "Support, with a Sale Order: SO amount minus actual cost "
-                  "to date. Click to open the project table.%(note)s")
-                % {"note": usd_note},
+                  "to date. Click to open the project table.%(scope)s%(note)s")
+                % {"scope": project_scope_note, "note": usd_note},
                 modal_table=open_matrix),
             self._mgmt_trend(
                 "mgmt_accuracy_trend", _("Accuracy by Month"), acc_points,

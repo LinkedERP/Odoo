@@ -23,6 +23,18 @@
                         </t>
                     </select>
                     <select
+                        t-if="state.mgmtFilters.enabled &amp;&amp; state.mgmtFilters.teams.length"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onMgmtTeamChange">
+                        <option value="">All teams</option>
+                        <t t-foreach="state.mgmtFilters.teams" t-as="option" t-key="option.value">
+                            <option
+                                t-att-value="option.value"
+                                t-att-selected="isMgmtTeamSelected(option.value)"
+                                t-esc="option.label"/>
+                        </t>
+                    </select>
+                    <select
                         t-if="state.crmFilters.enabled"
                         class="form-select o_lds_filter_select"
                         t-on-change="(ev) => setFilter('campaignId', ev.target.value)">
@@ -559,8 +571,8 @@
                             <h2 t-esc="state.modal.name"/>
                             <span t-if="state.modal.help" t-esc="state.modal.help"/>
                         </div>
-                        <button class="btn btn-sm btn-link o_lds_modal_close" type="button" t-on-click="closeModal" title="Close">
-                            <i class="fa fa-times"/>
+                        <button class="btn btn-sm o_lds_modal_close" type="button" t-on-click="closeModal" title="Close (Esc)">
+                            Close <i class="fa fa-times"/>
                         </button>
                     </header>
                     <div class="o_lds_modal_body">

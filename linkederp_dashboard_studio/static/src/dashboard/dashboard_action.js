@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, onWillStart, useState } from "@odoo/owl";
+import { Component, onWillStart, useExternalListener, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 
@@ -10,6 +10,7 @@ const SELECTED_WEEK_KEY = "linkederp_dashboard_studio.ops_week";
 const SELECTED_OPS_TEAM_KEY = "linkederp_dashboard_studio.ops_team";
 const SELECTED_MONTH_KEY = "linkederp_dashboard_studio.awards_month";
 const SELECTED_TEAM_WEEK_KEY = "linkederp_dashboard_studio.teams_week";
+const SELECTED_MGMT_TEAM_KEY = "linkederp_dashboard_studio.mgmt_team";
 
 export class LinkedERPDashboardAction extends Component {
     setup() {
@@ -39,6 +40,12 @@ export class LinkedERPDashboardAction extends Component {
             initialDashboardId,
         });
 
+        useExternalListener(window, "keydown", (ev) => {
+            if (ev.key === "Escape" && this.state.modal) {
+                this.closeModal();
+            }
+        });
+
         onWillStart(() => this.load(initialDashboardId));
     }
 
@@ -49,6 +56,8 @@ export class LinkedERPDashboardAction extends Component {
             "onKpiClick",
             "closeModal",
             "onModalBackdropClick",
+            "onMgmtTeamChange",
+            "isMgmtTeamSelected",
             "applyFilters",
             "resetFilters",
             "setFilter",
@@ -112,6 +121,7 @@ export class LinkedERPDashboardAction extends Component {
             opsTeam: window.localStorage.getItem(SELECTED_OPS_TEAM_KEY) || "",
             month: window.localStorage.getItem(SELECTED_MONTH_KEY) || "",
             teamWeek: window.localStorage.getItem(SELECTED_TEAM_WEEK_KEY) || "",
+            mgmtTeam: window.localStorage.getItem(SELECTED_MGMT_TEAM_KEY) || "",
         };
     }
 
@@ -146,6 +156,16 @@ export class LinkedERPDashboardAction extends Component {
         if (ev.target === ev.currentTarget) {
             this.closeModal();
         }
+    }
+
+    async onMgmtTeamChange(ev) {
+        this.state.filters.mgmtTeam = ev.target.value || "";
+        window.localStorage.setItem(SELECTED_MGMT_TEAM_KEY, this.state.filters.mgmtTeam);
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    isMgmtTeamSelected(value) {
+        return (this.state.filters.mgmtTeam || "") === value;
     }
 
     bucketGroups() {
@@ -188,6 +208,7 @@ export class LinkedERPDashboardAction extends Component {
                         ops_team: this.state.filters.opsTeam || false,
                         month: this.state.filters.month || false,
                         team_week: this.state.filters.teamWeek || false,
+                        mgmt_team: this.state.filters.mgmtTeam || false,
                     },
                 }
             );
@@ -200,6 +221,10 @@ export class LinkedERPDashboardAction extends Component {
             this.state.awardsFilters = payload.awards_filters || { enabled: false };
             this.state.weeklyFilters = payload.weekly_filters || { enabled: false };
             this.state.mgmtFilters = payload.mgmt_filters || { enabled: false };
+            if (this.state.mgmtFilters.enabled) {
+                this.state.filters.mgmtTeam = this.state.mgmtFilters.team || "";
+                window.localStorage.setItem(SELECTED_MGMT_TEAM_KEY, this.state.filters.mgmtTeam);
+            }
             if (this.state.weeklyFilters.enabled) {
                 this.state.filters.teamWeek = this.state.weeklyFilters.selected || "";
                 window.localStorage.setItem(SELECTED_TEAM_WEEK_KEY, this.state.filters.teamWeek);
@@ -230,6 +255,7 @@ export class LinkedERPDashboardAction extends Component {
         window.localStorage.removeItem(SELECTED_OPS_TEAM_KEY);
         window.localStorage.removeItem(SELECTED_MONTH_KEY);
         window.localStorage.removeItem(SELECTED_TEAM_WEEK_KEY);
+        window.localStorage.removeItem(SELECTED_MGMT_TEAM_KEY);
         this.state.filters = this.defaultFilters();
         await this.applyFilters();
     }
