@@ -372,8 +372,8 @@ class LinkederpDashboardOpsAwards(models.Model):
         }
 
     def _awards_card(self, wid, name, icon, winner, caption, badges, month_first,
-                     uids=None, accent=False):
-        widget = self._awards_base_widget(wid, name, "awardcard", 4)
+                     uids=None, accent=False, span=4):
+        widget = self._awards_base_widget(wid, name, "awardcard", span)
         widget.update(
             {
                 "icon": icon,
@@ -418,9 +418,6 @@ class LinkederpDashboardOpsAwards(models.Model):
             team["key"]: team["score"] for team in prev_board["teams"] if team["uids"]
         }
         prev_emp_rank = {emp["uid"]: emp["rank"] for emp in prev_board["employees"]}
-        prev_has_data = any(team["uids"] for team in prev_board["teams"]) or bool(
-            prev_board["employees"]
-        )
 
         widgets = []
 
@@ -488,13 +485,14 @@ class LinkederpDashboardOpsAwards(models.Model):
                     month_first,
                     uids=top_team["uids"],
                     accent=True,
+                    span=3,
                 )
             )
         else:
             widgets.append(
                 self._awards_card(
                     "awards_team", _("Team of the Month"), "fa-trophy",
-                    "—", _("No data for this month"), [], month_first,
+                    "—", _("No data for this month"), [], month_first, span=3,
                 )
             )
 
@@ -516,26 +514,28 @@ class LinkederpDashboardOpsAwards(models.Model):
                     ],
                     month_first,
                     uids=[top_emp["uid"]],
+                    span=3,
                 )
             )
         else:
             widgets.append(
                 self._awards_card(
                     "awards_employee", _("Employee of the Month"), "fa-star",
-                    "—", _("No data for this month"), [], month_first,
+                    "—", _("No data for this month"), [], month_first, span=3,
                 )
             )
 
-        # Most improved team (only when the previous month has data and
-        # somebody actually improved).
+        # Most improved team: always shown, based on whatever results exist —
+        # the team with the best score CHANGE vs the previous month (signed,
+        # so a down month names the least-declined team). Placeholder card
+        # when there is nothing to compare (per Akshay, 2026-07-03).
         best_gain = None
-        if prev_has_data:
-            for team in board["teams"]:
-                if not team["uids"] or team["key"] not in prev_team_score:
-                    continue
-                gain = team["score"] - prev_team_score[team["key"]]
-                if round(gain) >= 1 and (best_gain is None or gain > best_gain[1]):
-                    best_gain = (team, gain)
+        for team in board["teams"]:
+            if not team["uids"] or team["key"] not in prev_team_score:
+                continue
+            gain = team["score"] - prev_team_score[team["key"]]
+            if best_gain is None or gain > best_gain[1]:
+                best_gain = (team, gain)
         if best_gain:
             team, gain = best_gain
             widgets.append(
@@ -544,8 +544,8 @@ class LinkederpDashboardOpsAwards(models.Model):
                     _("Most Improved Team"),
                     "fa-line-chart",
                     team["label"],
-                    _("+%(gain)s points vs %(month)s") % {
-                        "gain": self._ops_short_hours(round(gain)),
+                    _("%(gain)+d points vs %(month)s") % {
+                        "gain": round(gain),
                         "month": prev_label,
                     },
                     [
@@ -556,6 +556,15 @@ class LinkederpDashboardOpsAwards(models.Model):
                     ],
                     month_first,
                     uids=team["uids"],
+                    span=2,
+                )
+            )
+        else:
+            widgets.append(
+                self._awards_card(
+                    "awards_improved", _("Most Improved Team"), "fa-line-chart",
+                    "—", _("No previous month to compare"), [], month_first,
+                    span=2,
                 )
             )
 
