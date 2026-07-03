@@ -929,6 +929,44 @@ class LinkederpDashboardOps(models.Model):
                 cost = abs(company.currency_id._convert(raw, target_currency, company, date))
         return cost, hours
 
+    def _ops_project_financials(self, project, display_ccy, today):
+        """SO amount, invoiced (posted + sent/paid, refunds netted), SO-linked
+        cost and both margins for one project, in display_ccy."""
+        order = project.sale_order_id
+        if order:
+            so_amount = order.currency_id._convert(
+                order.amount_untaxed, display_ccy, project.company_id, today)
+            # Untaxed invoiced = posted customer invoices/credit notes that
+            # have been sent or paid (drafts excluded).
+            invoiced = 0.0
+            for move in order.invoice_ids:
+                if move.state != "posted":
+                    continue
+                if not (move.is_move_sent or move.payment_state in (
+                    "in_payment", "paid", "partial", "reversed"
+                )):
+                    continue
+                sign = 1 if move.move_type == "out_invoice" else (-1 if move.move_type == "out_refund" else 0)
+                if sign:
+                    invoiced += sign * move.currency_id._convert(
+                        move.amount_untaxed, display_ccy, project.company_id, today
+                    )
+        else:
+            so_amount = 0.0
+            invoiced = 0.0
+        cost, actual_hours = self._ops_project_cost(project, display_ccy, today)
+        # Margin = (revenue - cost) / revenue (higher is better).
+        prof_so = (so_amount - cost) / so_amount * 100 if so_amount else None
+        prof_inv = (invoiced - cost) / invoiced * 100 if invoiced else None
+        return {
+            "so_amount": so_amount,
+            "invoiced": invoiced,
+            "cost": cost,
+            "actual_hours": actual_hours,
+            "prof_so": prof_so,
+            "prof_inv": prof_inv,
+        }
+
     def _ops_project_widget(self, sub_team):
         lead_uids = self._ops_lead_user_ids(sub_team)
         lead_names = sorted({emp.user_id.name for emp in self._ops_lead_employees(sub_team) if emp.user_id})
@@ -941,41 +979,16 @@ class LinkederpDashboardOps(models.Model):
             ]
             projects = self.env["project.project"].search(domain, order="name")
 
-            so_map = {}
-            so_ids = [p.sale_order_id.id for p in projects if p.sale_order_id]
-            if so_ids:
-                so_map = {so.id: so for so in self.env["sale.order"].browse(so_ids)}
-
             today = fields.Date.context_today(self)
             for project in projects:
-                order = so_map.get(project.sale_order_id.id) if project.sale_order_id else None
+                order = project.sale_order_id
                 # Display everything in the project's registering-company currency
                 # (Mrelate -> INR, Linked ERP (Pty) -> ZAR, PT Istana -> IDR).
                 display_ccy = project.company_id.currency_id or project.currency_id
-                if order:
-                    so_amount = order.currency_id._convert(order.amount_untaxed, display_ccy, project.company_id, today)
-                    # Untaxed invoiced = posted customer invoices/credit notes that
-                    # have been sent or paid (drafts excluded), in company currency.
-                    invoiced = 0.0
-                    for move in order.invoice_ids:
-                        if move.state != "posted":
-                            continue
-                        if not (move.is_move_sent or move.payment_state in (
-                            "in_payment", "paid", "partial", "reversed"
-                        )):
-                            continue
-                        sign = 1 if move.move_type == "out_invoice" else (-1 if move.move_type == "out_refund" else 0)
-                        if sign:
-                            invoiced += sign * move.currency_id._convert(
-                                move.amount_untaxed, display_ccy, project.company_id, today
-                            )
-                else:
-                    so_amount = 0.0
-                    invoiced = 0.0
-                cost, actual_hours = self._ops_project_cost(project, display_ccy, today)
-                # Margin = (revenue - cost) / revenue (higher is better).
-                prof_so = (so_amount - cost) / so_amount * 100 if so_amount else None
-                prof_inv = (invoiced - cost) / invoiced * 100 if invoiced else None
+                fin = self._ops_project_financials(project, display_ccy, today)
+                so_amount, invoiced = fin["so_amount"], fin["invoiced"]
+                cost, actual_hours = fin["cost"], fin["actual_hours"]
+                prof_so, prof_inv = fin["prof_so"], fin["prof_inv"]
                 rows.append({
                     "label": project.name,
                     "domain": self._json_safe([("id", "=", project.id)]),
