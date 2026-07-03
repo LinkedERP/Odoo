@@ -31,7 +31,7 @@ class LinkederpDashboardOpsWeekly(models.Model):
         self._ensure_weekly_dashboard()
 
     def _ensure_weekly_dashboard(self):
-        if self.search([("name", "=", OPS_WEEKLY_DASHBOARD_NAME)], limit=1):
+        if self.with_context(active_test=False).search([("name", "=", OPS_WEEKLY_DASHBOARD_NAME)], limit=1):
             return
         if "account.analytic.line" not in self.env:
             return
@@ -39,6 +39,7 @@ class LinkederpDashboardOpsWeekly(models.Model):
             {
                 "name": OPS_WEEKLY_DASHBOARD_NAME,
                 "sequence": 50,
+                "bucket": "management",
                 "description": _(
                     "Weekly team view: time-entry failures and billability, year "
                     "to date. Click a week on the trend chart to focus the page."

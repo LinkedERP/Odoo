@@ -5,11 +5,13 @@
 LinkedERP Dashboard Studio adds a modern dashboard workspace inside Odoo.
 
 The first release includes configurable KPI, chart, and table widgets plus a
-ready-to-use Sales/CRM dashboard pack. Dashboard data is read through normal
-Odoo ORM calls, so user access rights, record rules, and multi-company rules
-continue to apply.
+ready-to-use Sales/CRM dashboard pack. Dashboards are grouped into
+permissioned buckets (Sales, Ops, Finance, HR, Management). Access is granted
+per bucket via security groups; once a user may see a dashboard, its numbers
+are computed with elevated rights so every viewer sees the same figures.
+Drill-down record lists still respect the viewer's own access rights.
     """,
-    "version": "19.0.1.2.0",
+    "version": "19.0.1.3.1",
     "category": "Productivity/Dashboards",
     "author": "LinkedERP",
     "website": "https://linkederp.com",

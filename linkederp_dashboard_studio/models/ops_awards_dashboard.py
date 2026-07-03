@@ -31,7 +31,7 @@ class LinkederpDashboardOpsAwards(models.Model):
         self._ensure_awards_dashboard()
 
     def _ensure_awards_dashboard(self):
-        if self.search([("name", "=", OPS_AWARDS_DASHBOARD_NAME)], limit=1):
+        if self.with_context(active_test=False).search([("name", "=", OPS_AWARDS_DASHBOARD_NAME)], limit=1):
             return
         if "account.analytic.line" not in self.env:
             return
@@ -39,6 +39,7 @@ class LinkederpDashboardOpsAwards(models.Model):
             {
                 "name": OPS_AWARDS_DASHBOARD_NAME,
                 "sequence": 40,
+                "bucket": "management",
                 "description": _(
                     "Monthly operations awards. Pick a month to crown the champion "
                     "team and employee on billability and time-entry discipline."

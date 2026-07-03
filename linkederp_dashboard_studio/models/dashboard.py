@@ -2,8 +2,34 @@ import ast
 from datetime import date, datetime, timedelta
 
 from odoo import api, fields, models, _
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import UserError
 from odoo.osv import expression
+
+DASHBOARD_BUCKETS = [
+    ("sales", "Sales"),
+    ("ops", "Ops"),
+    ("finance", "Finance"),
+    ("hr", "HR"),
+    ("management", "Management"),
+]
+
+BUCKET_GROUP_XMLIDS = {
+    "sales": "linkederp_dashboard_studio.group_dashboard_bucket_sales",
+    "ops": "linkederp_dashboard_studio.group_dashboard_bucket_ops",
+    "finance": "linkederp_dashboard_studio.group_dashboard_bucket_finance",
+    "hr": "linkederp_dashboard_studio.group_dashboard_bucket_hr",
+    "management": "linkederp_dashboard_studio.group_dashboard_bucket_management",
+}
+
+MANAGER_GROUP_XMLID = "linkederp_dashboard_studio.group_dashboard_studio_manager"
+
+DEFAULT_BUCKET_BY_NAME = {
+    "Sales & CRM Dashboard": "sales",
+    "AI Generated Leads Performance": "sales",
+    "Ops Performance": "ops",
+    "Ops Monthly Awards": "management",
+    "Ops Weekly Teams": "management",
+}
 
 
 class LinkederpDashboard(models.Model):
@@ -16,6 +42,12 @@ class LinkederpDashboard(models.Model):
     active = fields.Boolean(default=True)
     description = fields.Text(translate=True)
     color = fields.Char(default="#2563eb")
+    bucket = fields.Selection(
+        DASHBOARD_BUCKETS,
+        string="Bucket",
+        help="Section of the dashboard selector this dashboard appears in. "
+        "Access is granted through the bucket's security group.",
+    )
     company_id = fields.Many2one(
         "res.company",
         string="Company",
@@ -27,7 +59,8 @@ class LinkederpDashboard(models.Model):
         "dashboard_id",
         "group_id",
         string="Visible to Groups",
-        help="Leave empty to make this dashboard visible to all internal users.",
+        help="Extra groups that can also see this dashboard, in addition to "
+        "its bucket's security group and Dashboard Managers.",
     )
     widget_ids = fields.One2many(
         "linkederp.dashboard.widget",
@@ -37,16 +70,34 @@ class LinkederpDashboard(models.Model):
     )
 
     def _visible_to_current_user(self):
-        user_groups = self._current_user_groups()
-        if not user_groups:
+        if self.env.su or self.env.user.has_group(MANAGER_GROUP_XMLID):
             return self
-        return self.filtered(
-            lambda dashboard: not dashboard.allowed_group_ids
-            or bool(dashboard.allowed_group_ids & user_groups)
-        )
+        user_groups = self._current_user_groups()
+        bucket_groups = self._bucket_groups()
+
+        def visible(dashboard):
+            bucket_group = bucket_groups.get(dashboard.bucket)
+            if bucket_group and bucket_group in user_groups:
+                return True
+            return bool(dashboard.allowed_group_ids & user_groups)
+
+        return self.filtered(visible)
+
+    @api.model
+    def _bucket_groups(self):
+        groups = {}
+        for key, xmlid in BUCKET_GROUP_XMLIDS.items():
+            group = self.env.ref(xmlid, raise_if_not_found=False)
+            if group:
+                groups[key] = group
+        return groups
 
     def _current_user_groups(self):
         user = self.env.user
+        # Prefer the implied-groups closure (Odoo 19) so memberships granted
+        # via group inheritance count as well.
+        if "all_group_ids" in user._fields:
+            return user.all_group_ids
         if "groups_id" in user._fields:
             return user.groups_id
         if "group_ids" in user._fields:
@@ -56,15 +107,24 @@ class LinkederpDashboard(models.Model):
     @api.model
     def get_dashboard_payload(self, dashboard_id=False, date_from=False, date_to=False, filters=False):
         self.sudo()._ensure_packaged_dashboards()
+        self.sudo()._assign_default_buckets()
         dashboards = self.search([("active", "=", True)], order="sequence, name")
         dashboards = dashboards._visible_to_current_user()
 
         if dashboard_id:
             dashboard = self.browse(int(dashboard_id)).exists()
             if not dashboard or dashboard.id not in dashboards.ids:
-                raise AccessError(_("You do not have access to this dashboard."))
+                # Stale saved selection, archived dashboard, or revoked
+                # access: fall back to the first visible dashboard instead
+                # of failing the whole page.
+                dashboard = dashboards[:1]
         else:
             dashboard = dashboards[:1]
+
+        # Visibility was checked above as the real user; the numbers are
+        # computed with elevated rights so every allowed viewer sees the
+        # same figures regardless of their own record rules.
+        dashboard = dashboard.sudo()
 
         filter_domain = dashboard._crm_filter_domain(filters) if dashboard else []
         widgets = []
@@ -104,6 +164,7 @@ class LinkederpDashboard(models.Model):
                     filters=filters,
                 )
 
+        bucket_labels = dict(DASHBOARD_BUCKETS)
         return {
             "dashboards": [
                 {
@@ -111,8 +172,15 @@ class LinkederpDashboard(models.Model):
                     "name": item.name,
                     "description": item.description or "",
                     "color": item.color or "#2563eb",
+                    "bucket": item.bucket or "management",
+                    "bucket_label": bucket_labels.get(
+                        item.bucket or "management", _("Management")
+                    ),
                 }
                 for item in dashboards
+            ],
+            "bucket_order": [
+                {"key": key, "label": label} for key, label in DASHBOARD_BUCKETS
             ],
             "dashboard": dashboard
             and {
@@ -144,8 +212,24 @@ class LinkederpDashboard(models.Model):
         self._ensure_ai_generated_leads_dashboard()
 
     @api.model
+    def _assign_default_buckets(self):
+        """One-time backfill: any dashboard without a bucket gets one by name.
+
+        The Sales & CRM starter is archived the first (and only) time it
+        receives its bucket, so un-archiving it later sticks.
+        """
+        unassigned = self.with_context(active_test=False).search(
+            [("bucket", "=", False)]
+        )
+        for dashboard in unassigned:
+            vals = {"bucket": DEFAULT_BUCKET_BY_NAME.get(dashboard.name, "management")}
+            if dashboard.name == "Sales & CRM Dashboard" and dashboard.active:
+                vals["active"] = False
+            dashboard.write(vals)
+
+    @api.model
     def _ensure_default_sales_crm_dashboard(self):
-        if self.search([("name", "=", "Sales & CRM Dashboard")], limit=1):
+        if self.with_context(active_test=False).search([("name", "=", "Sales & CRM Dashboard")], limit=1):
             return
         if "sale.order" not in self.env or "crm.lead" not in self.env:
             return
@@ -154,6 +238,7 @@ class LinkederpDashboard(models.Model):
             {
                 "name": _("Sales & CRM Dashboard"),
                 "sequence": 10,
+                "bucket": "sales",
                 "description": _(
                     "LinkedERP starter dashboard for sales orders, revenue, pipeline, and opportunity performance."
                 ),
@@ -298,7 +383,7 @@ class LinkederpDashboard(models.Model):
 
     @api.model
     def _ensure_ai_generated_leads_dashboard(self):
-        if self.search([("name", "=", "AI Generated Leads Performance")], limit=1):
+        if self.with_context(active_test=False).search([("name", "=", "AI Generated Leads Performance")], limit=1):
             return
         if "crm.lead" not in self.env:
             return
@@ -306,6 +391,7 @@ class LinkederpDashboard(models.Model):
             {
                 "name": _("AI Generated Leads Performance"),
                 "sequence": 20,
+                "bucket": "sales",
                 "description": _(
                     "Track AI-sourced CRM lead volume, calling work, meetings, suitability, ownership, and pipeline movement."
                 ),

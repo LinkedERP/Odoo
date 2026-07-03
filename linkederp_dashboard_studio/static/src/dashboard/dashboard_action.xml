@@ -10,12 +10,16 @@
                 </div>
                 <div class="o_lds_controls">
                     <select class="form-select" t-on-change="onDashboardChange">
-                        <t t-foreach="state.dashboards" t-as="dashboard" t-key="dashboard.id">
-                            <option
-                                t-att-value="dashboard.id"
-                                t-att-selected="state.dashboard &amp;&amp; dashboard.id === state.dashboard.id">
-                                <t t-esc="dashboard.name"/>
-                            </option>
+                        <t t-foreach="bucketGroups()" t-as="group" t-key="group.key">
+                            <optgroup t-att-label="group.label">
+                                <t t-foreach="group.dashboards" t-as="dashboard" t-key="dashboard.id">
+                                    <option
+                                        t-att-value="dashboard.id"
+                                        t-att-selected="state.dashboard &amp;&amp; dashboard.id === state.dashboard.id">
+                                        <t t-esc="dashboard.name"/>
+                                    </option>
+                                </t>
+                            </optgroup>
                         </t>
                     </select>
                     <select

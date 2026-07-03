@@ -10,7 +10,7 @@
         name="Dashboards"
         action="action_linkederp_dashboard_studio"
         sequence="12"
-        groups="base.group_user"/>
+        groups="linkederp_dashboard_studio.group_dashboard_viewer"/>
 
     <menuitem
         id="menu_linkederp_dashboard_configuration"
