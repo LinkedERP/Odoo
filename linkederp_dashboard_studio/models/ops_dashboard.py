@@ -7,7 +7,8 @@ from odoo import fields, models, _
 
 _logger = logging.getLogger(__name__)
 
-OPS_DASHBOARD_NAME = "Ops Performance"
+OPS_DASHBOARD_NAME = "Ops Weekly review"
+OPS_DASHBOARD_LEGACY = "Ops Performance"
 
 # How many past weeks to offer in the week selector.
 WEEK_OPTIONS_COUNT = 26
@@ -64,7 +65,7 @@ class LinkederpDashboardOps(models.Model):
         self._ensure_ops_dashboard()
 
     def _ensure_ops_dashboard(self):
-        if self.with_context(active_test=False).search([("name", "=", OPS_DASHBOARD_NAME)], limit=1):
+        if self._ensure_dashboard_name(OPS_DASHBOARD_NAME, [OPS_DASHBOARD_LEGACY]):
             return
         if "account.analytic.line" not in self.env:
             return

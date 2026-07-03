@@ -2,7 +2,8 @@ from odoo import fields, models, _
 
 from .ops_dashboard import OPS_EXCLUDED_STAGES, TREND_TARGET
 
-OPS_MGMT_DASHBOARD_NAME = "Ops Management"
+OPS_MGMT_DASHBOARD_NAME = "Aurika Ops Dashboard"
+OPS_MGMT_DASHBOARD_LEGACY = "Ops Management"
 
 # Studio "Nature" selection on project.project: Support / Project / Internal.
 # Internal & Support natures are excluded from all P&L views.
@@ -30,7 +31,8 @@ class LinkederpDashboardOpsMgmt(models.Model):
         self._ensure_mgmt_dashboard()
 
     def _ensure_mgmt_dashboard(self):
-        if self.with_context(active_test=False).search([("name", "=", OPS_MGMT_DASHBOARD_NAME)], limit=1):
+        if self._ensure_dashboard_name(OPS_MGMT_DASHBOARD_NAME,
+                                       [OPS_MGMT_DASHBOARD_LEGACY]):
             return
         if "account.analytic.line" not in self.env:
             return

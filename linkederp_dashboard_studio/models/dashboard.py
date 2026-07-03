@@ -23,12 +23,21 @@ BUCKET_GROUP_XMLIDS = {
 
 MANAGER_GROUP_XMLID = "linkederp_dashboard_studio.group_dashboard_studio_manager"
 
+# Renamed 2026-07-03 per Akshay; legacy names kept as aliases so records
+# created under the old names still map to their buckets.
+AI_DASHBOARD_NAME = "Nighthawk Review Dashboard"
+AI_DASHBOARD_LEGACY = "AI Generated Leads Performance"
+
 DEFAULT_BUCKET_BY_NAME = {
     "Sales & CRM Dashboard": "sales",
+    "Nighthawk Review Dashboard": "sales",
     "AI Generated Leads Performance": "sales",
+    "Ops Weekly review": "ops",
     "Ops Performance": "ops",
     "Ops Monthly Awards": "management",
+    "Weekly Chain Update": "management",
     "Ops Weekly Teams": "management",
+    "Aurika Ops Dashboard": "management",
     "Ops Management": "management",
 }
 
@@ -222,6 +231,21 @@ class LinkederpDashboard(models.Model):
         self._ensure_ai_generated_leads_dashboard()
 
     @api.model
+    def _ensure_dashboard_name(self, name, legacy_names):
+        """True when the packaged dashboard already exists — renaming a
+        legacy-named record in place if needed (2026-07-03 renames); False
+        when the caller must create it."""
+        Dash = self.with_context(active_test=False)
+        if Dash.search([("name", "=", name)], limit=1):
+            return True
+        for legacy in legacy_names:
+            record = Dash.search([("name", "=", legacy)], limit=1)
+            if record:
+                record.write({"name": name})
+                return True
+        return False
+
+    @api.model
     def _assign_default_buckets(self):
         """One-time backfill: any dashboard without a bucket gets one by name.
 
@@ -393,13 +417,13 @@ class LinkederpDashboard(models.Model):
 
     @api.model
     def _ensure_ai_generated_leads_dashboard(self):
-        if self.with_context(active_test=False).search([("name", "=", "AI Generated Leads Performance")], limit=1):
+        if self._ensure_dashboard_name(AI_DASHBOARD_NAME, [AI_DASHBOARD_LEGACY]):
             return
         if "crm.lead" not in self.env:
             return
         self.create(
             {
-                "name": _("AI Generated Leads Performance"),
+                "name": AI_DASHBOARD_NAME,
                 "sequence": 20,
                 "bucket": "sales",
                 "description": _(
@@ -411,7 +435,8 @@ class LinkederpDashboard(models.Model):
 
     def _is_ai_generated_leads_dashboard(self):
         self.ensure_one()
-        return (self.name or "").strip().lower() == "ai generated leads performance"
+        return (self.name or "").strip().lower() in (
+            AI_DASHBOARD_NAME.lower(), AI_DASHBOARD_LEGACY.lower())
 
     def _ai_source_domain(self):
         return expression.OR(
