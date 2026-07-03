@@ -133,9 +133,11 @@ class LinkederpDashboardOpsMgmt(models.Model):
             domain.append(("user_id", "in", lead_uids))
         return self.env["project.project"].search(domain, order="name")
 
-    def _mgmt_project_rows(self, projects, usd, today, closed):
+    def _mgmt_project_rows(self, projects, usd, today, closed, customer_pnl=None):
         """(rows sorted by P&L desc, total_row, total_revenue, total_cost,
-        skipped_no_so). Open mode counts only SO-linked projects."""
+        skipped_no_so). Open mode counts only SO-linked projects. When
+        `customer_pnl` (a dict) is given, per-customer USD P&L accumulates
+        into it: {name: {"pnl": float, "ids": [project ids]}}."""
         rows, tot_rev, tot_cost, skipped = [], 0.0, 0.0, 0
         for project in projects:
             if not closed and not project.sale_order_id:
@@ -147,6 +149,13 @@ class LinkederpDashboardOpsMgmt(models.Model):
             prof = fin["prof_inv"] if closed else fin["prof_so"]
             tot_rev += revenue
             tot_cost += fin["cost"]
+            if customer_pnl is not None:
+                partner = (project.sale_order_id.partner_id
+                           if project.sale_order_id else project.partner_id)
+                key = (partner.name if partner else "") or _("No customer")
+                rec = customer_pnl.setdefault(key, {"pnl": 0.0, "ids": []})
+                rec["pnl"] += pnl
+                rec["ids"].append(project.id)
             row = {
                 "label": project.name,
                 "domain": self._json_safe([("id", "=", project.id)]),
@@ -203,18 +212,36 @@ class LinkederpDashboardOpsMgmt(models.Model):
             "modal_table": modal_table,
         }
 
-    def _mgmt_trend(self, wid, name, points, target, help_text):
+    def _mgmt_trend(self, wid, name, points, help_text):
+        """Full-width trend line, same renderer as the Ops dashboard trends."""
         values = [p["value"] for p in points]
         avg = round(sum(values) / len(values), 1) if values else 0.0
+        title = _("%(name)s · avg %(avg)s%%") % {
+            "name": name, "avg": self._ops_short_hours(avg)}
         return {
-            "id": wid, "name": name, "type": "column",
+            "id": wid, "name": title, "type": "trendline",
             "model": "account.analytic.line", "mode": "computed",
-            "measure": "%", "groupby": _("Month"), "color": "#2e7d2e",
-            "help": help_text, "value": float(values[-1] if values else 0.0),
+            "measure": "", "groupby": "", "color": "#38bdf8",
+            "help": help_text,
+            "value": float(values[-1] if values else 0.0),
             "format": "percent", "domain": [], "points": points,
-            "rows": [], "columns": [], "span": 6, "error": False,
-            "badge": _("avg %s%%") % self._ops_short_hours(avg),
-            "target": target,
+            "rows": [], "columns": [], "span": 12, "error": False,
+        }
+
+    def _mgmt_customer_bar(self, wid, name, entries, color, help_text):
+        points = [{
+            "label": label,
+            "value": float(round(rec["pnl"])),
+            "color": color,
+            "domain": self._json_safe([("id", "in", rec["ids"])]),
+        } for label, rec in entries]
+        return {
+            "id": wid, "name": name, "type": "bar",
+            "model": "project.project", "mode": "computed",
+            "measure": _("P&L (USD)"), "groupby": _("Customer"), "color": color,
+            "help": help_text, "value": float(len(points)), "format": "usd",
+            "domain": [], "points": points, "rows": [], "columns": [],
+            "span": 6, "error": False,
         }
 
     def _mgmt_matrix(self, wid, name, rows, columns, help_text):
@@ -263,11 +290,14 @@ class LinkederpDashboardOpsMgmt(models.Model):
             })
 
         has_projects = "project.project" in self.env and "sale.order" in self.env
+        customer_pnl = {}
         if has_projects:
             closed_rows, closed_total, closed_rev, closed_cost, _skip = self._mgmt_project_rows(
-                self._mgmt_closed_projects(year, lead_uids=lead_uids), usd, today, closed=True)
+                self._mgmt_closed_projects(year, lead_uids=lead_uids), usd, today,
+                closed=True, customer_pnl=customer_pnl)
             open_rows, open_total, open_rev, open_cost, skipped = self._mgmt_project_rows(
-                self._mgmt_open_projects(lead_uids=lead_uids), usd, today, closed=False)
+                self._mgmt_open_projects(lead_uids=lead_uids), usd, today,
+                closed=False, customer_pnl=customer_pnl)
         else:
             closed_rows, closed_total, closed_rev, closed_cost = [], {}, 0.0, 0.0
             open_rows, open_total, open_rev, open_cost, skipped = [], {}, 0.0, 0.0, 0
@@ -348,13 +378,34 @@ class LinkederpDashboardOpsMgmt(models.Model):
                 modal_table=open_matrix),
             self._mgmt_trend(
                 "mgmt_accuracy_trend", _("Accuracy by Month"), acc_points,
-                ACCURACY_TARGET,
                 _("On-time share per month (weeks grouped by their Monday). "
-                  "Dotted line = %s%%.") % self._ops_short_hours(ACCURACY_TARGET)),
+                  "Green dots at/above %s%%.")
+                % self._ops_short_hours(ACCURACY_TARGET)),
             self._mgmt_trend(
                 "mgmt_billability_trend", _("Billability by Month"), bil_points,
-                TREND_TARGET,
-                _("Billable vs expected billable per month. Dotted line = "
-                  "%s%%.") % self._ops_short_hours(TREND_TARGET)),
+                _("Billable vs expected billable per month. Green dots "
+                  "at/above %s%%.") % self._ops_short_hours(TREND_TARGET)),
         ]
+        if has_projects:
+            ranked = sorted(customer_pnl.items(),
+                            key=lambda kv: kv[1]["pnl"], reverse=True)
+            top_profit = [(k, v) for k, v in ranked if v["pnl"] > 0][:8]
+            top_loss = sorted(
+                [(k, v) for k, v in ranked if v["pnl"] < 0],
+                key=lambda kv: kv[1]["pnl"])[:8]
+            customer_note = _(
+                "Customer P&L across the closed-%(year)s and open projects "
+                "above (invoiced/SO amount minus cost, USD)."
+            ) % {"year": year}
+            widgets.append(self._mgmt_customer_bar(
+                "mgmt_top_profit_customers",
+                _("Top Customers — Earning (USD)"), top_profit, "#059669",
+                customer_note + project_scope_note + usd_note))
+            widgets.append(self._mgmt_customer_bar(
+                "mgmt_top_loss_customers",
+                _("Top Customers — Losing (USD)"), top_loss, "#dc2626",
+                (customer_note + project_scope_note + usd_note)
+                if top_loss else
+                _("No loss-making customers in scope — nothing to show. ")
+                + customer_note + project_scope_note + usd_note))
         return widgets

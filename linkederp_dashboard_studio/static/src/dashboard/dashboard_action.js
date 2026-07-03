@@ -453,8 +453,12 @@ export class LinkedERPDashboardAction extends Component {
     }
 
     barStyle(widget, point) {
-        const width = Math.max(3, (Number(point.value || 0) / this.maxPointValue(widget)) * 100);
-        return `width: ${width}%; background: ${widget.color || "#2563eb"};`;
+        // abs() so charts of negative values (e.g. loss-making customers)
+        // still scale their bars by magnitude.
+        const values = (widget.points || []).map((p) => Math.abs(Number(p.value || 0)));
+        const max = Math.max(...values, 1);
+        const width = Math.max(3, (Math.abs(Number(point.value || 0)) / max) * 100);
+        return `width: ${width}%; background: ${point.color || widget.color || "#2563eb"};`;
     }
 
     columnGridLines(widget) {
