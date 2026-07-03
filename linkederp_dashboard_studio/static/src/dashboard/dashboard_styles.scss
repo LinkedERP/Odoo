@@ -1325,3 +1325,17 @@
         }
     }
 }
+
+// Flash highlight when a KPI card jumps to its linked table.
+.o_lds_widget.o_lds_flash {
+    animation: o-lds-flash 1.6s ease-out;
+}
+
+@keyframes o-lds-flash {
+    0% {
+        box-shadow: 0 0 0 4px var(--lds-accent);
+    }
+    100% {
+        box-shadow: 0 0 0 0 transparent;
+    }
+}

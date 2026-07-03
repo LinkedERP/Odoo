@@ -127,6 +127,7 @@
             <div t-else="" class="o_lds_grid">
                 <t t-foreach="state.widgets" t-as="widget" t-key="widget.id">
                     <section
+                        t-att-data-widget-id="widget.id"
                         t-att-class="'o_lds_widget o_lds_widget_' + widget.type + (widget.span ? ' o_lds_span_' + widget.span : '')"
                         t-att-style="'--lds-accent:' + (widget.color || '#2563eb')">
                         <header t-if="widget.type !== 'trendline' &amp;&amp; widget.type !== 'chips'" class="o_lds_widget_header">
@@ -159,7 +160,7 @@
                             <button
                                 class="o_lds_kpi"
                                 type="button"
-                                t-on-click="() => openRecords(widget.model, widget.domain)">
+                                t-on-click="() => onKpiClick(widget)">
                                 <span class="o_lds_kpi_value" t-esc="formatWidgetValue(widget)"/>
                                 <span class="o_lds_kpi_caption" t-esc="widget.measure"/>
                             </button>

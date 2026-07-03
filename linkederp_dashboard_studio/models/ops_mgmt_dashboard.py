@@ -160,7 +160,8 @@ class LinkederpDashboardOpsMgmt(models.Model):
     # ------------------------------------------------------------------
     # Widget builders
     # ------------------------------------------------------------------
-    def _mgmt_kpi(self, wid, name, value, fmt, caption, color, help_text):
+    def _mgmt_kpi(self, wid, name, value, fmt, caption, color, help_text,
+                  jump_to=False):
         return {
             "id": wid, "name": name, "type": "kpi",
             "model": "project.project", "mode": "computed",
@@ -168,6 +169,9 @@ class LinkederpDashboardOpsMgmt(models.Model):
             "help": help_text, "value": float(value), "format": fmt,
             "domain": [], "points": [], "rows": [], "columns": [],
             "span": 3, "error": False,
+            # Clicking the card scrolls to this widget id instead of opening
+            # a record list.
+            "jump_to": jump_to,
         }
 
     def _mgmt_trend(self, wid, name, points, target, help_text):
@@ -259,8 +263,10 @@ class LinkederpDashboardOpsMgmt(models.Model):
                     "prof": self._ops_pct_text(closed_prof), "n": len(closed_rows)},
                 "#7c3aed",
                 _("Done projects with %(year)s end date (no end date: last "
-                  "modified %(year)s): invoiced minus actual cost.%(note)s")
-                % {"year": year, "note": usd_note}),
+                  "modified %(year)s): invoiced minus actual cost. Click to "
+                  "see the project table.%(note)s")
+                % {"year": year, "note": usd_note},
+                jump_to="mgmt_closed_projects"),
             self._mgmt_kpi(
                 "mgmt_open_pnl", _("Open Project P&L (USD)"), open_pnl, "usd",
                 _("%(n)s projects · %(skip)s without SO skipped") % {
@@ -268,7 +274,9 @@ class LinkederpDashboardOpsMgmt(models.Model):
                 "#db2777",
                 _("Projects not Done / On Hold / Cancelled / Internal / "
                   "Support, with a Sale Order: SO amount minus actual cost "
-                  "to date.%(note)s") % {"note": usd_note}),
+                  "to date. Click to see the project table.%(note)s")
+                % {"note": usd_note},
+                jump_to="mgmt_open_projects"),
             self._mgmt_trend(
                 "mgmt_accuracy_trend", _("Accuracy by Month"), acc_points,
                 ACCURACY_TARGET,

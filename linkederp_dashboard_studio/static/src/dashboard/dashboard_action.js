@@ -45,6 +45,7 @@ export class LinkedERPDashboardAction extends Component {
         for (const method of [
             "onDashboardChange",
             "bucketGroups",
+            "onKpiClick",
             "applyFilters",
             "resetFilters",
             "setFilter",
@@ -124,6 +125,21 @@ export class LinkedERPDashboardAction extends Component {
         if (dashboardId) {
             window.localStorage.setItem(SELECTED_DASHBOARD_KEY, String(dashboardId));
         }
+    }
+
+    onKpiClick(widget) {
+        if (widget.jump_to) {
+            const target = document.querySelector(`[data-widget-id="${widget.jump_to}"]`);
+            if (target) {
+                target.scrollIntoView({ behavior: "smooth", block: "start" });
+                target.classList.remove("o_lds_flash");
+                void target.offsetWidth;
+                target.classList.add("o_lds_flash");
+                window.setTimeout(() => target.classList.remove("o_lds_flash"), 1700);
+                return;
+            }
+        }
+        this.openRecords(widget.model, widget.domain);
     }
 
     bucketGroups() {
