@@ -103,8 +103,8 @@
                                 t-esc="option.label"/>
                         </t>
                     </select>
-                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom"/>
-                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo"/>
+                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom"/>
+                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo"/>
                     <button class="btn btn-primary" type="button" t-on-click="applyFilters" title="Apply filters">
                         <i class="fa fa-filter"/>
                     </button>

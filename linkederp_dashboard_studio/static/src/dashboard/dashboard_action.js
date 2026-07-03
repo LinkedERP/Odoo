@@ -32,6 +32,7 @@ export class LinkedERPDashboardAction extends Component {
             opsFilters: { enabled: false },
             awardsFilters: { enabled: false },
             weeklyFilters: { enabled: false },
+            mgmtFilters: { enabled: false },
             filters: this.defaultFilters(),
             tooltip: { visible: false, x: 0, y: 0, title: "", detail: null },
             initialDashboardId,
@@ -175,6 +176,7 @@ export class LinkedERPDashboardAction extends Component {
             this.state.opsFilters = payload.ops_filters || { enabled: false };
             this.state.awardsFilters = payload.awards_filters || { enabled: false };
             this.state.weeklyFilters = payload.weekly_filters || { enabled: false };
+            this.state.mgmtFilters = payload.mgmt_filters || { enabled: false };
             if (this.state.weeklyFilters.enabled) {
                 this.state.filters.teamWeek = this.state.weeklyFilters.selected || "";
                 window.localStorage.setItem(SELECTED_TEAM_WEEK_KEY, this.state.filters.teamWeek);
@@ -358,6 +360,10 @@ export class LinkedERPDashboardAction extends Component {
         }
         if (format === "days") {
             return `${this.formatNumber(number)} days`;
+        }
+        if (format === "usd") {
+            const abs = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.abs(number));
+            return `${number < 0 ? "-" : ""}$${abs}`;
         }
         return this.formatNumber(number);
     }
