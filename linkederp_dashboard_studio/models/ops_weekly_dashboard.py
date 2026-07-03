@@ -96,7 +96,8 @@ class LinkederpDashboardOpsWeekly(models.Model):
     # Weekly series engine (single pass over the YTD weeks)
     # ------------------------------------------------------------------
     def _weekly_blank_rec(self):
-        return {"lines": 0, "late": 0, "expected": 0.0, "billable": 0.0, "uids": []}
+        return {"lines": 0, "late": 0, "expected": 0.0, "billable": 0.0,
+                "exp_bill": 0.0, "uids": []}
 
     def _weekly_series(self):
         """Per-week org + per-team sums for the YTD window.
@@ -108,6 +109,7 @@ class LinkederpDashboardOpsWeekly(models.Model):
         """
         weeks = self._weekly_ytd_weeks()
         primary_map = self._ops_primary_employees()
+        exception_uids = set(self._ops_exception_user_ids(primary_map))
         fields_map = self.env["hr.employee"]._fields
         team_by_user = {}
         for uid, emp in primary_map.items():
@@ -129,6 +131,11 @@ class LinkederpDashboardOpsWeekly(models.Model):
                 for uid in uids:
                     lines = totals.get(uid, 0)
                     late = lines - on_time.get(uid, 0)
+                    exp = expected.get(uid, 0.0)
+                    bil = billable.get(uid, 0.0)
+                    # Exception resources: expected billable = actual billable,
+                    # mirroring the total-expected rule (per Akshay, 2026-07-03).
+                    exp_bill = bil if uid in exception_uids else exp * BILLABLE_SHARE
                     targets = [org]
                     team_key = team_by_user.get(uid)
                     if team_key in teams:
@@ -136,8 +143,9 @@ class LinkederpDashboardOpsWeekly(models.Model):
                     for rec in targets:
                         rec["lines"] += lines
                         rec["late"] += late
-                        rec["expected"] += expected.get(uid, 0.0)
-                        rec["billable"] += billable.get(uid, 0.0)
+                        rec["expected"] += exp
+                        rec["billable"] += bil
+                        rec["exp_bill"] += exp_bill
                         rec["uids"].append(uid)
             by_week[week] = {"org": org, "teams": teams}
         return {"weeks": weeks, "by_week": by_week}
@@ -146,7 +154,9 @@ class LinkederpDashboardOpsWeekly(models.Model):
         return round(rec["late"] / rec["lines"] * 100, 1) if rec["lines"] else 0.0
 
     def _weekly_bill_rate(self, rec):
-        den = rec["expected"] * BILLABLE_SHARE
+        """Billable / expected billable (exception resources count their
+        actual billable hours as expected billable)."""
+        den = rec["exp_bill"]
         return round(rec["billable"] / den * 100, 1) if den else 0.0
 
     def _weekly_sum(self, recs):
@@ -157,6 +167,7 @@ class LinkederpDashboardOpsWeekly(models.Model):
             total["late"] += rec["late"]
             total["expected"] += rec["expected"]
             total["billable"] += rec["billable"]
+            total["exp_bill"] += rec["exp_bill"]
             uids.update(rec["uids"])
         total["uids"] = sorted(uids)
         return total

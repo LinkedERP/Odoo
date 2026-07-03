@@ -342,11 +342,21 @@ class LinkederpDashboardOps(models.Model):
         ]
 
     def _ops_billability(self, week_start, emp_map=None):
-        """Team billability = billable hours / (75% of expected hours)."""
+        """Team billability = billable hours / expected billable hours.
+
+        Expected billable = 75% of expected hours; exception resources count
+        their ACTUAL billable hours as expected billable (always 100%),
+        mirroring the total-expected rule (per Akshay, 2026-07-03)."""
+        if emp_map is None:
+            emp_map = self._ops_primary_employees()
         expected = self._ops_expected_hours_by_user(week_start, emp_map=emp_map)
         billable = self._ops_logged_hours_by_user(week_start, billable_only=True)
+        exception_uids = set(self._ops_exception_user_ids(emp_map))
         population = list(expected.keys())
-        expected_billable = sum(expected.values()) * BILLABLE_SHARE
+        expected_billable = sum(
+            (billable.get(uid, 0.0) if uid in exception_uids else exp * BILLABLE_SHARE)
+            for uid, exp in expected.items()
+        )
         total_billable = sum(billable.get(uid, 0.0) for uid in population)
         rate = round(total_billable / expected_billable * 100, 1) if expected_billable else 0.0
         return rate, total_billable, expected_billable
@@ -397,6 +407,7 @@ class LinkederpDashboardOps(models.Model):
                 "names": self._ops_names_map(emp_map),
                 "expected_by_user": expected,
                 "actual_by_user": actual,
+                "exception_uids": self._ops_exception_user_ids(emp_map),
             })
         return series
 
@@ -774,12 +785,20 @@ class LinkederpDashboardOps(models.Model):
             actual = row["actual_by_user"]
             num = sum(actual.get(uid, 0.0) for uid in uids)
             if kind == "billable":
-                den = sum(expected.values()) * BILLABLE_SHARE
+                # Exception resources (expected = actual): their expected
+                # BILLABLE hours equal their actual billable hours, mirroring
+                # the total-expected rule (per Akshay, 2026-07-03).
+                exception_uids = set(row.get("exception_uids") or [])
+                exp_bill = {
+                    uid: (actual.get(uid, 0.0) if uid in exception_uids
+                          else expected.get(uid, 0.0) * BILLABLE_SHARE)
+                    for uid in expected
+                }
+                den = sum(exp_bill.values())
                 domain = self._ops_billable_domain(week)
                 detail = self._ops_detail_payload(
-                    uids, row["names"], expected, actual,
+                    uids, row["names"], exp_bill, actual,
                     [_("Exp. bill h"), _("Billable h"), _("%")],
-                    expected_factor=BILLABLE_SHARE,
                 )
             else:
                 den = sum(expected.values())
