@@ -70,7 +70,11 @@ class LinkederpDashboardOpsWeekly(models.Model):
         filters = filters or {}
         value = filters.get("team_week")
         if value:
-            selected = fields.Date.to_date(value)
+            try:
+                selected = fields.Date.to_date(value)
+            except (TypeError, ValueError):
+                # Unparseable filter (stale/corrupted client value) -> YTD.
+                selected = False
             if selected:
                 week = self._ops_week_start(selected)
                 if week in self._weekly_ytd_weeks():
