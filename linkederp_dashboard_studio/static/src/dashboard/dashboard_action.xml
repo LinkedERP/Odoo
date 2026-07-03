@@ -175,16 +175,10 @@
                                 <span class="o_lds_kpi_value" t-esc="formatWidgetValue(widget)"/>
                                 <span class="o_lds_kpi_caption" t-esc="widget.measure"/>
                                 <div t-if="widget.points.length" class="o_lds_kpi_spark">
-                                    <div class="o_lds_trend_plot">
+                                    <div class="o_lds_trend_plot" t-att-title="sparkTitle(widget)">
                                         <svg class="o_lds_trend_svg" viewBox="0 0 300 100" preserveAspectRatio="none" role="img">
                                             <polyline class="o_lds_trend_line" t-att-points="trendLinePoints(widget)"/>
                                         </svg>
-                                        <t t-foreach="trendMarkers(widget)" t-as="m" t-key="m_index">
-                                            <span
-                                                class="o_lds_trend_dot"
-                                                t-att-style="'left:' + m.leftPct + '%; top:' + m.topPct + '%; background:' + m.color + ';'"
-                                                t-att-title="m.label + ': ' + formatByType(m.value, widget.format)"/>
-                                        </t>
                                     </div>
                                     <div class="o_lds_trend_labels">
                                         <t t-foreach="widget.points" t-as="point" t-key="point.label">

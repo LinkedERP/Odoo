@@ -54,6 +54,7 @@ export class LinkedERPDashboardAction extends Component {
             "onDashboardChange",
             "bucketGroups",
             "onKpiClick",
+            "sparkTitle",
             "closeModal",
             "onModalBackdropClick",
             "onMgmtTeamChange",
@@ -146,6 +147,12 @@ export class LinkedERPDashboardAction extends Component {
             return;
         }
         this.openRecords(widget.model, widget.domain);
+    }
+
+    sparkTitle(widget) {
+        return (widget.points || [])
+            .map((p) => `${p.label}: ${this.formatByType(p.value, widget.format)}`)
+            .join("  ·  ");
     }
 
     closeModal() {
