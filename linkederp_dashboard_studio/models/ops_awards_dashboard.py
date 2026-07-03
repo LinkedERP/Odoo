@@ -59,41 +59,38 @@ class LinkederpDashboardOpsAwards(models.Model):
             return date(month_first.year - 1, 12, 1)
         return date(month_first.year, month_first.month - 1, 1)
 
-    def _awards_month_weeks(self, month_first):
-        """Mondays of the ISO weeks belonging to this month (Monday inside it)."""
-        day = month_first + timedelta(days=(7 - month_first.weekday()) % 7)
-        weeks = []
-        while day.month == month_first.month:
-            weeks.append(day)
-            day += timedelta(days=7)
-        return weeks
-
-    def _awards_month_complete(self, month_first, today):
-        weeks = self._awards_month_weeks(month_first)
-        return bool(weeks) and weeks[-1] + timedelta(days=6) < today
+    def _awards_month_last_day(self, month_first):
+        if month_first.month == 12:
+            return date(month_first.year, 12, 31)
+        return date(month_first.year, month_first.month + 1, 1) - timedelta(days=1)
 
     def _awards_default_month(self):
-        """Most recent month whose calendar days have all passed.
-
-        Note: this month's LAST ISO week may still be in flight for the first
-        few days (its Sunday falls in the new month) — the scoreboard then
-        covers the completed weeks only and the selector label says
-        "final week pending" until it ends. Deliberate per Akshay (2026-07-02).
-        """
+        """Most recent month whose calendar days have all passed."""
         today = fields.Date.context_today(self)
         return self._awards_prev_month(date(today.year, today.month, 1))
 
-    def _awards_completed_weeks(self, month_first):
-        """The month's weeks that have fully ended.
+    def _awards_month_segments(self, month_first):
+        """The month's elapsed calendar days, split by ISO week.
 
-        A final week still in progress is excluded from the scoreboard and
-        drill-down domains; it joins automatically once it completes.
+        Returns [(week_monday, seg_start, seg_end)] covering every day from
+        the 1st through the last fully passed day (yesterday at the latest) —
+        actuals only, no waiting for the final week to end (per Akshay,
+        2026-07-03). The week Monday drives eligibility and the on-time
+        cutoff; the segment bounds clip timesheet lines and expected hours to
+        the calendar month.
         """
         today = fields.Date.context_today(self)
-        return [
-            week for week in self._awards_month_weeks(month_first)
-            if week + timedelta(days=6) < today
-        ]
+        end = min(self._awards_month_last_day(month_first), today - timedelta(days=1))
+        if end < month_first:
+            return []
+        segments = []
+        day = month_first
+        while day <= end:
+            week = self._ops_week_start(day)
+            seg_end = min(week + timedelta(days=6), end)
+            segments.append((week, day, seg_end))
+            day = seg_end + timedelta(days=1)
+        return segments
 
     def _awards_month_value(self, month_first):
         return "%04d-%02d" % (month_first.year, month_first.month)
@@ -114,16 +111,23 @@ class LinkederpDashboardOpsAwards(models.Model):
 
     def _awards_month_options(self):
         today = fields.Date.context_today(self)
-        month = self._awards_default_month()
         options = []
+        # The running month is offered as soon as it has one elapsed day; the
+        # default stays the last ended month (per Akshay, 2026-07-03).
+        current = date(today.year, today.month, 1)
+        if self._awards_month_segments(current):
+            options.append(
+                {
+                    "value": self._awards_month_value(current),
+                    "label": self._awards_month_label(current),
+                }
+            )
+        month = self._awards_default_month()
         for _i in range(MONTH_OPTIONS_COUNT):
-            label = self._awards_month_label(month)
-            if not self._awards_month_complete(month, today):
-                label = _("%s · final week pending") % label
             options.append(
                 {
                     "value": self._awards_month_value(month),
-                    "label": label,
+                    "label": self._awards_month_label(month),
                 }
             )
             month = self._awards_prev_month(month)
@@ -151,29 +155,87 @@ class LinkederpDashboardOpsAwards(models.Model):
         """Overall score out of 100: billability capped at 100, 50/50 with on-time."""
         return (min(bill_rate, 100.0) + ontime_rate) / 2.0
 
-    def _awards_scoreboard(self, month_first):
-        """Aggregate the weekly KPIs over the month's weeks.
+    def _awards_range_logged_by_user(self, seg_start, seg_end, billable_only=False):
+        """{user_id: logged project hours} for an arbitrary day range."""
+        domain = [
+            ("project_id", "!=", False),
+            ("date", ">=", fields.Date.to_string(seg_start)),
+            ("date", "<=", fields.Date.to_string(seg_end)),
+        ]
+        if billable_only:
+            domain.append(("timesheet_invoice_type", "!=", "non_billable"))
+        rows = self.env["account.analytic.line"].with_context(active_test=False).read_group(
+            domain, ["unit_amount:sum"], ["user_id"], lazy=False,
+        )
+        return {
+            row["user_id"][0]: (row.get("unit_amount") or 0.0)
+            for row in rows
+            if row.get("user_id")
+        }
 
-        Numerators and denominators are summed across weeks BEFORE dividing
-        (hour-weighted). Every squad appears in "teams" even with no members.
-        Employees need >= AWARDS_MIN_ELIGIBLE_WEEKS eligible weeks; exception
-        resources (expected = actual) are kept in team totals but dropped from
-        the employee list. Only fully-ended weeks count (an in-flight final
-        week is excluded until it completes).
+    def _awards_range_passrate_by_user(self, week_start, seg_start, seg_end, uids):
+        """({user_id: lines}, {user_id: on-time}) for lines dated in the
+        segment. The on-time cutoff stays the Monday after the segment's ISO
+        week; a cutoff still in the future simply passes everything logged so
+        far (actuals)."""
+        cutoff = week_start + timedelta(days=7)
+        base = [
+            ("project_id", "!=", False),
+            ("date", ">=", fields.Date.to_string(seg_start)),
+            ("date", "<=", fields.Date.to_string(seg_end)),
+        ]
+        if uids:
+            base = base + [("user_id", "in", uids)]
+        Line = self.env["account.analytic.line"].with_context(active_test=False)
+        totals = Line.read_group(base, ["__count"], ["user_id"], lazy=False)
+        on_time = Line.read_group(
+            base + [("create_date", "<=", "%s 23:59:59" % fields.Date.to_string(cutoff))],
+            ["__count"], ["user_id"], lazy=False,
+        )
+        total_by_user = {r["user_id"][0]: r.get("__count", 0) for r in totals if r.get("user_id")}
+        ontime_by_user = {r["user_id"][0]: r.get("__count", 0) for r in on_time if r.get("user_id")}
+        return total_by_user, ontime_by_user
+
+    def _awards_range_expected_by_user(self, seg_start, seg_end, emp_map):
+        """{user_id: expected hours} for an arbitrary day range (exception
+        resources: expected = actual logged hours in the same range)."""
+        if not emp_map:
+            return {}
+        employees = self.env["hr.employee"].browse([emp.id for emp in emp_map.values()])
+        by_emp = self._ops_employee_expected_hours(employees, seg_start, seg_end)
+        result = {uid: by_emp.get(emp.id, 0.0) for uid, emp in emp_map.items()}
+        exception_uids = self._ops_exception_user_ids(emp_map)
+        if exception_uids:
+            logged = self._awards_range_logged_by_user(seg_start, seg_end)
+            for uid in exception_uids:
+                result[uid] = logged.get(uid, 0.0)
+        return result
+
+    def _awards_scoreboard(self, month_first):
+        """Aggregate the KPIs over the month's elapsed calendar days.
+
+        Numerators and denominators are summed BEFORE dividing (hour-
+        weighted). The month is split into ISO-week segments clipped to its
+        calendar days (actuals through yesterday); each segment's week drives
+        eligibility and the on-time cutoff. Every squad appears in "teams"
+        even with no members. Employees need >= AWARDS_MIN_ELIGIBLE_WEEKS
+        eligible segments; exception resources (expected = actual) are kept
+        in team and org totals but dropped from the employee list. "org"
+        covers everyone eligible, squad-tagged or not.
         """
-        weeks = self._awards_completed_weeks(month_first)
+        segments = self._awards_month_segments(month_first)
         primary_map = self._ops_primary_employees()
         exception_uids = set(self._ops_exception_user_ids(primary_map))
 
         per_user = {}
-        for week in weeks:
+        for week, seg_start, seg_end in segments:
             emp_map = self._ops_eligible_employees(week, primary_map=primary_map)
             if not emp_map:
                 continue
             uids = list(emp_map.keys())
-            expected = self._ops_expected_hours_by_user(week, emp_map=emp_map)
-            billable = self._ops_logged_hours_by_user(week, billable_only=True)
-            totals, on_time = self._ops_passrate_counts_by_user(week, uids)
+            expected = self._awards_range_expected_by_user(seg_start, seg_end, emp_map)
+            billable = self._awards_range_logged_by_user(seg_start, seg_end, billable_only=True)
+            totals, on_time = self._awards_range_passrate_by_user(week, seg_start, seg_end, uids)
             for uid in uids:
                 rec = per_user.setdefault(
                     uid,
@@ -223,9 +285,15 @@ class LinkederpDashboardOpsAwards(models.Model):
         for index, team in enumerate(teams):
             team["rank"] = index + 1
 
+        # A young running month cannot offer AWARDS_MIN_ELIGIBLE_WEEKS segments
+        # yet — require at most what the period contains, so the employee
+        # standings are never structurally empty while the KPIs show data.
+        # Ended months always have >= 4 segments, so their rule is unchanged.
+        min_segments = min(AWARDS_MIN_ELIGIBLE_WEEKS, len(segments)) or AWARDS_MIN_ELIGIBLE_WEEKS
+
         employees = []
         for uid, rec in per_user.items():
-            if uid in exception_uids or rec["weeks"] < AWARDS_MIN_ELIGIBLE_WEEKS:
+            if uid in exception_uids or rec["weeks"] < min_segments:
                 continue
             employee = primary_map.get(uid)
             bill, ontime = rates(rec["expected"], rec["billable"], rec["lines"], rec["on_time"])
@@ -243,11 +311,20 @@ class LinkederpDashboardOpsAwards(models.Model):
         for index, employee in enumerate(employees):
             employee["rank"] = index + 1
 
+        org = {"expected": 0.0, "billable": 0.0, "lines": 0, "on_time": 0}
+        for rec in per_user.values():
+            org["expected"] += rec["expected"]
+            org["billable"] += rec["billable"]
+            org["lines"] += rec["lines"]
+            org["on_time"] += rec["on_time"]
+        org["uids"] = sorted(per_user)
+
         return {
             "month_first": month_first,
-            "weeks": weeks,
+            "segments": segments,
             "teams": teams,
             "employees": employees,
+            "org": org,
         }
 
     # ------------------------------------------------------------------
@@ -260,14 +337,14 @@ class LinkederpDashboardOpsAwards(models.Model):
         return "%s%%" % self._ops_short_hours(value)
 
     def _awards_month_domain(self, month_first, uids=None):
-        """Timesheet-line domain covering the month's completed weeks."""
-        weeks = self._awards_completed_weeks(month_first)
-        if not weeks:
+        """Timesheet-line domain covering the month's elapsed calendar days."""
+        segments = self._awards_month_segments(month_first)
+        if not segments:
             return []
         domain = [
             ("project_id", "!=", False),
-            ("date", ">=", fields.Date.to_string(weeks[0])),
-            ("date", "<=", fields.Date.to_string(weeks[-1] + timedelta(days=6))),
+            ("date", ">=", fields.Date.to_string(segments[0][1])),
+            ("date", "<=", fields.Date.to_string(segments[-1][2])),
         ]
         if uids:
             domain.append(("user_id", "in", uids))
@@ -346,6 +423,53 @@ class LinkederpDashboardOpsAwards(models.Model):
         )
 
         widgets = []
+
+        # Overall KPIs (top row, extreme left) -------------------------------
+        org = board["org"]
+        org_exp_bill = org["expected"] * BILLABLE_SHARE
+        org_bill = round(org["billable"] / org_exp_bill * 100, 1) if org_exp_bill else 0.0
+        org_late = org["lines"] - org["on_time"]
+        org_fail = round(org_late / org["lines"] * 100, 1) if org["lines"] else 0.0
+        org_uids = org["uids"] or [0]
+
+        bill_kpi = self._awards_base_widget(
+            "awards_overall_bill", _("Overall Billability"), "kpi", 2,
+            _("all ops · target 75%"),
+        )
+        bill_kpi.update(
+            {
+                "value": float(org_bill),
+                "format": "percent",
+                "measure": _("%(billable)s / %(target)s hrs billable") % {
+                    "billable": self._ops_short_hours(org["billable"]),
+                    "target": self._ops_short_hours(org_exp_bill),
+                },
+                "color": self._ops_trend_color(org_bill),
+                "domain": self._json_safe(
+                    self._awards_month_domain(month_first, org_uids)
+                    + [("timesheet_invoice_type", "!=", "non_billable")]
+                ),
+            }
+        )
+        widgets.append(bill_kpi)
+
+        fail_kpi = self._awards_base_widget(
+            "awards_overall_fail", _("Overall Time Entry Failure"), "kpi", 2,
+            _("all ops · share of late entries"),
+        )
+        fail_kpi.update(
+            {
+                "value": float(org_fail),
+                "format": "percent",
+                "measure": _("%(late)s of %(total)s entries late") % {
+                    "late": org_late,
+                    "total": org["lines"],
+                },
+                "color": self._weekly_fail_color(org_fail),
+                "domain": self._json_safe(self._awards_month_domain(month_first, org_uids)),
+            }
+        )
+        widgets.append(fail_kpi)
 
         # Hero cards -------------------------------------------------------
         top_team = board["teams"][0] if board["teams"] else None
