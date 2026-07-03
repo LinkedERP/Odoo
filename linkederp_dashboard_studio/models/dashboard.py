@@ -2,7 +2,7 @@ import ast
 from datetime import date, datetime, timedelta
 
 from odoo import api, fields, models, _
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import UserError
 from odoo.osv import expression
 
 DASHBOARD_BUCKETS = [
@@ -94,6 +94,10 @@ class LinkederpDashboard(models.Model):
 
     def _current_user_groups(self):
         user = self.env.user
+        # Prefer the implied-groups closure (Odoo 19) so memberships granted
+        # via group inheritance count as well.
+        if "all_group_ids" in user._fields:
+            return user.all_group_ids
         if "groups_id" in user._fields:
             return user.groups_id
         if "group_ids" in user._fields:
@@ -110,7 +114,10 @@ class LinkederpDashboard(models.Model):
         if dashboard_id:
             dashboard = self.browse(int(dashboard_id)).exists()
             if not dashboard or dashboard.id not in dashboards.ids:
-                raise AccessError(_("You do not have access to this dashboard."))
+                # Stale saved selection, archived dashboard, or revoked
+                # access: fall back to the first visible dashboard instead
+                # of failing the whole page.
+                dashboard = dashboards[:1]
         else:
             dashboard = dashboards[:1]
 
