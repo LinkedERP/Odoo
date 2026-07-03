@@ -180,11 +180,6 @@
                                             <polyline class="o_lds_trend_line" t-att-points="trendLinePoints(widget)"/>
                                         </svg>
                                     </div>
-                                    <div class="o_lds_trend_labels">
-                                        <t t-foreach="widget.points" t-as="point" t-key="point.label">
-                                            <span t-esc="point.label"/>
-                                        </t>
-                                    </div>
                                 </div>
                             </button>
                         </t>

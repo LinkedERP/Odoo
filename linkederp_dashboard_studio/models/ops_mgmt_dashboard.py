@@ -74,10 +74,12 @@ class LinkederpDashboardOpsMgmt(models.Model):
     # Monthly series (grouping the weekly org series by month)
     # ------------------------------------------------------------------
     def _mgmt_monthly_recs(self, team=False):
-        """([(month, "Jan", rec)], ytd_rec) — weekly recs grouped by the month
-        of each ISO week's Monday; YTD = sum over all YTD weeks. `team`
-        narrows the scope to one squad (org-wide when falsy)."""
+        """([((year, month), "Jan", rec)], ytd_rec) — weekly recs grouped by
+        the month of each ISO week's Monday, CHRONOLOGICALLY (the ISO year's
+        W01 can start in the previous December — that spillover sorts first
+        and is labelled e.g. "Dec '25"). `team` narrows to one squad."""
         series = self._weekly_series()
+        this_year = fields.Date.context_today(self).year
 
         def scope(week):
             entry = series["by_week"][week]
@@ -87,11 +89,15 @@ class LinkederpDashboardOpsMgmt(models.Model):
 
         by_month = {}
         for week in series["weeks"]:
-            by_month.setdefault(week.month, []).append(scope(week))
-        monthly = [
-            (month, MONTH_LABELS[month - 1], self._weekly_sum(by_month[month]))
-            for month in sorted(by_month)
-        ]
+            by_month.setdefault((week.year, week.month), []).append(scope(week))
+        monthly = []
+        for key in sorted(by_month):
+            year, month = key
+            label = MONTH_LABELS[month - 1]
+            if year != this_year:
+                label = _("%(month)s '%(yy)02d") % {
+                    "month": label, "yy": year % 100}
+            monthly.append((key, label, self._weekly_sum(by_month[key])))
         ytd = self._weekly_sum([scope(w) for w in series["weeks"]])
         return monthly, ytd
 
@@ -173,6 +179,14 @@ class LinkederpDashboardOpsMgmt(models.Model):
                     # does not offset other projects' unbilled cost.
                     stats["wip"] = (stats.get("wip", 0.0)
                                     + max(fin["cost"] - fin["invoiced"], 0.0))
+                    stats.setdefault("open_rows", []).append({
+                        "id": project.id,
+                        "name": project.name,
+                        "company": project.company_id.name or "",
+                        "so_amount": fin["so_amount"],
+                        "invoiced": fin["invoiced"],
+                        "cost": fin["cost"],
+                    })
             if customer_pnl is not None:
                 partner = (project.sale_order_id.partner_id
                            if project.sale_order_id else project.partner_id)
@@ -269,6 +283,80 @@ class LinkederpDashboardOpsMgmt(models.Model):
             "rows": rows, "columns": columns, "span": 12, "error": False,
         }
 
+    def _mgmt_months_table(self, wid, name, monthly, kind, help_text):
+        """Popup matrix: one row per month for accuracy or billability."""
+        rows = []
+        for _key, label, rec in monthly:
+            if kind == "accuracy":
+                rate = self._mgmt_accuracy_rate(rec)
+                rows.append({
+                    "label": label, "domain": [],
+                    "a": "%d" % rec["lines"],
+                    "b": "%d" % (rec["lines"] - rec["late"]),
+                    "c": self._ops_pct_text(rate),
+                    "tones": {"c": "good" if rate >= ACCURACY_TARGET
+                              else "warn" if rate >= ACCURACY_AMBER_FROM else "bad"},
+                })
+            else:
+                rate = self._weekly_bill_rate(rec)
+                rows.append({
+                    "label": label, "domain": [],
+                    "a": self._ops_short_hours(rec["billable"]),
+                    "b": self._ops_short_hours(rec["exp_bill"]),
+                    "c": self._ops_pct_text(rate),
+                    "tones": {"c": "good" if rate >= TREND_TARGET
+                              else "warn" if rate >= BILL_AMBER_FROM else "bad"},
+                })
+        if kind == "accuracy":
+            columns = [
+                {"key": "a", "label": _("Lines"), "format": "text"},
+                {"key": "b", "label": _("On time"), "format": "text"},
+                {"key": "c", "label": _("Accuracy"), "format": "money"},
+            ]
+        else:
+            columns = [
+                {"key": "a", "label": _("Billable h"), "format": "text"},
+                {"key": "b", "label": _("Expected billable h"), "format": "text"},
+                {"key": "c", "label": _("Billability"), "format": "money"},
+            ]
+        table = self._mgmt_matrix(wid, name, rows, columns, help_text)
+        table["groupby"] = _("Month")
+        return table
+
+    def _mgmt_money_list_table(self, wid, name, entries, usd, value_key,
+                               value_label, help_text):
+        """Popup matrix: open projects with SO / invoiced / cost and one
+        derived money column (backlog or wip), sorted by it, plus a Total."""
+        entries = sorted(entries, key=lambda e: -e[value_key])
+        rows = []
+        total = 0.0
+        for e in entries:
+            total += e[value_key]
+            rows.append({
+                "label": e["name"],
+                "domain": self._json_safe([("id", "=", e["id"])]),
+                "company": e["company"],
+                "so": self._ops_money(e["so_amount"], usd),
+                "inv": self._ops_money(e["invoiced"], usd),
+                "cost": self._ops_money(e["cost"], usd),
+                "val": self._ops_money(e[value_key], usd),
+                "tones": {"val": "good" if e[value_key] >= 0 else "bad"},
+            })
+        rows.append({
+            "label": _("Total (%s projects)") % len(entries),
+            "domain": [], "company": "",
+            "so": "", "inv": "", "cost": "",
+            "val": self._ops_money(total, usd),
+            "tones": {},
+        })
+        return self._mgmt_matrix(wid, name, rows, [
+            {"key": "company", "label": _("Company"), "format": "text"},
+            {"key": "so", "label": _("SO Amount (USD)"), "format": "money"},
+            {"key": "inv", "label": _("Invoiced (USD)"), "format": "money"},
+            {"key": "cost", "label": _("Cost (USD)"), "format": "money"},
+            {"key": "val", "label": value_label, "format": "money"},
+        ], help_text)
+
     def _mgmt_dashboard_widgets(self, date_from=False, date_to=False, filters=False):
         team = self._mgmt_selected_team(filters)
         team_label = dict(self._awards_team_labels()).get(team) if team else ""
@@ -363,7 +451,12 @@ class LinkederpDashboardOpsMgmt(models.Model):
                 "mgmt_accuracy", _("Time Entry Accuracy (YTD)"), accuracy, "percent",
                 _("%(on)s of %(lines)s lines on time") % {
                     "on": ytd["lines"] - ytd["late"], "lines": ytd["lines"]},
-                "#2563eb", pass_rule + scope_note, points=acc_points),
+                "#2563eb", pass_rule + scope_note
+                + _(" Click to see the month-by-month table."),
+                points=acc_points,
+                modal_table=self._mgmt_months_table(
+                    "mgmt_accuracy_months", _("Time Entry Accuracy by Month"),
+                    monthly, "accuracy", pass_rule + scope_note)),
             self._mgmt_kpi(
                 "mgmt_billability", _("Billability (YTD)"), billability, "percent",
                 _("%(bill)s of %(exp)s expected billable h") % {
@@ -371,8 +464,13 @@ class LinkederpDashboardOpsMgmt(models.Model):
                     "exp": self._ops_short_hours(ytd["exp_bill"])},
                 "#059669",
                 _("Billable hours vs expected billable (75%% of expected hours; "
-                  "exception resources count actual as expected).") + scope_note,
-                points=bil_points),
+                  "exception resources count actual as expected).") + scope_note
+                + _(" Click to see the month-by-month table."),
+                points=bil_points,
+                modal_table=self._mgmt_months_table(
+                    "mgmt_billability_months", _("Billability by Month"),
+                    monthly, "billability",
+                    _("Billable vs expected billable per month.") + scope_note)),
             self._mgmt_kpi(
                 "mgmt_closed_pnl", _("Closed Project P&L (USD)"), closed_pnl, "usd",
                 _("%(prof)s profitability · %(n)s projects") % {
@@ -433,16 +531,34 @@ class LinkederpDashboardOpsMgmt(models.Model):
                     "#2563eb",
                     _("Open SO-linked projects: SO amount minus invoiced — "
                       "work already sold that still has to be delivered and "
-                      "billed.%(scope)s%(note)s")
-                    % {"scope": project_scope_note, "note": usd_note}),
+                      "billed. Click for the per-project list.%(scope)s%(note)s")
+                    % {"scope": project_scope_note, "note": usd_note},
+                    modal_table=self._mgmt_money_list_table(
+                        "mgmt_backlog_projects", _("Backlog by Project (USD)"),
+                        [dict(e, backlog=e["so_amount"] - e["invoiced"])
+                         for e in stats.get("open_rows", [])],
+                        usd, "backlog", _("Backlog (USD)"),
+                        _("SO amount minus invoiced per open project."
+                          "%(scope)s%(note)s")
+                        % {"scope": project_scope_note, "note": usd_note})),
                 self._mgmt_kpi(
                     "mgmt_wip", _("Unbilled Work / WIP (USD)"), wip, "usd",
                     _("cost burned, awaiting invoicing"),
                     "#b45309",
                     _("Open projects where cost to date exceeds what has been "
                       "invoiced (floored at zero per project) — money spent "
-                      "that is not yet billed.%(scope)s%(note)s")
-                    % {"scope": project_scope_note, "note": usd_note}),
+                      "that is not yet billed. Click for the per-project "
+                      "list.%(scope)s%(note)s")
+                    % {"scope": project_scope_note, "note": usd_note},
+                    modal_table=self._mgmt_money_list_table(
+                        "mgmt_wip_projects", _("Unbilled Work by Project (USD)"),
+                        [dict(e, wip=e["cost"] - e["invoiced"])
+                         for e in stats.get("open_rows", [])
+                         if e["cost"] - e["invoiced"] > 0.005],
+                        usd, "wip", _("Unbilled (USD)"),
+                        _("Cost to date minus invoiced, per open project with "
+                          "unbilled cost.%(scope)s%(note)s")
+                        % {"scope": project_scope_note, "note": usd_note})),
                 self._mgmt_customer_bar(
                     "mgmt_top_profit_customers",
                     _("Top 5 Profitable Customers (USD)"), top5,
