@@ -70,13 +70,27 @@ class LinkederpDashboard(models.Model):
     )
 
     def _visible_to_current_user(self):
-        user_groups = self._current_user_groups()
-        if not user_groups:
+        if self.env.su or self.env.user.has_group(MANAGER_GROUP_XMLID):
             return self
-        return self.filtered(
-            lambda dashboard: not dashboard.allowed_group_ids
-            or bool(dashboard.allowed_group_ids & user_groups)
-        )
+        user_groups = self._current_user_groups()
+        bucket_groups = self._bucket_groups()
+
+        def visible(dashboard):
+            bucket_group = bucket_groups.get(dashboard.bucket)
+            if bucket_group and bucket_group in user_groups:
+                return True
+            return bool(dashboard.allowed_group_ids & user_groups)
+
+        return self.filtered(visible)
+
+    @api.model
+    def _bucket_groups(self):
+        groups = {}
+        for key, xmlid in BUCKET_GROUP_XMLIDS.items():
+            group = self.env.ref(xmlid, raise_if_not_found=False)
+            if group:
+                groups[key] = group
+        return groups
 
     def _current_user_groups(self):
         user = self.env.user
