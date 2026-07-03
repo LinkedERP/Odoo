@@ -114,6 +114,11 @@ class LinkederpDashboard(models.Model):
         else:
             dashboard = dashboards[:1]
 
+        # Visibility was checked above as the real user; the numbers are
+        # computed with elevated rights so every allowed viewer sees the
+        # same figures regardless of their own record rules.
+        dashboard = dashboard.sudo()
+
         filter_domain = dashboard._crm_filter_domain(filters) if dashboard else []
         widgets = []
         if dashboard:
