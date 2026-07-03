@@ -172,6 +172,13 @@ class LinkederpDashboardOpsMgmt(models.Model):
             if stats is not None:
                 stats["invoiced"] = stats.get("invoiced", 0.0) + fin["invoiced"]
                 stats["hours"] = stats.get("hours", 0.0) + fin["actual_hours"]
+                stats.setdefault("all_rows", []).append({
+                    "id": project.id,
+                    "name": project.name,
+                    "company": project.company_id.name or "",
+                    "invoiced": fin["invoiced"],
+                    "hours": fin["actual_hours"],
+                })
                 if not closed:
                     stats["backlog"] = (stats.get("backlog", 0.0)
                                         + fin["so_amount"] - fin["invoiced"])
@@ -355,6 +362,67 @@ class LinkederpDashboardOpsMgmt(models.Model):
             {"key": "inv", "label": _("Invoiced (USD)"), "format": "money"},
             {"key": "cost", "label": _("Cost (USD)"), "format": "money"},
             {"key": "val", "label": value_label, "format": "money"},
+        ], help_text)
+
+    def _mgmt_ehr_table(self, wid, name, entries, usd, help_text):
+        """Popup: effective rate per project (invoiced / hours worked)."""
+        entries = [e for e in entries if e["hours"] > 0.005]
+        entries.sort(key=lambda e: -(e["invoiced"] / e["hours"]))
+        rows = []
+        tot_inv = tot_hrs = 0.0
+        for e in entries:
+            rate = e["invoiced"] / e["hours"]
+            tot_inv += e["invoiced"]
+            tot_hrs += e["hours"]
+            rows.append({
+                "label": e["name"],
+                "domain": self._json_safe([("id", "=", e["id"])]),
+                "company": e["company"],
+                "inv": self._ops_money(e["invoiced"], usd),
+                "hrs": self._ops_short_hours(e["hours"]),
+                "rate": self._ops_money(rate, usd),
+                "tones": {},
+            })
+        rows.append({
+            "label": _("Total (%s projects)") % len(entries),
+            "domain": [], "company": "",
+            "inv": self._ops_money(tot_inv, usd),
+            "hrs": self._ops_short_hours(tot_hrs),
+            "rate": self._ops_money(tot_inv / tot_hrs if tot_hrs else 0.0, usd),
+            "tones": {},
+        })
+        return self._mgmt_matrix(wid, name, rows, [
+            {"key": "company", "label": _("Company"), "format": "text"},
+            {"key": "inv", "label": _("Invoiced (USD)"), "format": "money"},
+            {"key": "hrs", "label": _("Hours"), "format": "money"},
+            {"key": "rate", "label": _("USD / h"), "format": "money"},
+        ], help_text)
+
+    def _mgmt_concentration_table(self, wid, name, customer_pnl, usd, help_text):
+        """Popup: revenue share per customer, biggest first."""
+        entries = sorted(customer_pnl.items(),
+                         key=lambda kv: -kv[1]["revenue"])
+        total = sum(rec["revenue"] for _k, rec in entries) or 1.0
+        rows = []
+        for index, (label, rec) in enumerate(entries):
+            share = rec["revenue"] / total * 100
+            rows.append({
+                "label": label,
+                "domain": self._json_safe([("id", "in", rec["ids"])]),
+                "rev": self._ops_money(rec["revenue"], usd),
+                "share": self._ops_pct_text(share),
+                "tones": {"share": "warn" if index < 3 else ""},
+            })
+        rows.append({
+            "label": _("Total (%s customers)") % len(entries),
+            "domain": [],
+            "rev": self._ops_money(total, usd),
+            "share": self._ops_pct_text(100.0),
+            "tones": {},
+        })
+        return self._mgmt_matrix(wid, name, rows, [
+            {"key": "rev", "label": _("Revenue (USD)"), "format": "money"},
+            {"key": "share", "label": _("Share"), "format": "money"},
         ], help_text)
 
     def _mgmt_dashboard_widgets(self, date_from=False, date_to=False, filters=False):
@@ -571,9 +639,16 @@ class LinkederpDashboardOpsMgmt(models.Model):
                         "names": ", ".join(top3_names) or "—"},
                     "#7c3aed",
                     _("Share of total revenue (invoiced + SO) held by the "
-                      "three biggest customers — dependency risk."
-                      "%(scope)s%(note)s")
-                    % {"scope": project_scope_note, "note": usd_note}),
+                      "three biggest customers — dependency risk. Click for "
+                      "the revenue share per customer.%(scope)s%(note)s")
+                    % {"scope": project_scope_note, "note": usd_note},
+                    modal_table=self._mgmt_concentration_table(
+                        "mgmt_concentration_customers",
+                        _("Revenue Share by Customer (USD)"), customer_pnl, usd,
+                        _("Invoiced + SO revenue per customer; the top 3 "
+                          "(highlighted) drive the concentration KPI."
+                          "%(scope)s%(note)s")
+                        % {"scope": project_scope_note, "note": usd_note})),
                 self._mgmt_kpi(
                     "mgmt_ehr", _("Effective Hourly Rate"),
                     ehr, "usd",
@@ -583,8 +658,16 @@ class LinkederpDashboardOpsMgmt(models.Model):
                     "#059669",
                     _("Invoiced USD across all projects in scope divided by "
                       "the hours worked on them — what an hour of our work "
-                      "actually earns.%(scope)s%(note)s")
-                    % {"scope": project_scope_note, "note": usd_note}),
+                      "actually earns. Click for the rate per project."
+                      "%(scope)s%(note)s")
+                    % {"scope": project_scope_note, "note": usd_note},
+                    modal_table=self._mgmt_ehr_table(
+                        "mgmt_ehr_projects",
+                        _("Effective Hourly Rate by Project (USD)"),
+                        stats.get("all_rows", []), usd,
+                        _("Invoiced divided by hours worked, per project "
+                          "(projects with no hours excluded).%(scope)s%(note)s")
+                        % {"scope": project_scope_note, "note": usd_note})),
                 self._mgmt_customer_bar(
                     "mgmt_bottom_customers",
                     _("Bottom 5 Customers (USD)"), bottom5,
