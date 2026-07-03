@@ -1011,6 +1011,165 @@
         font-size: 11px;
     }
 
+    .o_lds_widget_dualtrend {
+        grid-column: span 12;
+        min-height: 260px;
+    }
+
+    .o_lds_dual_legend {
+        display: flex;
+        justify-content: flex-end;
+        gap: 16px;
+        margin-bottom: 4px;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 700;
+
+        span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+    }
+
+    .o_lds_dual_key {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+
+    .o_lds_dual_key_fail {
+        background: #2563eb;
+    }
+
+    .o_lds_dual_key_bill {
+        background: #059669;
+    }
+
+    .o_lds_dual_plot {
+        position: relative;
+        height: 168px;
+    }
+
+    .o_lds_dual_svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+
+    .o_lds_dual_line_fail {
+        fill: none;
+        stroke: #2563eb;
+        stroke-width: 2;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+    }
+
+    .o_lds_dual_line_bill {
+        fill: none;
+        stroke: #059669;
+        stroke-width: 2;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+    }
+
+    .o_lds_dual_dot {
+        position: absolute;
+        width: 9px;
+        height: 9px;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        cursor: pointer;
+    }
+
+    .o_lds_dual_dot_fail {
+        background: #2563eb;
+    }
+
+    .o_lds_dual_dot_bill {
+        background: #059669;
+    }
+
+    .o_lds_dual_selected {
+        box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #0f172a;
+    }
+
+    .o_lds_dual_lbl {
+        position: absolute;
+        transform: translate(-50%, -20px);
+        font-size: 10px;
+        font-weight: 700;
+        pointer-events: none;
+    }
+
+    .o_lds_dual_lbl_fail {
+        transform: translate(-50%, 8px);
+        color: #2563eb;
+    }
+
+    .o_lds_dual_lbl_bill {
+        color: #059669;
+    }
+
+    .o_lds_dual_weeks {
+        position: relative;
+        height: 16px;
+        margin-top: 4px;
+
+        span {
+            position: absolute;
+            transform: translateX(-50%);
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 700;
+        }
+    }
+
+    .o_lds_widget_chips {
+        grid-column: span 12;
+        min-height: 0;
+        padding: 12px 18px;
+    }
+
+    .o_lds_chips {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .o_lds_chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 14px;
+        border: 1px solid #dde3ea;
+        border-radius: 999px;
+        background: #ffffff;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .o_lds_chip_good {
+        border-color: #a7f3d0;
+        background: #ecfdf5;
+        color: #047857;
+    }
+
+    .o_lds_chip_accent {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+
+    .o_lds_chip_clear {
+        cursor: pointer;
+    }
+
     .o_lds_tooltip {
         position: fixed;
         z-index: 1080;
@@ -1085,6 +1244,8 @@
         .o_lds_widget_matrix,
         .o_lds_widget_funnel,
         .o_lds_widget_donut,
+        .o_lds_widget_dualtrend,
+        .o_lds_widget_chips,
         .o_lds_widget_awardcard,
         .o_lds_widget_podium,
         .o_lds_span_2,
@@ -1125,6 +1286,8 @@
         .o_lds_widget_matrix,
         .o_lds_widget_funnel,
         .o_lds_widget_donut,
+        .o_lds_widget_dualtrend,
+        .o_lds_widget_chips,
         .o_lds_widget_awardcard,
         .o_lds_widget_podium,
         .o_lds_span_2,
