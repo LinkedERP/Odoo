@@ -127,7 +127,6 @@
             <div t-else="" class="o_lds_grid">
                 <t t-foreach="state.widgets" t-as="widget" t-key="widget.id">
                     <section
-                        t-att-data-widget-id="widget.id"
                         t-att-class="'o_lds_widget o_lds_widget_' + widget.type + (widget.span ? ' o_lds_span_' + widget.span : '')"
                         t-att-style="'--lds-accent:' + (widget.color || '#2563eb')">
                         <header t-if="widget.type !== 'trendline' &amp;&amp; widget.type !== 'chips'" class="o_lds_widget_header">
@@ -493,31 +492,7 @@
                         </t>
 
                         <t t-elif="widget.type === 'matrix'">
-                            <div t-att-class="'o_lds_matrix_wrap' + (widget.compact ? ' o_lds_matrix_compact' : '')">
-                                <table class="table table-sm">
-                                    <thead>
-                                        <tr>
-                                            <th class="text-start" t-esc="widget.groupby"/>
-                                            <t t-foreach="widget.columns" t-as="column" t-key="column.key">
-                                                <th t-att-class="matrixCellAlign(column)" t-esc="column.label"/>
-                                            </t>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <t t-foreach="widget.rows" t-as="row" t-key="row.label">
-                                            <tr t-on-click="() => openRecords(widget.model, row.domain)">
-                                                <td class="text-start">
-                                                    <span t-esc="row.label"/>
-                                                    <small t-if="row.sub" class="o_lds_row_sub" t-esc="row.sub"/>
-                                                </td>
-                                                <t t-foreach="widget.columns" t-as="column" t-key="column.key">
-                                                    <td t-att-class="matrixCellAlign(column) + matrixCellTone(row, column)" t-esc="matrixCellValue(row, column)"/>
-                                                </t>
-                                            </tr>
-                                        </t>
-                                    </tbody>
-                                </table>
-                            </div>
+                            <t t-call="linkederp_dashboard_studio.MatrixTable"/>
                         </t>
 
                         <t t-elif="widget.type === 'table'">
@@ -576,6 +551,52 @@
                     </tbody>
                 </table>
             </div>
+
+            <div t-if="state.modal" class="o_lds_modal_backdrop" t-on-click="onModalBackdropClick">
+                <div class="o_lds_modal" t-att-style="'--lds-accent:' + (state.modal.color || '#2563eb')">
+                    <header class="o_lds_modal_header">
+                        <div>
+                            <h2 t-esc="state.modal.name"/>
+                            <span t-if="state.modal.help" t-esc="state.modal.help"/>
+                        </div>
+                        <button class="btn btn-sm btn-link o_lds_modal_close" type="button" t-on-click="closeModal" title="Close">
+                            <i class="fa fa-times"/>
+                        </button>
+                    </header>
+                    <div class="o_lds_modal_body">
+                        <t t-set="widget" t-value="state.modal"/>
+                        <t t-call="linkederp_dashboard_studio.MatrixTable"/>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+
+    <t t-name="linkederp_dashboard_studio.MatrixTable">
+        <div t-att-class="'o_lds_matrix_wrap' + (widget.compact ? ' o_lds_matrix_compact' : '')">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th class="text-start" t-esc="widget.groupby"/>
+                        <t t-foreach="widget.columns" t-as="column" t-key="column.key">
+                            <th t-att-class="matrixCellAlign(column)" t-esc="column.label"/>
+                        </t>
+                    </tr>
+                </thead>
+                <tbody>
+                    <t t-foreach="widget.rows" t-as="row" t-key="row.label">
+                        <tr t-on-click="() => openRecords(widget.model, row.domain)">
+                            <td class="text-start">
+                                <span t-esc="row.label"/>
+                                <small t-if="row.sub" class="o_lds_row_sub" t-esc="row.sub"/>
+                            </td>
+                            <t t-foreach="widget.columns" t-as="column" t-key="column.key">
+                                <td t-att-class="matrixCellAlign(column) + matrixCellTone(row, column)" t-esc="matrixCellValue(row, column)"/>
+                            </t>
+                        </tr>
+                    </t>
+                </tbody>
+            </table>
         </div>
     </t>
 </templates>

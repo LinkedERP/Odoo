@@ -33,6 +33,7 @@ export class LinkedERPDashboardAction extends Component {
             awardsFilters: { enabled: false },
             weeklyFilters: { enabled: false },
             mgmtFilters: { enabled: false },
+            modal: false,
             filters: this.defaultFilters(),
             tooltip: { visible: false, x: 0, y: 0, title: "", detail: null },
             initialDashboardId,
@@ -46,6 +47,8 @@ export class LinkedERPDashboardAction extends Component {
             "onDashboardChange",
             "bucketGroups",
             "onKpiClick",
+            "closeModal",
+            "onModalBackdropClick",
             "applyFilters",
             "resetFilters",
             "setFilter",
@@ -128,18 +131,21 @@ export class LinkedERPDashboardAction extends Component {
     }
 
     onKpiClick(widget) {
-        if (widget.jump_to) {
-            const target = document.querySelector(`[data-widget-id="${widget.jump_to}"]`);
-            if (target) {
-                target.scrollIntoView({ behavior: "smooth", block: "start" });
-                target.classList.remove("o_lds_flash");
-                void target.offsetWidth;
-                target.classList.add("o_lds_flash");
-                window.setTimeout(() => target.classList.remove("o_lds_flash"), 1700);
-                return;
-            }
+        if (widget.modal_table) {
+            this.state.modal = widget.modal_table;
+            return;
         }
         this.openRecords(widget.model, widget.domain);
+    }
+
+    closeModal() {
+        this.state.modal = false;
+    }
+
+    onModalBackdropClick(ev) {
+        if (ev.target === ev.currentTarget) {
+            this.closeModal();
+        }
     }
 
     bucketGroups() {
@@ -162,6 +168,7 @@ export class LinkedERPDashboardAction extends Component {
 
     async load(dashboardId) {
         this.state.loading = true;
+        this.state.modal = false;
         try {
             const targetDashboardId = dashboardId || this.savedDashboardId();
             const payload = await this.orm.call(

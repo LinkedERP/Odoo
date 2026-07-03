@@ -1326,16 +1326,59 @@
     }
 }
 
-// Flash highlight when a KPI card jumps to its linked table.
-.o_lds_widget.o_lds_flash {
-    animation: o-lds-flash 1.6s ease-out;
+// KPI-card popup: a project table opened over the dashboard.
+.o_lds_modal_backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1056;
+    background: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
 }
 
-@keyframes o-lds-flash {
-    0% {
-        box-shadow: 0 0 0 4px var(--lds-accent);
+.o_lds_modal {
+    background: #fff;
+    border-radius: 12px;
+    border-top: 4px solid var(--lds-accent, #2563eb);
+    box-shadow: 0 24px 64px rgba(2, 6, 23, 0.35);
+    width: min(1100px, 96vw);
+    max-height: 86vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.o_lds_modal_header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 20px 8px;
+
+    h2 {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 600;
     }
-    100% {
-        box-shadow: 0 0 0 0 transparent;
+
+    span {
+        color: #64748b;
+        font-size: 0.85rem;
+    }
+}
+
+.o_lds_modal_close {
+    color: #64748b;
+    font-size: 1.1rem;
+}
+
+.o_lds_modal_body {
+    padding: 0 20px 20px;
+    overflow: auto;
+
+    .o_lds_matrix_wrap {
+        min-width: 0;
     }
 }

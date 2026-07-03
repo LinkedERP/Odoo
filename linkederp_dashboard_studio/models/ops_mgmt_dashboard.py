@@ -161,7 +161,7 @@ class LinkederpDashboardOpsMgmt(models.Model):
     # Widget builders
     # ------------------------------------------------------------------
     def _mgmt_kpi(self, wid, name, value, fmt, caption, color, help_text,
-                  jump_to=False):
+                  modal_table=False):
         return {
             "id": wid, "name": name, "type": "kpi",
             "model": "project.project", "mode": "computed",
@@ -169,9 +169,9 @@ class LinkederpDashboardOpsMgmt(models.Model):
             "help": help_text, "value": float(value), "format": fmt,
             "domain": [], "points": [], "rows": [], "columns": [],
             "span": 3, "error": False,
-            # Clicking the card scrolls to this widget id instead of opening
-            # a record list.
-            "jump_to": jump_to,
+            # Clicking the card opens this matrix in a popup instead of a
+            # record list.
+            "modal_table": modal_table,
         }
 
     def _mgmt_trend(self, wid, name, points, target, help_text):
@@ -239,6 +239,36 @@ class LinkederpDashboardOpsMgmt(models.Model):
         closed_prof = (closed_pnl / closed_rev * 100) if closed_rev else None
         open_pnl = open_rev - open_cost
 
+        closed_matrix = open_matrix = False
+        if has_projects:
+            closed_matrix = self._mgmt_matrix(
+                "mgmt_closed_projects", _("Closed Projects %s (P&L)") % year,
+                closed_rows + [closed_total],
+                [
+                    {"key": "company", "label": _("Company"), "format": "text"},
+                    {"key": "end", "label": _("End"), "format": "text"},
+                    {"key": "revenue", "label": _("Invoiced (USD)"), "format": "money"},
+                    {"key": "cost", "label": _("Actual Cost (USD)"), "format": "money"},
+                    {"key": "pnl", "label": _("P&L (USD)"), "format": "money"},
+                    {"key": "prof", "label": _("% Prof (Inv)"), "format": "money"},
+                ],
+                _("Amounts in USD at today's rates.%s") % usd_note)
+            open_matrix = self._mgmt_matrix(
+                "mgmt_open_projects", _("Open Projects (P&L to date)"),
+                open_rows + [open_total],
+                [
+                    {"key": "company", "label": _("Company"), "format": "text"},
+                    {"key": "stage", "label": _("Stage"), "format": "text"},
+                    {"key": "revenue", "label": _("SO Amount (USD)"), "format": "money"},
+                    {"key": "cost", "label": _("Actual Cost (USD)"), "format": "money"},
+                    {"key": "pnl", "label": _("P&L (USD)"), "format": "money"},
+                    {"key": "prof", "label": _("% Prof (SO)"), "format": "money"},
+                ],
+                _("Excludes Done / On Hold / Cancelled / Internal / Support; "
+                  "%(skip)s projects without a Sale Order skipped. Amounts in "
+                  "USD at today's rates.%(note)s")
+                % {"skip": skipped, "note": usd_note})
+
         pass_rule = _("A line is on time if entered by 23:59 of the Monday "
                       "after its week. Delivery team, eligibility rules as "
                       "on the ops dashboards.")
@@ -264,9 +294,9 @@ class LinkederpDashboardOpsMgmt(models.Model):
                 "#7c3aed",
                 _("Done projects with %(year)s end date (no end date: last "
                   "modified %(year)s): invoiced minus actual cost. Click to "
-                  "see the project table.%(note)s")
+                  "open the project table.%(note)s")
                 % {"year": year, "note": usd_note},
-                jump_to="mgmt_closed_projects"),
+                modal_table=closed_matrix),
             self._mgmt_kpi(
                 "mgmt_open_pnl", _("Open Project P&L (USD)"), open_pnl, "usd",
                 _("%(n)s projects · %(skip)s without SO skipped") % {
@@ -274,9 +304,9 @@ class LinkederpDashboardOpsMgmt(models.Model):
                 "#db2777",
                 _("Projects not Done / On Hold / Cancelled / Internal / "
                   "Support, with a Sale Order: SO amount minus actual cost "
-                  "to date. Click to see the project table.%(note)s")
+                  "to date. Click to open the project table.%(note)s")
                 % {"note": usd_note},
-                jump_to="mgmt_open_projects"),
+                modal_table=open_matrix),
             self._mgmt_trend(
                 "mgmt_accuracy_trend", _("Accuracy by Month"), acc_points,
                 ACCURACY_TARGET,
@@ -288,32 +318,4 @@ class LinkederpDashboardOpsMgmt(models.Model):
                 _("Billable vs expected billable per month. Dotted line = "
                   "%s%%.") % self._ops_short_hours(TREND_TARGET)),
         ]
-        if has_projects:
-            widgets.append(self._mgmt_matrix(
-                "mgmt_closed_projects", _("Closed Projects %s (P&L)") % year,
-                closed_rows + [closed_total],
-                [
-                    {"key": "company", "label": _("Company"), "format": "text"},
-                    {"key": "end", "label": _("End"), "format": "text"},
-                    {"key": "revenue", "label": _("Invoiced (USD)"), "format": "money"},
-                    {"key": "cost", "label": _("Actual Cost (USD)"), "format": "money"},
-                    {"key": "pnl", "label": _("P&L (USD)"), "format": "money"},
-                    {"key": "prof", "label": _("% Prof (Inv)"), "format": "money"},
-                ],
-                _("Amounts in USD at today's rates.%s") % usd_note))
-            widgets.append(self._mgmt_matrix(
-                "mgmt_open_projects", _("Open Projects (P&L to date)"),
-                open_rows + [open_total],
-                [
-                    {"key": "company", "label": _("Company"), "format": "text"},
-                    {"key": "stage", "label": _("Stage"), "format": "text"},
-                    {"key": "revenue", "label": _("SO Amount (USD)"), "format": "money"},
-                    {"key": "cost", "label": _("Actual Cost (USD)"), "format": "money"},
-                    {"key": "pnl", "label": _("P&L (USD)"), "format": "money"},
-                    {"key": "prof", "label": _("% Prof (SO)"), "format": "money"},
-                ],
-                _("Excludes Done / On Hold / Cancelled / Internal / Support; "
-                  "%(skip)s projects without a Sale Order skipped. Amounts in "
-                  "USD at today's rates.%(note)s")
-                % {"skip": skipped, "note": usd_note}))
         return widgets
