@@ -504,22 +504,32 @@ class LinkederpDashboardSla(models.Model):
         return widget
 
     def _sla_timesheet_rows(self, month_lines, tickets):
-        """Customer-ready rows for the fiscal month's time entries."""
+        """Ticket-level summary of the fiscal month's time entries:
+        one row per ticket — creation date, assignee, total hours."""
         by_ticket = {t["id"]: t for t in tickets}
+        grouped = {}
+        for line in month_lines:
+            rec = grouped.setdefault(line["ticket_id"],
+                                     {"hours": 0.0, "line_ids": []})
+            rec["hours"] += line["hours"]
+            rec["line_ids"].append(line["id"])
         rows = []
-        for line in sorted(month_lines, key=lambda l: (l["date"], l["id"])):
-            ticket = by_ticket.get(line["ticket_id"], {})
+        for ticket_id, rec in grouped.items():
+            ticket = by_ticket.get(ticket_id, {})
             rows.append({
-                "line_id": line["id"],
-                "date": self._ops_date_text(line["date"]),
+                "ticket_id": ticket_id,
+                "line_ids": rec["line_ids"],
+                "created": self._ops_date_text(ticket.get("created")),
+                "created_sort": ticket.get("created"),
                 "ticket": ticket.get("ref", "?"),
                 "subject": (ticket.get("name") or "")[:60],
-                "description": (line["description"] or "")[:80],
-                "employee": line["employee"],
-                "tag": (_("Change request") if line["bucket"] == "CR"
+                "assignee": ticket.get("owner", ""),
+                "tag": (_("Change request") if ticket.get("bucket") == "CR"
                         else _("service Request")),
-                "hours": line["hours"],
+                "hours": round(rec["hours"], 2),
             })
+        rows.sort(key=lambda r: (r["created_sort"]
+                                 or fields.Date.to_date("1900-01-01")))
         return rows
 
     def _sla_timesheet_table(self, values):
@@ -527,21 +537,21 @@ class LinkederpDashboardSla(models.Model):
         for index, entry in enumerate(values["timesheet"], start=1):
             rows.append({
                 "label": str(index),
-                "domain": self._json_safe([("id", "=", entry["line_id"])]),
-                "date": entry["date"],
+                # Row click opens the ticket's time entries of the month.
+                "domain": self._json_safe([("id", "in", entry["line_ids"])]),
+                "date": entry["created"],
                 "ticket": entry["ticket"],
                 "subject": entry["subject"],
-                "employee": entry["employee"],
+                "employee": entry["assignee"],
                 "tag": entry["tag"],
-                "hours": self._ops_short_hours(entry["hours"]),
+                "hours": entry["hours"],
                 "tones": {},
             })
         rows.append({
             "label": _("Total"), "domain": [],
             "date": "", "ticket": "", "subject": "",
             "employee": "", "tag": "",
-            "hours": self._ops_short_hours(
-                sum(e["hours"] for e in values["timesheet"])),
+            "hours": round(sum(e["hours"] for e in values["timesheet"]), 2),
             "tones": {},
         })
         widget = self._sales_matrix(
@@ -553,7 +563,8 @@ class LinkederpDashboardSla(models.Model):
                 {"key": "subject", "label": _("Subject"), "format": "text"},
                 {"key": "employee", "label": _("Team Member"), "format": "text"},
                 {"key": "tag", "label": _("Type"), "format": "text"},
-                {"key": "hours", "label": _("Hours"), "format": "money"},
+                # "number" (not money/text) renders CENTER-aligned.
+                {"key": "hours", "label": _("Hours"), "format": "number"},
             ],
             "", _("#"), span=12, color="#1e5b96")
         widget["model"] = "account.analytic.line"

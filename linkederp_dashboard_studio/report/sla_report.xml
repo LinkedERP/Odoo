@@ -215,17 +215,17 @@
                             <th style="text-align:left; padding:3px;">Subject</th>
                             <th style="text-align:left; padding:3px;">Team Member</th>
                             <th style="text-align:left; padding:3px;">Type</th>
-                            <th style="text-align:right; padding:3px;">Hours</th>
+                            <th style="text-align:center; padding:3px;">Hours</th>
                         </tr>
                         <t t-foreach="v.get('timesheet', [])" t-as="entry">
                             <tr style="border-bottom:1px solid #f1f5f9;">
                                 <td style="padding:3px;" t-esc="entry_index + 1"/>
-                                <td style="padding:3px; white-space:nowrap;" t-esc="entry['date']"/>
+                                <td style="padding:3px; white-space:nowrap;" t-esc="entry['created']"/>
                                 <td style="padding:3px;" t-esc="entry['ticket']"/>
                                 <td style="padding:3px;" t-esc="entry['subject']"/>
-                                <td style="padding:3px; white-space:nowrap;" t-esc="entry['employee']"/>
+                                <td style="padding:3px; white-space:nowrap;" t-esc="entry['assignee']"/>
                                 <td style="padding:3px; white-space:nowrap;" t-esc="entry['tag']"/>
-                                <td style="padding:3px; text-align:right;" t-esc="short_hours(entry['hours'])"/>
+                                <td style="padding:3px; text-align:center;" t-esc="short_hours(entry['hours'])"/>
                             </tr>
                         </t>
                         <tr t-if="not v.get('timesheet')">
@@ -233,7 +233,7 @@
                         </tr>
                         <tr style="border-top:1px solid #e5e7eb; font-weight:bold;">
                             <td colspan="6" style="padding:3px;">Total</td>
-                            <td style="padding:3px; text-align:right;"
+                            <td style="padding:3px; text-align:center;"
                                 t-esc="short_hours(sum(entry['hours'] for entry in v.get('timesheet', [])))"/>
                         </tr>
                     </table>
