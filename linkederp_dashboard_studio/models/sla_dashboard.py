@@ -255,6 +255,7 @@ class LinkederpDashboardSla(models.Model):
             created = ticket.create_date and ticket.create_date.date()
             closed = ticket.close_date and ticket.close_date.date()
             stage = (ticket.stage_id.name or "")
+            stage_l = stage.lower()
             status = ticket[STATUS_N_FIELD] if STATUS_N_FIELD in Ticket._fields else False
             tickets.append({
                 "id": ticket.id,
@@ -264,7 +265,11 @@ class LinkederpDashboardSla(models.Model):
                 "created": created, "closed": closed,
                 "active": ticket.active,
                 "stage": stage,
-                "on_hold": "hold" in stage.lower(),
+                "on_hold": "hold" in stage_l,
+                # "Closed" on this report means SOLVED — cancelled tickets
+                # count neither as closed nor as open (Akshay 2026-07-04).
+                "solved": "solved" in stage_l,
+                "cancelled": "cancel" in stage_l,
                 "status": status,
                 "bucket": bucket,
                 "hours": ticket.total_hours_spent if has_hours else 0.0,
@@ -370,22 +375,25 @@ class LinkederpDashboardSla(models.Model):
                 "label": _("W %s") % monday.strftime("%d %b"),
                 "created": [t for t in tickets
                             if t["created"] and monday <= t["created"] <= sunday],
-                "closed": [t for t in tickets
-                           if t["closed"] and monday <= t["closed"] <= sunday],
+                "closed": [t for t in tickets if t["solved"]
+                           and t["closed"] and monday <= t["closed"] <= sunday],
                 "sla_hours": sum(l["hours"] for l in lines
                                  if l["bucket"] == "SLA" and monday <= l["date"] <= sunday),
                 "cr_hours": sum(l["hours"] for l in lines
                                 if l["bucket"] == "CR" and monday <= l["date"] <= sunday),
+                "line_ids": [l["id"] for l in lines
+                             if monday <= l["date"] <= sunday],
             })
 
         created_ctd = [t for t in tickets if c_start and t["created"]
                        and c_start <= t["created"] <= anchor]
-        closed_ctd = [t for t in tickets if c_start and t["closed"]
-                      and c_start <= t["closed"] <= anchor]
+        closed_ctd = [t for t in tickets if c_start and t["solved"]
+                      and t["closed"] and c_start <= t["closed"] <= anchor]
         # Open tickets stay LIVE (today), independent of the anchor.
         # Archived/merged tickets often keep no close date — they are not
-        # "open" on a customer report.
-        open_now = [t for t in tickets if not t["closed"] and t["active"]]
+        # "open" on a customer report; neither are cancelled ones.
+        open_now = [t for t in tickets if not t["closed"] and t["active"]
+                    and not t["cancelled"]]
         on_hold = [t for t in open_now if t["on_hold"]]
         carryovers = [t for t in open_now if t["carryover"]]
 
@@ -618,16 +626,19 @@ class LinkederpDashboardSla(models.Model):
             "label": week["label"],
             "line": round(week["sla_hours"], 2),
             "bar": round(week["cr_hours"], 2),
-            "domain": [],
+            # Clicking a week opens the time entries behind its hours.
+            "domain": self._json_safe([("id", "in", week["line_ids"])]),
         } for week in weeks]
+        all_ids = sorted({lid for week in weeks for lid in week["line_ids"]})
         return {
             "id": "sla_weekly_hours",
             "name": _("Hours consumed — last 4 weeks"),
-            "type": "combo", "model": "",
+            "type": "combo", "model": "account.analytic.line",
             "mode": "computed", "measure": _("Hours"), "groupby": _("Week"),
             "color": "#1e5b96", "help": "",
             "value": float(sum(p["line"] for p in points)), "format": "number",
-            "domain": [], "points": points, "rows": [], "columns": [],
+            "domain": self._json_safe([("id", "in", all_ids)]),
+            "points": points, "rows": [], "columns": [],
             "span": 6, "error": False,
             "label_line": _("SLA hours"), "label_bar": _("CR hours"),
         }
@@ -641,8 +652,8 @@ class LinkederpDashboardSla(models.Model):
             created_text = self._ops_date_text(ticket["created"])
             rows.append({
                 "label": ticket["ref"],
-                "sub": ticket["name"][:70],
                 "domain": self._json_safe([("id", "=", ticket["id"])]),
+                "subject": ticket["name"][:70],
                 "tag": _("Change request") if ticket["bucket"] == "CR"
                 else _("service Request"),
                 "created": (created_text + _(" · carried over")
@@ -656,6 +667,7 @@ class LinkederpDashboardSla(models.Model):
         widget = self._sales_matrix(
             "sla_open_tickets", _("Open Tickets Details"), rows,
             [
+                {"key": "subject", "label": _("Subject"), "format": "text"},
                 {"key": "tag", "label": _("Tags"), "format": "text"},
                 {"key": "created", "label": _("Created on"), "format": "text"},
                 {"key": "owner", "label": _("Owner"), "format": "text"},

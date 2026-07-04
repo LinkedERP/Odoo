@@ -1295,6 +1295,18 @@
         height: 176px;
     }
 
+    .o_lds_combo_group {
+        border: 0;
+        background: transparent;
+        padding: 0;
+        cursor: pointer;
+
+        &:hover .o_lds_c2_label {
+            color: #1e5b96;
+            font-weight: 700;
+        }
+    }
+
     .o_lds_combo_bar {
         display: block;
         width: 34px;
