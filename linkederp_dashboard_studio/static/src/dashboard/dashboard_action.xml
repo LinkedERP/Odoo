@@ -490,7 +490,7 @@
                                         <button
                                             class="o_lds_column_item"
                                             type="button"
-                                            t-on-click="() => openRecords(widget.model, point.domain)"
+                                            t-on-click="() => onColumnClick(widget, point)"
                                             t-on-mouseenter="(ev) => showDetail(ev, point)"
                                             t-on-mousemove="moveDetail"
                                             t-on-mouseleave="hideDetail">
@@ -652,12 +652,16 @@
                                 </div>
                                 <div class="o_lds_combo_plot">
                                     <t t-foreach="widget.points" t-as="point" t-key="point.label">
-                                        <div class="o_lds_c2_group">
-                                            <div class="o_lds_c2_bars">
+                                        <button
+                                            class="o_lds_c2_group o_lds_combo_group"
+                                            type="button"
+                                            t-att-title="'Open the time entries of ' + point.label"
+                                            t-on-click="() => openRecords(widget.model, point.domain)">
+                                            <span class="o_lds_c2_bars">
                                                 <span class="o_lds_combo_bar" t-att-style="comboBarStyle(widget, point)" t-att-title="widget.label_bar + ': ' + point.bar"/>
-                                            </div>
+                                            </span>
                                             <span class="o_lds_c2_label" t-esc="point.label"/>
-                                        </div>
+                                        </button>
                                     </t>
                                     <div class="o_lds_combo_overlay">
                                         <svg class="o_lds_combo_svg" viewBox="0 0 600 150" preserveAspectRatio="none" role="img">

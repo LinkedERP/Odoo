@@ -173,10 +173,17 @@ class LinkederpDashboardSla(models.Model):
              "label": self._sla_fiscal_label(k)} for k in keys]
 
     def _sla_week_options(self, today):
-        """'Latest week' + the last 16 completed Mon-Sun weeks (for
-        re-sending a missed weekly report)."""
+        """'Latest week' (auto = last completed), the CURRENT in-progress
+        week, then the last 16 completed Mon-Sun weeks (for re-sending a
+        missed weekly report)."""
         this_monday = today - timedelta(days=today.weekday())
-        options = [{"value": "", "label": _("Latest week")}]
+        options = [
+            {"value": "", "label": _("Latest week")},
+            {"value": str(this_monday),
+             "label": _("%(a)s – %(b)s · current") % {
+                 "a": this_monday.strftime("%d %b"),
+                 "b": today.strftime("%d %b")}},
+        ]
         for back in range(1, 17):
             monday = this_monday - timedelta(weeks=back)
             options.append({
@@ -255,6 +262,7 @@ class LinkederpDashboardSla(models.Model):
             created = ticket.create_date and ticket.create_date.date()
             closed = ticket.close_date and ticket.close_date.date()
             stage = (ticket.stage_id.name or "")
+            stage_l = stage.lower()
             status = ticket[STATUS_N_FIELD] if STATUS_N_FIELD in Ticket._fields else False
             tickets.append({
                 "id": ticket.id,
@@ -264,7 +272,11 @@ class LinkederpDashboardSla(models.Model):
                 "created": created, "closed": closed,
                 "active": ticket.active,
                 "stage": stage,
-                "on_hold": "hold" in stage.lower(),
+                "on_hold": "hold" in stage_l,
+                # "Closed" on this report means SOLVED — cancelled tickets
+                # count neither as closed nor as open (Akshay 2026-07-04).
+                "solved": "solved" in stage_l,
+                "cancelled": "cancel" in stage_l,
                 "status": status,
                 "bucket": bucket,
                 "hours": ticket.total_hours_spent if has_hours else 0.0,
@@ -350,17 +362,25 @@ class LinkederpDashboardSla(models.Model):
         month_key = self._sla_month_key(month) if month else None
         week_monday = fields.Date.to_date(week) if week else None
         if week_monday:
-            anchor = week_monday + timedelta(days=6)
+            # An explicitly selected week may be the CURRENT (partial) one:
+            # the anchor caps at today and the chart shows it as its last,
+            # in-progress column.
+            anchor = min(week_monday + timedelta(days=6), today)
         elif month_key:
             anchor = min(fields.Date.to_date(
                 "%04d-%02d-25" % month_key), today)
         else:
             anchor = today
 
-        # weeks: last 4 completed Mon-Sun weeks as of the anchor
+        # weeks: the selected week (even partial) or the last 4 completed
+        # Mon-Sun weeks as of the anchor
         anchor_monday = anchor - timedelta(days=anchor.weekday())
-        latest_monday = (anchor_monday if anchor == anchor_monday + timedelta(days=6)
-                         else anchor_monday - timedelta(weeks=1))
+        if week_monday:
+            latest_monday = week_monday
+        else:
+            latest_monday = (anchor_monday
+                             if anchor == anchor_monday + timedelta(days=6)
+                             else anchor_monday - timedelta(weeks=1))
         mondays = [latest_monday - timedelta(weeks=i) for i in (3, 2, 1, 0)]
         weeks = []
         for monday in mondays:
@@ -370,22 +390,25 @@ class LinkederpDashboardSla(models.Model):
                 "label": _("W %s") % monday.strftime("%d %b"),
                 "created": [t for t in tickets
                             if t["created"] and monday <= t["created"] <= sunday],
-                "closed": [t for t in tickets
-                           if t["closed"] and monday <= t["closed"] <= sunday],
+                "closed": [t for t in tickets if t["solved"]
+                           and t["closed"] and monday <= t["closed"] <= sunday],
                 "sla_hours": sum(l["hours"] for l in lines
                                  if l["bucket"] == "SLA" and monday <= l["date"] <= sunday),
                 "cr_hours": sum(l["hours"] for l in lines
                                 if l["bucket"] == "CR" and monday <= l["date"] <= sunday),
+                "line_ids": [l["id"] for l in lines
+                             if monday <= l["date"] <= sunday],
             })
 
         created_ctd = [t for t in tickets if c_start and t["created"]
                        and c_start <= t["created"] <= anchor]
-        closed_ctd = [t for t in tickets if c_start and t["closed"]
-                      and c_start <= t["closed"] <= anchor]
+        closed_ctd = [t for t in tickets if c_start and t["solved"]
+                      and t["closed"] and c_start <= t["closed"] <= anchor]
         # Open tickets stay LIVE (today), independent of the anchor.
         # Archived/merged tickets often keep no close date — they are not
-        # "open" on a customer report.
-        open_now = [t for t in tickets if not t["closed"] and t["active"]]
+        # "open" on a customer report; neither are cancelled ones.
+        open_now = [t for t in tickets if not t["closed"] and t["active"]
+                    and not t["cancelled"]]
         on_hold = [t for t in open_now if t["on_hold"]]
         carryovers = [t for t in open_now if t["carryover"]]
 
@@ -618,16 +641,19 @@ class LinkederpDashboardSla(models.Model):
             "label": week["label"],
             "line": round(week["sla_hours"], 2),
             "bar": round(week["cr_hours"], 2),
-            "domain": [],
+            # Clicking a week opens the time entries behind its hours.
+            "domain": self._json_safe([("id", "in", week["line_ids"])]),
         } for week in weeks]
+        all_ids = sorted({lid for week in weeks for lid in week["line_ids"]})
         return {
             "id": "sla_weekly_hours",
             "name": _("Hours consumed — last 4 weeks"),
-            "type": "combo", "model": "",
+            "type": "combo", "model": "account.analytic.line",
             "mode": "computed", "measure": _("Hours"), "groupby": _("Week"),
             "color": "#1e5b96", "help": "",
             "value": float(sum(p["line"] for p in points)), "format": "number",
-            "domain": [], "points": points, "rows": [], "columns": [],
+            "domain": self._json_safe([("id", "in", all_ids)]),
+            "points": points, "rows": [], "columns": [],
             "span": 6, "error": False,
             "label_line": _("SLA hours"), "label_bar": _("CR hours"),
         }
@@ -641,8 +667,8 @@ class LinkederpDashboardSla(models.Model):
             created_text = self._ops_date_text(ticket["created"])
             rows.append({
                 "label": ticket["ref"],
-                "sub": ticket["name"][:70],
                 "domain": self._json_safe([("id", "=", ticket["id"])]),
+                "subject": ticket["name"][:70],
                 "tag": _("Change request") if ticket["bucket"] == "CR"
                 else _("service Request"),
                 "created": (created_text + _(" · carried over")
@@ -656,6 +682,7 @@ class LinkederpDashboardSla(models.Model):
         widget = self._sales_matrix(
             "sla_open_tickets", _("Open Tickets Details"), rows,
             [
+                {"key": "subject", "label": _("Subject"), "format": "text"},
                 {"key": "tag", "label": _("Tags"), "format": "text"},
                 {"key": "created", "label": _("Created on"), "format": "text"},
                 {"key": "owner", "label": _("Owner"), "format": "text"},
@@ -682,7 +709,43 @@ class LinkederpDashboardSla(models.Model):
                     [("id", "in", month.get("invoice_ids", []))]),
                 "detail": None,
             })
+        # Clicking the graph opens a month-by-month popup (rows click
+        # through to that month's invoices).
+        allowance = values["allowance"]
+        rows = []
+        for month in values["months"]:
+            share = (month["billed"] / allowance * 100.0) if allowance else None
+            rows.append({
+                "label": month["label"],
+                "domain": self._json_safe(
+                    [("id", "in", month.get("invoice_ids", []))]),
+                "hours": self._ops_short_hours(month["billed"]),
+                "inv": "%d" % len(month.get("invoice_ids", [])),
+                "share": self._ops_pct_text(share) if allowance else "—",
+                "tones": {"share": ("bad" if share and share > 100
+                                    else "good" if share else "")},
+            })
+        total_billed = sum(month["billed"] for month in values["months"])
+        total_inv = sum(len(month.get("invoice_ids", []))
+                        for month in values["months"])
+        rows.append({
+            "label": _("Total"), "domain": [],
+            "hours": self._ops_short_hours(total_billed),
+            "inv": "%d" % total_inv, "share": "", "tones": {},
+        })
+        modal = self._sales_matrix(
+            "sla_billed_months", _("Monthly SLA Hours"), rows,
+            [
+                {"key": "hours", "label": _("Hours billed"), "format": "money"},
+                {"key": "inv", "label": _("Invoices"), "format": "money"},
+                {"key": "share", "label": _("of allowance"), "format": "money"},
+            ],
+            _("Support hours invoiced per fiscal month; click a month for "
+              "its invoices."),
+            _("Fiscal month"), span=12, color="#1e5b96")
+        modal["model"] = "account.move"
         return {
+            "modal_table": modal,
             "id": "sla_billed_monthly",
             "name": _("Monthly SLA Hours"),
             "type": "column", "model": "account.move",

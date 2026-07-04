@@ -63,6 +63,7 @@ export class LinkedERPDashboardAction extends Component {
             "onDashboardChange",
             "bucketGroups",
             "onKpiClick",
+            "onColumnClick",
             "sparkTitle",
             "closeModal",
             "onModalBackdropClick",
@@ -200,6 +201,16 @@ export class LinkedERPDashboardAction extends Component {
             return;
         }
         this.openRecords(widget.model, widget.domain);
+    }
+
+    onColumnClick(widget, point) {
+        // Column charts with a modal_table open the popup (SLA billed
+        // months); the others keep their direct record drill-down.
+        if (widget.modal_table) {
+            this.state.modal = widget.modal_table;
+            return;
+        }
+        this.openRecords(widget.model, point.domain);
     }
 
     sparkTitle(widget) {
