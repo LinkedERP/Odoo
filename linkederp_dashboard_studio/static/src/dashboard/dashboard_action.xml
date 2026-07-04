@@ -23,6 +23,94 @@
                         </t>
                     </select>
                     <select
+                        t-if="state.mgmtFilters.enabled &amp;&amp; state.mgmtFilters.teams.length"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onMgmtTeamChange">
+                        <option value="">All teams</option>
+                        <t t-foreach="state.mgmtFilters.teams" t-as="option" t-key="option.value">
+                            <option
+                                t-att-value="option.value"
+                                t-att-selected="isMgmtTeamSelected(option.value)"
+                                t-esc="option.label"/>
+                        </t>
+                    </select>
+                    <select
+                        t-if="state.salesFilters.enabled"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onSalesYearChange">
+                        <t t-foreach="state.salesFilters.years" t-as="option" t-key="option.value">
+                            <option
+                                t-att-value="option.value"
+                                t-att-selected="isSalesYearSelected(option.value)"
+                                t-esc="option.label"/>
+                        </t>
+                    </select>
+                    <select
+                        t-if="state.salesFilters.enabled"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onSalesPersonChange">
+                        <option value="">All salespeople</option>
+                        <t t-foreach="state.salesFilters.salespersons" t-as="option" t-key="option.id">
+                            <option
+                                t-att-value="option.id"
+                                t-att-selected="isSalesPersonSelected(option.id)"
+                                t-esc="optionLabel(option)"/>
+                        </t>
+                    </select>
+                    <select
+                        t-if="state.salesFilters.enabled"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onSalesCompanyChange">
+                        <option value="">All companies</option>
+                        <t t-foreach="state.salesFilters.companies" t-as="option" t-key="option.id">
+                            <option
+                                t-att-value="option.id"
+                                t-att-selected="isSalesCompanySelected(option.id)"
+                                t-esc="option.name"/>
+                        </t>
+                    </select>
+                    <select
+                        t-if="state.slaFilters.enabled &amp;&amp; state.slaFilters.customers.length"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onSlaCustomerChange">
+                        <t t-foreach="state.slaFilters.customers" t-as="option" t-key="option.id">
+                            <option
+                                t-att-value="option.id"
+                                t-att-selected="isSlaCustomerSelected(option.id)"
+                                t-esc="option.name"/>
+                        </t>
+                    </select>
+                    <select
+                        t-if="state.slaFilters.enabled &amp;&amp; state.slaFilters.weeks.length"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onSlaWeekChange">
+                        <t t-foreach="state.slaFilters.weeks" t-as="option" t-key="option.value">
+                            <option
+                                t-att-value="option.value"
+                                t-att-selected="isSlaWeekSelected(option.value)"
+                                t-esc="option.label"/>
+                        </t>
+                    </select>
+                    <select
+                        t-if="state.slaFilters.enabled &amp;&amp; state.slaFilters.months.length"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onSlaMonthChange">
+                        <t t-foreach="state.slaFilters.months" t-as="option" t-key="option.value">
+                            <option
+                                t-att-value="option.value"
+                                t-att-selected="isSlaMonthSelected(option.value)"
+                                t-esc="option.label"/>
+                        </t>
+                    </select>
+                    <button
+                        t-if="state.slaFilters.enabled"
+                        class="btn btn-primary"
+                        type="button"
+                        t-on-click="onSlaExportPdf"
+                        title="Export this customer's report as PDF">
+                        <i class="fa fa-file-pdf-o"/> PDF
+                    </button>
+                    <select
                         t-if="state.crmFilters.enabled"
                         class="form-select o_lds_filter_select"
                         t-on-change="(ev) => setFilter('campaignId', ev.target.value)">
@@ -103,8 +191,8 @@
                                 t-esc="option.label"/>
                         </t>
                     </select>
-                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom"/>
-                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo"/>
+                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled &amp;&amp; !state.slaFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom"/>
+                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled &amp;&amp; !state.slaFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo"/>
                     <button class="btn btn-primary" type="button" t-on-click="applyFilters" title="Apply filters">
                         <i class="fa fa-filter"/>
                     </button>
@@ -112,6 +200,27 @@
                         <i class="fa fa-refresh"/>
                     </button>
                 </div>
+            </div>
+
+            <div
+                t-if="state.salesFilters.enabled &amp;&amp; state.salesFilters.teams.length &amp;&amp; !state.loading"
+                class="o_lds_team_filter">
+                <span class="o_lds_team_filter_label">Sales Teams</span>
+                <button
+                    type="button"
+                    t-att-class="'o_lds_team_chip' + (state.filters.salesTeams.length ? '' : ' o_lds_team_chip_on')"
+                    t-on-click="clearSalesTeams">
+                    All
+                </button>
+                <t t-foreach="state.salesFilters.teams" t-as="team" t-key="team.id">
+                    <button
+                        type="button"
+                        t-att-class="'o_lds_team_chip' + (isSalesTeamSelected(team.id) ? ' o_lds_team_chip_on' : '')"
+                        t-on-click="() => onSalesTeamToggle(team.id)">
+                        <span t-esc="team.name"/>
+                        <small t-esc="team.count"/>
+                    </button>
+                </t>
             </div>
 
             <div t-if="state.loading" class="o_lds_empty">
@@ -157,11 +266,18 @@
 
                         <t t-elif="widget.type === 'kpi'">
                             <button
-                                class="o_lds_kpi"
+                                t-att-class="'o_lds_kpi' + (widget.points.length ? ' o_lds_kpi_spark_mode' : '')"
                                 type="button"
-                                t-on-click="() => openRecords(widget.model, widget.domain)">
+                                t-on-click="() => onKpiClick(widget)">
                                 <span class="o_lds_kpi_value" t-esc="formatWidgetValue(widget)"/>
                                 <span class="o_lds_kpi_caption" t-esc="widget.measure"/>
+                                <div t-if="widget.points.length" class="o_lds_kpi_spark">
+                                    <div class="o_lds_trend_plot" t-att-title="sparkTitle(widget)">
+                                        <svg class="o_lds_trend_svg" viewBox="0 0 300 100" preserveAspectRatio="none" role="img">
+                                            <polyline class="o_lds_trend_line" t-att-points="trendLinePoints(widget)"/>
+                                        </svg>
+                                    </div>
+                                </div>
                             </button>
                         </t>
 
@@ -290,6 +406,11 @@
                                             t-on-mouseenter="(ev) => showDetail(ev, m)"
                                             t-on-mousemove="moveDetail"
                                             t-on-mouseleave="hideDetail"/>
+                                        <span
+                                            t-if="widget.show_values"
+                                            class="o_lds_trend_value"
+                                            t-att-style="'left:' + m.leftPct + '%; top:' + m.valueTopPct + '%;'"
+                                            t-esc="formatByType(m.value, widget.format)"/>
                                     </t>
                                 </div>
                                 <div class="o_lds_trend_labels">
@@ -491,32 +612,73 @@
                             </div>
                         </t>
 
-                        <t t-elif="widget.type === 'matrix'">
-                            <div t-att-class="'o_lds_matrix_wrap' + (widget.compact ? ' o_lds_matrix_compact' : '')">
-                                <table class="table table-sm">
-                                    <thead>
-                                        <tr>
-                                            <th class="text-start" t-esc="widget.groupby"/>
-                                            <t t-foreach="widget.columns" t-as="column" t-key="column.key">
-                                                <th t-att-class="matrixCellAlign(column)" t-esc="column.label"/>
-                                            </t>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <t t-foreach="widget.rows" t-as="row" t-key="row.label">
-                                            <tr t-on-click="() => openRecords(widget.model, row.domain)">
-                                                <td class="text-start">
-                                                    <span t-esc="row.label"/>
-                                                    <small t-if="row.sub" class="o_lds_row_sub" t-esc="row.sub"/>
-                                                </td>
-                                                <t t-foreach="widget.columns" t-as="column" t-key="column.key">
-                                                    <td t-att-class="matrixCellAlign(column) + matrixCellTone(row, column)" t-esc="matrixCellValue(row, column)"/>
-                                                </t>
-                                            </tr>
-                                        </t>
-                                    </tbody>
-                                </table>
+                        <t t-elif="widget.type === 'columns2'">
+                            <div class="o_lds_c2">
+                                <div class="o_lds_c2_legend">
+                                    <span><i style="background:#b03030"></i><t t-esc="widget.label_a"/></span>
+                                    <span><i style="background:#2e7d2e"></i><t t-esc="widget.label_b"/></span>
+                                </div>
+                                <div class="o_lds_c2_plot">
+                                    <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                        <div class="o_lds_c2_group">
+                                            <div class="o_lds_c2_bars">
+                                                <button
+                                                    class="o_lds_c2_bar"
+                                                    type="button"
+                                                    t-att-style="columns2Style(widget, point, 'a')"
+                                                    t-on-click="() => openRecords(widget.model, point.domain)">
+                                                    <strong t-esc="point.a"/>
+                                                </button>
+                                                <button
+                                                    class="o_lds_c2_bar"
+                                                    type="button"
+                                                    t-att-style="columns2Style(widget, point, 'b')"
+                                                    t-on-click="() => openRecords(widget.model, point.domain_b)">
+                                                    <strong t-esc="point.b"/>
+                                                </button>
+                                            </div>
+                                            <span class="o_lds_c2_label" t-esc="point.label"/>
+                                        </div>
+                                    </t>
+                                </div>
                             </div>
+                        </t>
+
+                        <t t-elif="widget.type === 'combo'">
+                            <div class="o_lds_combo">
+                                <div class="o_lds_c2_legend">
+                                    <span><i style="background:#1e5b96"></i><t t-esc="widget.label_line"/></span>
+                                    <span><i style="background:#b8860b"></i><t t-esc="widget.label_bar"/></span>
+                                </div>
+                                <div class="o_lds_combo_plot">
+                                    <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                        <div class="o_lds_c2_group">
+                                            <div class="o_lds_c2_bars">
+                                                <span class="o_lds_combo_bar" t-att-style="comboBarStyle(widget, point)" t-att-title="widget.label_bar + ': ' + point.bar"/>
+                                            </div>
+                                            <span class="o_lds_c2_label" t-esc="point.label"/>
+                                        </div>
+                                    </t>
+                                    <div class="o_lds_combo_overlay">
+                                        <svg class="o_lds_combo_svg" viewBox="0 0 600 150" preserveAspectRatio="none" role="img">
+                                            <polyline class="o_lds_combo_line" t-att-points="comboLinePoints(widget)"/>
+                                        </svg>
+                                        <t t-foreach="comboMarkers(widget)" t-as="m" t-key="m.point.label">
+                                            <span
+                                                class="o_lds_combo_dot"
+                                                t-att-style="'left:' + m.leftPct + '%; top:' + m.topPct + '%;'"/>
+                                            <span
+                                                class="o_lds_combo_val"
+                                                t-att-style="'left:' + m.leftPct + '%; top:' + m.valueTopPct + '%;'"
+                                                t-esc="formatPointValue(widget, m.point.line)"/>
+                                        </t>
+                                    </div>
+                                </div>
+                            </div>
+                        </t>
+
+                        <t t-elif="widget.type === 'matrix'">
+                            <t t-call="linkederp_dashboard_studio.MatrixTable"/>
                         </t>
 
                         <t t-elif="widget.type === 'table'">
@@ -575,6 +737,52 @@
                     </tbody>
                 </table>
             </div>
+
+            <div t-if="state.modal" class="o_lds_modal_backdrop" t-on-click="onModalBackdropClick">
+                <div class="o_lds_modal" t-att-style="'--lds-accent:' + (state.modal.color || '#2563eb')">
+                    <header class="o_lds_modal_header">
+                        <div>
+                            <h2 t-esc="state.modal.name"/>
+                            <span t-if="state.modal.help" t-esc="state.modal.help"/>
+                        </div>
+                        <button class="btn btn-sm o_lds_modal_close" type="button" t-on-click="closeModal" title="Close (Esc)">
+                            Close <i class="fa fa-times"/>
+                        </button>
+                    </header>
+                    <div class="o_lds_modal_body">
+                        <t t-set="widget" t-value="state.modal"/>
+                        <t t-call="linkederp_dashboard_studio.MatrixTable"/>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+
+    <t t-name="linkederp_dashboard_studio.MatrixTable">
+        <div t-att-class="'o_lds_matrix_wrap' + (widget.compact ? ' o_lds_matrix_compact' : '')">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th class="text-start" t-esc="widget.groupby"/>
+                        <t t-foreach="widget.columns" t-as="column" t-key="column.key">
+                            <th t-att-class="matrixCellAlign(column)" t-esc="column.label"/>
+                        </t>
+                    </tr>
+                </thead>
+                <tbody>
+                    <t t-foreach="widget.rows" t-as="row" t-key="row.label">
+                        <tr t-on-click="() => openRecords(widget.model, row.domain)">
+                            <td class="text-start">
+                                <span t-esc="row.label"/>
+                                <small t-if="row.sub" class="o_lds_row_sub" t-esc="row.sub"/>
+                            </td>
+                            <t t-foreach="widget.columns" t-as="column" t-key="column.key">
+                                <td t-att-class="matrixCellAlign(column) + matrixCellTone(row, column)" t-esc="matrixCellValue(row, column)"/>
+                            </t>
+                        </tr>
+                    </t>
+                </tbody>
+            </table>
         </div>
     </t>
 </templates>

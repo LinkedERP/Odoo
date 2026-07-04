@@ -7,7 +7,8 @@ from .ops_dashboard import BILLABLE_SHARE, OPS_SUBTEAM_FIELD
 
 _logger = logging.getLogger(__name__)
 
-OPS_WEEKLY_DASHBOARD_NAME = "Ops Weekly Teams"
+OPS_WEEKLY_DASHBOARD_NAME = "Weekly Chain Update"
+OPS_WEEKLY_DASHBOARD_LEGACY = "Ops Weekly Teams"
 
 # % Fail tones: green below 10, amber 10-20, red at/above 20.
 FAIL_GREEN_BELOW = 10.0
@@ -31,7 +32,8 @@ class LinkederpDashboardOpsWeekly(models.Model):
         self._ensure_weekly_dashboard()
 
     def _ensure_weekly_dashboard(self):
-        if self.with_context(active_test=False).search([("name", "=", OPS_WEEKLY_DASHBOARD_NAME)], limit=1):
+        if self._ensure_dashboard_name(OPS_WEEKLY_DASHBOARD_NAME,
+                                       [OPS_WEEKLY_DASHBOARD_LEGACY]):
             return
         if "account.analytic.line" not in self.env:
             return

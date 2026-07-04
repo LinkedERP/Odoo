@@ -1170,6 +1170,182 @@
         cursor: pointer;
     }
 
+    // Sales dashboard: multi-select Sales Team chips under the toolbar.
+    .o_lds_team_filter {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 16px;
+
+        .o_lds_team_filter_label {
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+    }
+
+    .o_lds_team_chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 13px;
+        border: 1px solid #dde3ea;
+        border-radius: 999px;
+        background: #ffffff;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+
+        small {
+            color: #94a3b8;
+            font-weight: 700;
+        }
+
+        &:hover {
+            border-color: #93c5fd;
+        }
+    }
+
+    .o_lds_team_chip_on {
+        border-color: #2563eb;
+        background: #2563eb;
+        color: #ffffff;
+
+        small {
+            color: #bfdbfe;
+        }
+    }
+
+    // SLA dashboard: grouped columns (created/closed) + combo (CR bars, SLA line).
+    .o_lds_c2_legend {
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        color: #475569;
+        margin-bottom: 6px;
+
+        i {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            margin-right: 6px;
+        }
+    }
+
+    .o_lds_c2_plot,
+    .o_lds_combo_plot {
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+        height: 190px;
+        position: relative;
+    }
+
+    .o_lds_c2_group {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+        height: 100%;
+        min-width: 0;
+    }
+
+    .o_lds_c2_bars {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 6px;
+        width: 100%;
+        height: 150px;
+    }
+
+    .o_lds_c2_bar {
+        width: 30px;
+        border: 0;
+        border-radius: 5px 5px 0 0;
+        padding: 0;
+        cursor: pointer;
+        position: relative;
+
+        strong {
+            position: absolute;
+            top: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            color: #0f172a;
+        }
+    }
+
+    .o_lds_c2_label {
+        height: 18px;
+        margin-top: 8px;
+        font-size: 12px;
+        color: #64748b;
+        white-space: nowrap;
+    }
+
+    .o_lds_combo_plot {
+        height: 176px;
+    }
+
+    .o_lds_combo_bar {
+        display: block;
+        width: 34px;
+        border-radius: 5px 5px 0 0;
+        background: #b8860b;
+        opacity: 0.85;
+    }
+
+    // The line + markers overlay maps exactly onto the 150px bars strip
+    // (the 26px below is the label row).
+    .o_lds_combo_overlay {
+        position: absolute;
+        inset: 0 0 26px 0;
+        pointer-events: none;
+    }
+
+    .o_lds_combo_svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    .o_lds_combo_line {
+        fill: none;
+        stroke: #1e5b96;
+        stroke-width: 2.5;
+    }
+
+    .o_lds_combo_dot {
+        position: absolute;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #1e5b96;
+        border: 2px solid #ffffff;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 0 0 1px #1e5b96;
+    }
+
+    .o_lds_combo_val {
+        position: absolute;
+        transform: translateX(-50%);
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #1e5b96;
+        background: rgba(255, 255, 255, 0.85);
+        border-radius: 4px;
+        padding: 0 4px;
+    }
+
     .o_lds_tooltip {
         position: fixed;
         z-index: 1080;
@@ -1322,6 +1498,139 @@
 
         .o_lds_stack_legend {
             grid-template-columns: 1fr;
+        }
+    }
+}
+
+// KPI-card popup: a project table opened over the dashboard.
+.o_lds_modal_backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1056;
+    background: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.o_lds_modal {
+    background: #fff;
+    border-radius: 12px;
+    border-top: 4px solid var(--lds-accent, #2563eb);
+    box-shadow: 0 24px 64px rgba(2, 6, 23, 0.35);
+    // NOTE: never use CSS min()/max() in this file — the SCSS compiler
+    // evaluates them and crashes on mixed units (px vs vw), which broke the
+    // styles of the whole database once.
+    width: 96vw;
+    max-width: 1100px;
+    max-height: 86vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.o_lds_modal_header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 20px 8px;
+
+    h2 {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 600;
+    }
+
+    span {
+        color: #64748b;
+        font-size: 0.85rem;
+    }
+}
+
+.o_lds_modal_close {
+    color: #334155;
+    font-size: 0.95rem;
+    font-weight: 600;
+    white-space: nowrap;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 6px 14px;
+    text-decoration: none;
+
+    &:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+        text-decoration: none;
+    }
+}
+
+.o_lds_modal_body {
+    padding: 0 20px 20px;
+    overflow: auto;
+
+    .o_lds_matrix_wrap {
+        min-width: 0;
+    }
+}
+
+// Data labels above trendline dots (opt-in via widget.show_values).
+.o_lds_trend_value {
+    position: absolute;
+    transform: translateX(-50%);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #0f172a;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+// KPI cards with an embedded mini trend (Ops Management accuracy/billability).
+.o_lds_kpi.o_lds_kpi_spark_mode {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    grid-template-rows: auto auto;
+    align-items: end;
+    column-gap: 14px;
+
+    .o_lds_kpi_value {
+        grid-column: 1;
+        grid-row: 1;
+        align-self: end;
+    }
+
+    .o_lds_kpi_caption {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .o_lds_kpi_spark {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        min-width: 0;
+
+        .o_lds_trend_plot {
+            position: relative;
+            height: 58px;
+        }
+
+        .o_lds_trend_svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .o_lds_trend_dot {
+            width: 7px;
+            height: 7px;
+        }
+
+        .o_lds_trend_labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2px;
+            color: #94a3b8;
+            font-size: 9px;
         }
     }
 }

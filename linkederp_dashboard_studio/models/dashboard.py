@@ -23,12 +23,25 @@ BUCKET_GROUP_XMLIDS = {
 
 MANAGER_GROUP_XMLID = "linkederp_dashboard_studio.group_dashboard_studio_manager"
 
+# Renamed 2026-07-03 per Akshay; legacy names kept as aliases so records
+# created under the old names still map to their buckets.
+AI_DASHBOARD_NAME = "Nighthawk Review Dashboard"
+AI_DASHBOARD_LEGACY = "AI Generated Leads Performance"
+
 DEFAULT_BUCKET_BY_NAME = {
     "Sales & CRM Dashboard": "sales",
+    "Sales Performance Dashboard": "management",
+    "Aurika Sales Dashboard": "management",
+    "Nighthawk Review Dashboard": "sales",
     "AI Generated Leads Performance": "sales",
+    "Ops Weekly review": "ops",
     "Ops Performance": "ops",
     "Ops Monthly Awards": "management",
+    "Weekly Chain Update": "management",
     "Ops Weekly Teams": "management",
+    "Aurika Ops Dashboard": "management",
+    "Ops Management": "management",
+    "Weekly Support & SLA Dashboard": "ops",
 }
 
 
@@ -163,6 +176,24 @@ class LinkederpDashboard(models.Model):
                     date_to=date_to,
                     filters=filters,
                 )
+            elif dashboard._is_mgmt_dashboard():
+                widgets = dashboard._mgmt_dashboard_widgets(
+                    date_from=date_from,
+                    date_to=date_to,
+                    filters=filters,
+                )
+            elif dashboard._is_sales_dashboard():
+                widgets = dashboard._sales_dashboard_widgets(
+                    date_from=date_from,
+                    date_to=date_to,
+                    filters=filters,
+                )
+            elif dashboard._is_sla_dashboard():
+                widgets = dashboard._sla_dashboard_widgets(
+                    date_from=date_from,
+                    date_to=date_to,
+                    filters=filters,
+                )
 
         bucket_labels = dict(DASHBOARD_BUCKETS)
         return {
@@ -204,12 +235,36 @@ class LinkederpDashboard(models.Model):
             "weekly_filters": dashboard._weekly_filter_options(filters)
             if dashboard and dashboard._is_weekly_dashboard()
             else {"enabled": False},
+            "mgmt_filters": dashboard._mgmt_filter_options(filters)
+            if dashboard and dashboard._is_mgmt_dashboard()
+            else {"enabled": False},
+            "sales_filters": dashboard._sales_filter_options(filters)
+            if dashboard and dashboard._is_sales_dashboard()
+            else {"enabled": False},
+            "sla_filters": dashboard._sla_filter_options(filters)
+            if dashboard and dashboard._is_sla_dashboard()
+            else {"enabled": False},
         }
 
     @api.model
     def _ensure_packaged_dashboards(self):
         self._ensure_default_sales_crm_dashboard()
         self._ensure_ai_generated_leads_dashboard()
+
+    @api.model
+    def _ensure_dashboard_name(self, name, legacy_names):
+        """True when the packaged dashboard already exists — renaming a
+        legacy-named record in place if needed (2026-07-03 renames); False
+        when the caller must create it."""
+        Dash = self.with_context(active_test=False)
+        if Dash.search([("name", "=", name)], limit=1):
+            return True
+        for legacy in legacy_names:
+            record = Dash.search([("name", "=", legacy)], limit=1)
+            if record:
+                record.write({"name": name})
+                return True
+        return False
 
     @api.model
     def _assign_default_buckets(self):
@@ -383,13 +438,13 @@ class LinkederpDashboard(models.Model):
 
     @api.model
     def _ensure_ai_generated_leads_dashboard(self):
-        if self.with_context(active_test=False).search([("name", "=", "AI Generated Leads Performance")], limit=1):
+        if self._ensure_dashboard_name(AI_DASHBOARD_NAME, [AI_DASHBOARD_LEGACY]):
             return
         if "crm.lead" not in self.env:
             return
         self.create(
             {
-                "name": _("AI Generated Leads Performance"),
+                "name": AI_DASHBOARD_NAME,
                 "sequence": 20,
                 "bucket": "sales",
                 "description": _(
@@ -401,7 +456,8 @@ class LinkederpDashboard(models.Model):
 
     def _is_ai_generated_leads_dashboard(self):
         self.ensure_one()
-        return (self.name or "").strip().lower() == "ai generated leads performance"
+        return (self.name or "").strip().lower() in (
+            AI_DASHBOARD_NAME.lower(), AI_DASHBOARD_LEGACY.lower())
 
     def _ai_source_domain(self):
         return expression.OR(

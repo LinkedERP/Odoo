@@ -3,3 +3,7 @@ from . import widget
 from . import ops_dashboard
 from . import ops_awards_dashboard
 from . import ops_weekly_dashboard
+from . import ops_mgmt_dashboard
+from . import sales_dashboard
+from . import sale_order_sla
+from . import sla_dashboard
