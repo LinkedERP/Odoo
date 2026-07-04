@@ -157,7 +157,7 @@
                                             <td style="width:52px; padding:2px 4px;" t-esc="month['label']"/>
                                             <td style="padding:2px 4px;">
                                                 <div style="background:#eef2f7; height:9px; width:100%;">
-                                                    <div t-att-style="'height:9px; background:%s; width:%s%%;' % ('#d97706' if allowance and month['billed'] &gt; allowance else '#1e5b96', min(100.0, month['billed'] / scale * 100.0))"/>
+                                                    <div t-att-style="'height:9px; background:{}; width:{}%;'.format('#d97706' if allowance and month['billed'] &gt; allowance else '#1e5b96', min(100.0, month['billed'] / scale * 100.0))"/>
                                                 </div>
                                             </td>
                                             <td style="width:40px; text-align:right; padding:2px 4px; font-weight:bold;" t-esc="short_hours(month['billed'])"/>
@@ -187,7 +187,7 @@
                                             <td style="padding:4px;" t-esc="date_text(inv['due'])"/>
                                             <td style="padding:4px;" t-esc="inv['currency']"/>
                                             <td style="padding:4px; text-align:right;" t-esc="'{:,.2f}'.format(inv['amount'] or 0.0)"/>
-                                            <td t-att-style="'padding:4px; font-weight:bold; color:%s;' % ('#dc2626' if inv['overdue'] else '#059669')"
+                                            <td t-att-style="'padding:4px; font-weight:bold; color:{};'.format('#dc2626' if inv['overdue'] else '#059669')"
                                                 t-esc="'Overdue' if inv['overdue'] else 'On Time'"/>
                                         </tr>
                                     </t>
