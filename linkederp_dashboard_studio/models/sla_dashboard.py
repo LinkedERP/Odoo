@@ -296,6 +296,9 @@ class LinkederpDashboardSla(models.Model):
                     "date": line.date,
                     "hours": line.unit_amount or 0.0,
                     "bucket": bucket_by_id.get(line.helpdesk_ticket_id.id, "SLA"),
+                    "ticket_id": line.helpdesk_ticket_id.id,
+                    "description": line.name or "",
+                    "employee": line.employee_id.name or "",
                 })
 
         # posted customer invoices of the SLA sale order
@@ -422,26 +425,28 @@ class LinkederpDashboardSla(models.Model):
         mtd_cr = sum(l["hours"] for l in mtd_cr_lines)
         pct_used = mtd_sla / allowance * 100.0 if allowance else 0.0
 
-        # Contract fiscal months + billed hours per fiscal month. The loop
-        # runs over FISCAL keys (26th->25th windows), so a contract aligned
-        # to the fiscal cut (e.g. 26 Jun -> 25 Jun) gets no spurious leading
-        # bar and an invoice dated after the 25th of the last month is not
-        # dropped.
+        # Contract fiscal months + LOGGED timesheet hours per fiscal month
+        # (Akshay r10: the monthly graph follows the timesheets, not the
+        # invoices). The loop runs over FISCAL keys (26th->25th windows).
         months = []
         if c_start and c_end:
             key = self._sla_fiscal_key(c_start)
             end_key = self._sla_fiscal_key(c_end)
             while key <= end_key:
-                billed = sum(inv["billed_hours"] for inv in data["invoices"]
-                             if inv["date"]
-                             and self._sla_fiscal_key(inv["date"]) == key)
-                invoice_ids = [inv["id"] for inv in data["invoices"]
-                               if inv["date"]
-                               and self._sla_fiscal_key(inv["date"]) == key]
-                months.append({"key": key,
-                               "label": self._sla_fiscal_label(key),
-                               "billed": billed,
-                               "invoice_ids": invoice_ids})
+                month_lines = [l for l in lines
+                               if self._sla_fiscal_key(l["date"]) == key]
+                months.append({
+                    "key": key,
+                    "label": self._sla_fiscal_label(key),
+                    "sla_hours": sum(l["hours"] for l in month_lines
+                                     if l["bucket"] == "SLA"),
+                    "cr_hours": sum(l["hours"] for l in month_lines
+                                    if l["bucket"] == "CR"),
+                    "line_ids": [l["id"] for l in month_lines],
+                    # Ticket-level rows for the bar's timesheet popup.
+                    "timesheet": self._sla_timesheet_rows(
+                        month_lines, tickets),
+                })
                 key = ((key[0] + 1, 1) if key[1] == 12
                        else (key[0], key[1] + 1))
 
@@ -464,6 +469,7 @@ class LinkederpDashboardSla(models.Model):
             "fiscal_label": self._sla_window_label(f_key),
             "fiscal_month_name": SLA_MONTH_FULL[f_key[1] - 1],
             "weeks": weeks,
+            "pdf_chart": self._sla_pdf_chart(weeks),
             "created_ctd": created_ctd, "closed_ctd": closed_ctd,
             "open_now": open_now, "on_hold": on_hold,
             "carryovers": carryovers,
@@ -471,6 +477,9 @@ class LinkederpDashboardSla(models.Model):
             # Drill-down covers BOTH SLA and CR entries of the month —
             # clicking the card must show the CR hours' timesheets too.
             "mtd_line_ids": [l["id"] for l in mtd_lines + mtd_cr_lines],
+            # The complete customer-facing timesheet of the fiscal month.
+            "timesheet": self._sla_timesheet_rows(
+                mtd_lines + mtd_cr_lines, tickets),
             "months": months, "invoices": data["invoices"],
             "tenure_pct": tenure_pct,
         }
@@ -497,6 +506,117 @@ class LinkederpDashboardSla(models.Model):
         # Pure percentage tiles: no record list makes sense behind them.
         widget["model"] = ""
         return widget
+
+    def _sla_timesheet_rows(self, month_lines, tickets):
+        """Ticket-level summary of the fiscal month's time entries:
+        one row per ticket — creation date, assignee, total hours."""
+        by_ticket = {t["id"]: t for t in tickets}
+        grouped = {}
+        for line in month_lines:
+            rec = grouped.setdefault(line["ticket_id"],
+                                     {"hours": 0.0, "line_ids": []})
+            rec["hours"] += line["hours"]
+            rec["line_ids"].append(line["id"])
+        rows = []
+        for ticket_id, rec in grouped.items():
+            ticket = by_ticket.get(ticket_id, {})
+            rows.append({
+                "ticket_id": ticket_id,
+                "line_ids": rec["line_ids"],
+                "created": self._ops_date_text(ticket.get("created")),
+                "created_sort": ticket.get("created"),
+                "ticket": ticket.get("ref", "?"),
+                "subject": (ticket.get("name") or "")[:60],
+                "assignee": ticket.get("owner", ""),
+                "tag": (_("Change request") if ticket.get("bucket") == "CR"
+                        else _("service Request")),
+                "hours": round(rec["hours"], 2),
+            })
+        rows.sort(key=lambda r: (r["created_sort"]
+                                 or fields.Date.to_date("1900-01-01")))
+        return rows
+
+    def _sla_timesheet_matrix(self, wid, name, entries, domain_ids):
+        """Ticket-level timesheet matrix (shared by the bottom section and
+        the per-month popups of the Monthly SLA Hours graph)."""
+        rows = []
+        for index, entry in enumerate(entries, start=1):
+            rows.append({
+                "label": str(index),
+                # Row click opens the ticket's time entries of the month.
+                "domain": self._json_safe([("id", "in", entry["line_ids"])]),
+                "date": entry["created"],
+                "ticket": entry["ticket"],
+                "subject": entry["subject"],
+                "employee": entry["assignee"],
+                "tag": entry["tag"],
+                "hours": entry["hours"],
+                "tones": {},
+            })
+        rows.append({
+            "label": _("Total"), "domain": [],
+            "date": "", "ticket": "", "subject": "",
+            "employee": "", "tag": "",
+            "hours": round(sum(e["hours"] for e in entries), 2),
+            "tones": {},
+        })
+        widget = self._sales_matrix(
+            wid, name, rows,
+            [
+                {"key": "date", "label": _("Date"), "format": "text"},
+                {"key": "ticket", "label": _("Ticket"), "format": "text"},
+                {"key": "subject", "label": _("Subject"), "format": "text"},
+                {"key": "employee", "label": _("Team Member"), "format": "text"},
+                {"key": "tag", "label": _("Type"), "format": "text"},
+                # "number" (not money/text) renders CENTER-aligned.
+                {"key": "hours", "label": _("Hours"), "format": "number"},
+            ],
+            "", _("#"), span=12, color="#1e5b96")
+        widget["model"] = "account.analytic.line"
+        widget["domain"] = self._json_safe([("id", "in", list(domain_ids))])
+        return widget
+
+    def _sla_timesheet_table(self, values):
+        return self._sla_timesheet_matrix(
+            "sla_timesheet",
+            _("Time Sheet — %s") % values["fiscal_month_name"],
+            values["timesheet"], values["mtd_line_ids"])
+
+    def _sla_pdf_chart(self, weeks):
+        """Pixel geometry for the PDF's weekly SVG charts (wkhtmltopdf
+        renders inline SVG but not the OWL widgets). viewBox 340x130,
+        plot baseline y=100, plot height 90."""
+        n = len(weeks) or 1
+        ticket_vals = ([len(w["created"]) for w in weeks]
+                       + [len(w["closed"]) for w in weeks])
+        tmax = max(ticket_vals + [1]) * 1.15
+        hour_vals = ([w["sla_hours"] for w in weeks]
+                     + [w["cr_hours"] for w in weeks])
+        hmax = max(hour_vals + [1.0]) * 1.15
+        tickets, hours, line = [], [], []
+        for index, week in enumerate(weeks):
+            cx = round(340.0 * (index + 0.5) / n, 1)
+            created_h = round(len(week["created"]) / tmax * 90, 1)
+            closed_h = round(len(week["closed"]) / tmax * 90, 1)
+            tickets.append({
+                "cx": cx, "label": week["label"],
+                "c_h": created_h, "c_y": round(100 - created_h, 1),
+                "c_v": len(week["created"]),
+                "s_h": closed_h, "s_y": round(100 - closed_h, 1),
+                "s_v": len(week["closed"]),
+            })
+            bar_h = round(week["cr_hours"] / hmax * 90, 1)
+            dot_y = round(100 - week["sla_hours"] / hmax * 90, 1)
+            hours.append({
+                "cx": cx, "label": week["label"],
+                "bar_h": bar_h, "bar_y": round(100 - bar_h, 1),
+                "cr": self._ops_short_hours(week["cr_hours"]),
+                "dot_y": dot_y,
+                "sla": self._ops_short_hours(week["sla_hours"]),
+            })
+            line.append("%s,%s" % (cx, dot_y))
+        return {"tickets": tickets, "hours": hours,
+                "line": " ".join(line)}
 
     def _sla_hours_kpi(self, values):
         """The SLA-hours card drills into the TIMESHEET LINES behind the
@@ -608,6 +728,7 @@ class LinkederpDashboardSla(models.Model):
             self._sla_open_table(values),
             self._sla_billed_column(values),
             self._sla_invoice_table(values),
+            self._sla_timesheet_table(values),
         ]
         return widgets
 
@@ -697,65 +818,72 @@ class LinkederpDashboardSla(models.Model):
         return widget
 
     def _sla_billed_column(self, values):
+        """Monthly SLA Hours = LOGGED timesheet hours per fiscal month
+        (SLA bucket drives the bars; the popup shows SLA + CR and links to
+        the month's time entries)."""
         points = []
         for month in values["months"]:
             points.append({
                 "label": month["label"],
-                "value": round(month["billed"], 1),
-                "color": ("#d97706" if values["allowance"]
-                          and month["billed"] > values["allowance"]
-                          else "#1e5b96"),
+                "value": round(month["sla_hours"], 1),
+                # Uniform color, no over-target highlight (Akshay r9).
+                "color": "#1e5b96",
                 "domain": self._json_safe(
-                    [("id", "in", month.get("invoice_ids", []))]),
+                    [("id", "in", month.get("line_ids", []))]),
                 "detail": None,
+                # Clicking THIS bar opens the month's full ticket-level
+                # timesheet (Akshay r12).
+                "modal_table": self._sla_timesheet_matrix(
+                    "sla_ts_%04d_%02d" % month["key"],
+                    _("Time Sheet — %s") % month["label"],
+                    month["timesheet"], month.get("line_ids", [])),
             })
-        # Clicking the graph opens a month-by-month popup (rows click
-        # through to that month's invoices).
         allowance = values["allowance"]
         rows = []
         for month in values["months"]:
-            share = (month["billed"] / allowance * 100.0) if allowance else None
+            share = (month["sla_hours"] / allowance * 100.0) if allowance else None
             rows.append({
                 "label": month["label"],
                 "domain": self._json_safe(
-                    [("id", "in", month.get("invoice_ids", []))]),
-                "hours": self._ops_short_hours(month["billed"]),
-                "inv": "%d" % len(month.get("invoice_ids", [])),
+                    [("id", "in", month.get("line_ids", []))]),
+                "hours": self._ops_short_hours(month["sla_hours"]),
+                "cr": self._ops_short_hours(month["cr_hours"]),
                 "share": self._ops_pct_text(share) if allowance else "—",
                 "tones": {"share": ("bad" if share and share > 100
                                     else "good" if share else "")},
             })
-        total_billed = sum(month["billed"] for month in values["months"])
-        total_inv = sum(len(month.get("invoice_ids", []))
-                        for month in values["months"])
         rows.append({
             "label": _("Total"), "domain": [],
-            "hours": self._ops_short_hours(total_billed),
-            "inv": "%d" % total_inv, "share": "", "tones": {},
+            "hours": self._ops_short_hours(
+                sum(month["sla_hours"] for month in values["months"])),
+            "cr": self._ops_short_hours(
+                sum(month["cr_hours"] for month in values["months"])),
+            "share": "", "tones": {},
         })
         modal = self._sales_matrix(
-            "sla_billed_months", _("Monthly SLA Hours"), rows,
+            "sla_monthly_hours_table", _("Monthly SLA Hours"), rows,
             [
-                {"key": "hours", "label": _("Hours billed"), "format": "money"},
-                {"key": "inv", "label": _("Invoices"), "format": "money"},
+                {"key": "hours", "label": _("SLA hours"), "format": "money"},
+                {"key": "cr", "label": _("CR hours"), "format": "money"},
                 {"key": "share", "label": _("of allowance"), "format": "money"},
             ],
-            _("Support hours invoiced per fiscal month; click a month for "
-              "its invoices."),
+            _("Hours logged on tickets per fiscal month; click a month for "
+              "its time entries."),
             _("Fiscal month"), span=12, color="#1e5b96")
-        modal["model"] = "account.move"
+        modal["model"] = "account.analytic.line"
         return {
             "modal_table": modal,
             "id": "sla_billed_monthly",
             "name": _("Monthly SLA Hours"),
-            "type": "column", "model": "account.move",
-            "mode": "computed", "measure": _("Hours billed"),
+            "type": "column", "model": "account.analytic.line",
+            "mode": "computed", "measure": _("Hours"),
             "groupby": _("Fiscal month"), "color": "#1e5b96",
             "help": "",
             "value": float(sum(p["value"] for p in points)),
             "format": "number", "domain": [], "points": points,
             "rows": [], "columns": [], "span": 5, "error": False,
-            "target": float(values["allowance"] or 0.0),
+            # No allowance target line on the chart (Akshay r9).
+            "target": 0.0,
         }
 
     def _sla_invoice_table(self, values):

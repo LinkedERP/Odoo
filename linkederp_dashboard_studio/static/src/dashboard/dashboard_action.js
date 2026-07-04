@@ -204,10 +204,11 @@ export class LinkedERPDashboardAction extends Component {
     }
 
     onColumnClick(widget, point) {
-        // Column charts with a modal_table open the popup (SLA billed
-        // months); the others keep their direct record drill-down.
-        if (widget.modal_table) {
-            this.state.modal = widget.modal_table;
+        // A bar with its OWN popup wins (SLA monthly bars open that
+        // month's timesheet); then the widget-level popup; then records.
+        const modal = point.modal_table || widget.modal_table;
+        if (modal) {
+            this.state.modal = modal;
             return;
         }
         this.openRecords(widget.model, point.domain);

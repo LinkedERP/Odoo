@@ -83,51 +83,41 @@
                     <table style="width:100%; margin-bottom:12px;">
                         <tr>
                             <td style="width:49%; vertical-align:top; border:1px solid #e5e7eb; padding:8px;">
-                                <div style="font-weight:bold; color:#1e5b96; margin-bottom:5px;">Tickets created &amp; closed — last 4 weeks</div>
-                                <table style="width:100%; font-size:10px;">
-                                    <tr style="color:#64748b;">
-                                        <td></td>
-                                        <t t-foreach="v.get('weeks', [])" t-as="week">
-                                            <td style="text-align:center;" t-esc="week['label']"/>
-                                        </t>
-                                    </tr>
-                                    <tr>
-                                        <td style="color:#b03030; font-weight:bold;">Created</td>
-                                        <t t-foreach="v.get('weeks', [])" t-as="week">
-                                            <td style="text-align:center; font-weight:bold;" t-esc="len(week['created'])"/>
-                                        </t>
-                                    </tr>
-                                    <tr>
-                                        <td style="color:#2e7d2e; font-weight:bold;">Closed</td>
-                                        <t t-foreach="v.get('weeks', [])" t-as="week">
-                                            <td style="text-align:center; font-weight:bold;" t-esc="len(week['closed'])"/>
-                                        </t>
-                                    </tr>
-                                </table>
+                                <div style="font-weight:bold; color:#1e5b96; margin-bottom:2px;">Tickets created &amp; closed — last 4 weeks</div>
+                                <div style="font-size:9px; color:#475569; margin-bottom:2px;">
+                                    <span style="color:#b03030; font-weight:bold;">■</span> Created &#160;
+                                    <span style="color:#2e7d2e; font-weight:bold;">■</span> Closed
+                                </div>
+                                <svg width="100%" height="120" viewBox="0 0 340 130">
+                                    <line x1="0" y1="100" x2="340" y2="100" stroke="#e5e7eb" stroke-width="1"/>
+                                    <t t-foreach="v.get('pdf_chart', {}).get('tickets', [])" t-as="g">
+                                        <rect t-att-x="g['cx'] - 20" t-att-y="g['c_y']" width="18" t-att-height="g['c_h']" fill="#b03030"/>
+                                        <text t-att-x="g['cx'] - 11" t-att-y="g['c_y'] - 3" text-anchor="middle" font-size="10" font-weight="bold" fill="#0f172a" t-esc="g['c_v']"/>
+                                        <rect t-att-x="g['cx'] + 2" t-att-y="g['s_y']" width="18" t-att-height="g['s_h']" fill="#2e7d2e"/>
+                                        <text t-att-x="g['cx'] + 11" t-att-y="g['s_y'] - 3" text-anchor="middle" font-size="10" font-weight="bold" fill="#0f172a" t-esc="g['s_v']"/>
+                                        <text t-att-x="g['cx']" y="114" text-anchor="middle" font-size="9" fill="#64748b" t-esc="g['label']"/>
+                                    </t>
+                                </svg>
                             </td>
                             <td style="width:2%;"></td>
                             <td style="width:49%; vertical-align:top; border:1px solid #e5e7eb; padding:8px;">
-                                <div style="font-weight:bold; color:#1e5b96; margin-bottom:5px;">Hours consumed — last 4 weeks</div>
-                                <table style="width:100%; font-size:10px;">
-                                    <tr style="color:#64748b;">
-                                        <td></td>
-                                        <t t-foreach="v.get('weeks', [])" t-as="week">
-                                            <td style="text-align:center;" t-esc="week['label']"/>
-                                        </t>
-                                    </tr>
-                                    <tr>
-                                        <td style="color:#1e5b96; font-weight:bold;">SLA hours</td>
-                                        <t t-foreach="v.get('weeks', [])" t-as="week">
-                                            <td style="text-align:center; font-weight:bold;" t-esc="short_hours(week['sla_hours'])"/>
-                                        </t>
-                                    </tr>
-                                    <tr>
-                                        <td style="color:#b8860b; font-weight:bold;">CR hours</td>
-                                        <t t-foreach="v.get('weeks', [])" t-as="week">
-                                            <td style="text-align:center; font-weight:bold;" t-esc="short_hours(week['cr_hours'])"/>
-                                        </t>
-                                    </tr>
-                                </table>
+                                <div style="font-weight:bold; color:#1e5b96; margin-bottom:2px;">Hours consumed — last 4 weeks</div>
+                                <div style="font-size:9px; color:#475569; margin-bottom:2px;">
+                                    <span style="color:#1e5b96; font-weight:bold;">●</span> SLA hours &#160;
+                                    <span style="color:#b8860b; font-weight:bold;">■</span> CR hours
+                                </div>
+                                <svg width="100%" height="120" viewBox="0 0 340 130">
+                                    <line x1="0" y1="100" x2="340" y2="100" stroke="#e5e7eb" stroke-width="1"/>
+                                    <t t-foreach="v.get('pdf_chart', {}).get('hours', [])" t-as="g">
+                                        <rect t-att-x="g['cx'] - 11" t-att-y="g['bar_y']" width="22" t-att-height="g['bar_h']" fill="#b8860b" opacity="0.85"/>
+                                        <text t-att-x="g['cx']" y="114" text-anchor="middle" font-size="9" fill="#64748b" t-esc="g['label']"/>
+                                    </t>
+                                    <polyline t-att-points="v.get('pdf_chart', {}).get('line', '')" fill="none" stroke="#1e5b96" stroke-width="2.5"/>
+                                    <t t-foreach="v.get('pdf_chart', {}).get('hours', [])" t-as="g">
+                                        <circle t-att-cx="g['cx']" t-att-cy="g['dot_y']" r="3.5" fill="#1e5b96" stroke="#ffffff" stroke-width="1.5"/>
+                                        <text t-att-x="g['cx']" t-att-y="g['dot_y'] - 7" text-anchor="middle" font-size="10" font-weight="bold" fill="#1e5b96" t-esc="g['sla']"/>
+                                    </t>
+                                </svg>
                             </td>
                         </tr>
                     </table>
@@ -161,18 +151,17 @@
                         <tr>
                             <td style="width:42%; vertical-align:top; border:1px solid #e5e7eb; padding:8px;">
                                 <div style="font-weight:bold; color:#1e5b96; margin-bottom:5px;">Monthly SLA Hours</div>
-                                <t t-set="allowance" t-value="v.get('allowance') or 0.0"/>
-                                <t t-set="scale" t-value="max([m['billed'] for m in v.get('months', [])] + [allowance, 1.0])"/>
+                                <t t-set="scale" t-value="max([m['sla_hours'] for m in v.get('months', [])] + [1.0])"/>
                                 <table style="width:100%; font-size:10px;">
                                     <t t-foreach="v.get('months', [])" t-as="month">
                                         <tr>
                                             <td style="width:52px; padding:2px 4px;" t-esc="month['label']"/>
                                             <td style="padding:2px 4px;">
                                                 <div style="background:#eef2f7; height:9px; width:100%;">
-                                                    <div t-att-style="'height:9px; background:{}; width:{}%;'.format('#d97706' if allowance and month['billed'] &gt; allowance else '#1e5b96', min(100.0, month['billed'] / scale * 100.0))"/>
+                                                    <div t-att-style="'height:9px; background:#1e5b96; width:{}%;'.format(min(100.0, month['sla_hours'] / scale * 100.0))"/>
                                                 </div>
                                             </td>
-                                            <td style="width:40px; text-align:right; padding:2px 4px; font-weight:bold;" t-esc="short_hours(month['billed'])"/>
+                                            <td style="width:40px; text-align:right; padding:2px 4px; font-weight:bold;" t-esc="short_hours(month['sla_hours'])"/>
                                         </tr>
                                     </t>
                                 </table>
@@ -202,6 +191,40 @@
                                     </t>
                                 </table>
                             </td>
+                        </tr>
+                    </table>
+
+                    <div style="font-weight:bold; color:#1e5b96; margin:12px 0 4px;">
+                        Time Sheet — <t t-esc="v.get('fiscal_month_name')"/>
+                    </div>
+                    <table style="width:100%; border-collapse:collapse; font-size:9px;">
+                        <tr style="color:#64748b; border-bottom:1px solid #e5e7eb;">
+                            <th style="text-align:left; padding:3px;">#</th>
+                            <th style="text-align:left; padding:3px;">Date</th>
+                            <th style="text-align:left; padding:3px;">Ticket</th>
+                            <th style="text-align:left; padding:3px;">Subject</th>
+                            <th style="text-align:left; padding:3px;">Team Member</th>
+                            <th style="text-align:left; padding:3px;">Type</th>
+                            <th style="text-align:center; padding:3px;">Hours</th>
+                        </tr>
+                        <t t-foreach="v.get('timesheet', [])" t-as="entry">
+                            <tr style="border-bottom:1px solid #f1f5f9;">
+                                <td style="padding:3px;" t-esc="entry_index + 1"/>
+                                <td style="padding:3px; white-space:nowrap;" t-esc="entry['created']"/>
+                                <td style="padding:3px;" t-esc="entry['ticket']"/>
+                                <td style="padding:3px;" t-esc="entry['subject']"/>
+                                <td style="padding:3px; white-space:nowrap;" t-esc="entry['assignee']"/>
+                                <td style="padding:3px; white-space:nowrap;" t-esc="entry['tag']"/>
+                                <td style="padding:3px; text-align:center;" t-esc="short_hours(entry['hours'])"/>
+                            </tr>
+                        </t>
+                        <tr t-if="not v.get('timesheet')">
+                            <td colspan="7" style="padding:4px; color:#64748b;">No time entries in this fiscal month.</td>
+                        </tr>
+                        <tr style="border-top:1px solid #e5e7eb; font-weight:bold;">
+                            <td colspan="6" style="padding:3px;">Total</td>
+                            <td style="padding:3px; text-align:center;"
+                                t-esc="short_hours(sum(entry['hours'] for entry in v.get('timesheet', [])))"/>
                         </tr>
                     </table>
                 </div>
