@@ -81,6 +81,17 @@
                         </t>
                     </select>
                     <select
+                        t-if="state.slaFilters.enabled &amp;&amp; state.slaFilters.weeks.length"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onSlaWeekChange">
+                        <t t-foreach="state.slaFilters.weeks" t-as="option" t-key="option.value">
+                            <option
+                                t-att-value="option.value"
+                                t-att-selected="isSlaWeekSelected(option.value)"
+                                t-esc="option.label"/>
+                        </t>
+                    </select>
+                    <select
                         t-if="state.slaFilters.enabled &amp;&amp; state.slaFilters.months.length"
                         class="form-select o_lds_filter_select"
                         t-on-change="onSlaMonthChange">

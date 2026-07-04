@@ -14,9 +14,19 @@
              other PDF in the system keeps the standard external layout. -->
         <t t-call="web.basic_layout">
                 <div class="page" style="font-family:Arial, sans-serif; color:#0f172a; font-size:11px; padding:14px 6px 0;">
-                    <div style="text-align:center; border-bottom:3px solid #1e5b96; padding-bottom:6px; margin-bottom:8px;">
-                        <span style="font-size:16px; font-weight:bold; color:#1e5b96;">WEEKLY SUPPORT &amp; SLA PERFORMANCE DASHBOARD</span>
-                    </div>
+                    <table style="width:100%; border-bottom:3px solid #1e5b96; margin-bottom:8px;">
+                        <tr>
+                            <td style="width:20%; padding-bottom:6px;">
+                                <img t-if="company and company.logo"
+                                     t-att-src="image_data_uri(company.logo)"
+                                     style="max-height:42px; max-width:150px;"/>
+                            </td>
+                            <td style="text-align:center; padding-bottom:6px;">
+                                <span style="font-size:16px; font-weight:bold; color:#1e5b96;">WEEKLY SUPPORT &amp; SLA PERFORMANCE DASHBOARD</span>
+                            </td>
+                            <td style="width:20%;"></td>
+                        </tr>
+                    </table>
                     <table style="width:100%; background:#f1f4f8; font-size:10.5px; margin-bottom:10px;">
                         <tr>
                             <td style="padding:5px 8px;">Customer: <b t-esc="v.get('customer_name')"/></td>
@@ -150,7 +160,7 @@
                     <table style="width:100%;">
                         <tr>
                             <td style="width:42%; vertical-align:top; border:1px solid #e5e7eb; padding:8px;">
-                                <div style="font-weight:bold; color:#1e5b96; margin-bottom:5px;">Monthly SLA Hours — billed on invoices</div>
+                                <div style="font-weight:bold; color:#1e5b96; margin-bottom:5px;">Monthly SLA Hours</div>
                                 <t t-set="allowance" t-value="v.get('allowance') or 0.0"/>
                                 <t t-set="scale" t-value="max([m['billed'] for m in v.get('months', [])] + [allowance, 1.0])"/>
                                 <table style="width:100%; font-size:10px;">

@@ -148,7 +148,7 @@ class LinkederpDashboardSla(models.Model):
         return ordered[0]["id"] if ordered else False
 
     def _sla_month_options(self, customer_id, today):
-        """Fiscal months from the contract start to today's fiscal month,
+        """'Current month' + fiscal months back to the contract start,
         newest first (falls back to the last 6 when no contract)."""
         contract = self._sla_contract(customer_id, today) if customer_id else None
         current = self._sla_fiscal_key(today)
@@ -163,26 +163,45 @@ class LinkederpDashboardSla(models.Model):
             if not start and len(keys) >= 6:
                 break
             key = ((key[0] - 1, 12) if key[1] == 1 else (key[0], key[1] - 1))
-        return [{"value": self._sla_month_value(k),
-                 "label": self._sla_fiscal_label(k)} for k in keys]
+        return [{"value": "", "label": _("Current month")}] + [
+            {"value": self._sla_month_value(k),
+             "label": self._sla_fiscal_label(k)} for k in keys]
 
-    def _sla_selected_month(self, filters, options):
+    def _sla_week_options(self, today):
+        """'Latest week' + the last 16 completed Mon-Sun weeks (for
+        re-sending a missed weekly report)."""
+        this_monday = today - timedelta(days=today.weekday())
+        options = [{"value": "", "label": _("Latest week")}]
+        for back in range(1, 17):
+            monday = this_monday - timedelta(weeks=back)
+            options.append({
+                "value": str(monday),
+                "label": _("%(a)s – %(b)s") % {
+                    "a": monday.strftime("%d %b"),
+                    "b": (monday + timedelta(days=6)).strftime("%d %b")},
+            })
+        return options
+
+    def _sla_selected_value(self, filters, key, options):
         filters = filters or {}
-        value = str(filters.get("sla_month") or "")
+        value = str(filters.get(key) or "")
         if any(option["value"] == value for option in options):
             return value
-        return options[0]["value"] if options else ""
+        return ""
 
     def _sla_filter_options(self, filters=False):
         today = fields.Date.context_today(self)
         customer = self._sla_selected_customer(filters) or ""
         months = self._sla_month_options(customer, today) if customer else []
+        weeks = self._sla_week_options(today)
         return {
             "enabled": True,
             "customer": customer,
             "customers": self._sla_customer_options(),
-            "month": self._sla_selected_month(filters, months),
+            "month": self._sla_selected_value(filters, "sla_month", months),
             "months": months,
+            "week": self._sla_selected_value(filters, "sla_week", weeks),
+            "weeks": weeks,
         }
 
     def _sla_contract(self, customer_id, today):
@@ -256,6 +275,7 @@ class LinkederpDashboardSla(models.Model):
                     [("helpdesk_ticket_id", "in", [t["id"] for t in tickets]),
                      ("timesheet_invoice_type", "!=", "non_billable")]):
                 lines.append({
+                    "id": line.id,
                     "date": line.date,
                     "hours": line.unit_amount or 0.0,
                     "bucket": bucket_by_id.get(line.helpdesk_ticket_id.id, "SLA"),
@@ -303,7 +323,7 @@ class LinkederpDashboardSla(models.Model):
     # ------------------------------------------------------------------
     # Report values (shared by the dashboard payload AND the PDF)
     # ------------------------------------------------------------------
-    def _sla_report_values(self, customer_id, month=None):
+    def _sla_report_values(self, customer_id, month=None, week=None):
         today = fields.Date.context_today(self)
         data = self._sla_collect(customer_id, today)
         tickets, lines = data["tickets"], data["lines"]
@@ -311,9 +331,32 @@ class LinkederpDashboardSla(models.Model):
         allowance = data["order"].sla_monthly_hours if data["order"] and \
             "sla_monthly_hours" in data["order"]._fields else 0.0
 
-        # weeks: last 4 completed Mon-Sun weeks
-        this_monday = today - timedelta(days=today.weekday())
-        mondays = [this_monday - timedelta(weeks=i) for i in (4, 3, 2, 1)]
+        # ------------------------------------------------------------
+        # The ANCHOR: the "as of" date the report is told from.
+        # - explicit week selected  -> that week's Sunday (missed-send
+        #   re-runs show the world as of that week)
+        # - explicit month selected -> the fiscal month's end (its 25th),
+        #   capped at today
+        # - otherwise               -> today
+        # Anchored: created/closed totals + deltas, weekly charts, tenure,
+        # header week. NOT anchored (always live): open tickets, open
+        # invoices, billed-by-month chart.
+        # ------------------------------------------------------------
+        month_key = self._sla_month_key(month) if month else None
+        week_monday = fields.Date.to_date(week) if week else None
+        if week_monday:
+            anchor = week_monday + timedelta(days=6)
+        elif month_key:
+            anchor = min(fields.Date.to_date(
+                "%04d-%02d-25" % month_key), today)
+        else:
+            anchor = today
+
+        # weeks: last 4 completed Mon-Sun weeks as of the anchor
+        anchor_monday = anchor - timedelta(days=anchor.weekday())
+        latest_monday = (anchor_monday if anchor == anchor_monday + timedelta(days=6)
+                         else anchor_monday - timedelta(weeks=1))
+        mondays = [latest_monday - timedelta(weeks=i) for i in (3, 2, 1, 0)]
         weeks = []
         for monday in mondays:
             sunday = monday + timedelta(days=6)
@@ -331,21 +374,21 @@ class LinkederpDashboardSla(models.Model):
             })
 
         created_ctd = [t for t in tickets if c_start and t["created"]
-                       and c_start <= t["created"] <= today]
+                       and c_start <= t["created"] <= anchor]
         closed_ctd = [t for t in tickets if c_start and t["closed"]
-                      and c_start <= t["closed"] <= today]
+                      and c_start <= t["closed"] <= anchor]
+        # Open tickets stay LIVE (today), independent of the anchor.
         # Archived/merged tickets often keep no close date — they are not
         # "open" on a customer report.
         open_now = [t for t in tickets if not t["closed"] and t["active"]]
         on_hold = [t for t in open_now if t["on_hold"]]
         carryovers = [t for t in open_now if t["carryover"]]
 
-        # Selected fiscal month (filter), defaulting to today's.
-        f_key = (self._sla_month_key(month) if month else None) \
-            or self._sla_fiscal_key(today)
-        mtd_sla = sum(l["hours"] for l in lines
-                      if l["bucket"] == "SLA"
-                      and self._sla_fiscal_key(l["date"]) == f_key)
+        # Selected fiscal month (filter), defaulting to the anchor's.
+        f_key = month_key or self._sla_fiscal_key(anchor)
+        mtd_lines = [l for l in lines if l["bucket"] == "SLA"
+                     and self._sla_fiscal_key(l["date"]) == f_key]
+        mtd_sla = sum(l["hours"] for l in mtd_lines)
         mtd_cr = sum(l["hours"] for l in lines
                      if l["bucket"] == "CR"
                      and self._sla_fiscal_key(l["date"]) == f_key)
@@ -376,7 +419,7 @@ class LinkederpDashboardSla(models.Model):
 
         tenure_pct = 0.0
         if c_start and c_end and c_end > c_start:
-            tenure_pct = max(0.0, min(100.0, (today - c_start).days
+            tenure_pct = max(0.0, min(100.0, (anchor - c_start).days
                                       / (c_end - c_start).days * 100.0))
 
         return {
@@ -397,6 +440,7 @@ class LinkederpDashboardSla(models.Model):
             "open_now": open_now, "on_hold": on_hold,
             "carryovers": carryovers,
             "mtd_sla": mtd_sla, "mtd_cr": mtd_cr, "pct_used": pct_used,
+            "mtd_line_ids": [l["id"] for l in mtd_lines],
             "months": months, "invoices": data["invoices"],
             "tenure_pct": tenure_pct,
         }
@@ -424,6 +468,20 @@ class LinkederpDashboardSla(models.Model):
         widget["model"] = ""
         return widget
 
+    def _sla_hours_kpi(self, values):
+        """The SLA-hours card drills into the TIMESHEET LINES behind the
+        number (who spent what, on which ticket) — Akshay's tracking use."""
+        widget = self._sla_kpi(
+            "sla_hours_mtd", _("SLA Hours Used (fiscal mth)"),
+            round(values["mtd_sla"], 2), "number",
+            _("CR hours used: %s") % self._ops_short_hours(values["mtd_cr"]),
+            "#1e5b96",
+            _("Support hours used this month. Click for the timesheet "
+              "lines."),
+            domain=[("id", "in", values["mtd_line_ids"])])
+        widget["model"] = "account.analytic.line"
+        return widget
+
     def _sla_delta_caption(self, weeks, key):
         this_week = len(weeks[-1][key])
         prior = len(weeks[-2][key]) if len(weeks) > 1 else 0
@@ -442,7 +500,8 @@ class LinkederpDashboardSla(models.Model):
                 _("No customer with a Support-nature project found."),
                 "#64748b", _("Tag support projects with Nature = Support to "
                              "populate the customer list."), span=12)]
-        values = self._sla_report_values(customer_id, month=options["month"])
+        values = self._sla_report_values(
+            customer_id, month=options["month"], week=options["week"])
         weeks = values["weeks"]
         allowance = values["allowance"]
 
@@ -469,8 +528,6 @@ class LinkederpDashboardSla(models.Model):
         }
 
         open_ids = [t["id"] for t in values["open_now"]]
-        all_ticket_ids = ([t["id"] for t in values["created_ctd"]]
-                          + [t["id"] for t in values["open_now"]])
         pct = values["pct_used"]
         gauge_color = ("#dc2626" if pct >= 95 else
                        "#d97706" if pct >= 75 else "#059669")
@@ -504,21 +561,13 @@ class LinkederpDashboardSla(models.Model):
                     "hold": len(values["on_hold"]),
                     "carry": len(values["carryovers"])},
                 "#7c3aed",
-                _("Tickets currently being worked on or waiting."),
+                _("Tickets currently being worked on."),
                 domain=[("id", "in", open_ids)]),
-            self._sla_kpi(
-                "sla_hours_mtd", _("SLA Hours Used (fiscal mth)"),
-                round(values["mtd_sla"], 2), "number",
-                _("CR hours used: %s") % self._ops_short_hours(values["mtd_cr"]),
-                "#1e5b96",
-                _("Support hours used this month (%s).")
-                % values["fiscal_label"],
-                domain=[("id", "in", all_ticket_ids)]),
+            self._sla_hours_kpi(values),
             self._sla_gauge(
                 "sla_monthly_pct", _("Monthly SLA hrs used"),
                 round(min(pct, 100.0), 1), allowance_caption, gauge_color,
-                _("Share of this month's included support hours already "
-                  "used.")),
+                ""),
             self._sla_gauge(
                 "sla_tenure", _("Tenure Elapsed"),
                 round(values["tenure_pct"], 1),
@@ -550,9 +599,7 @@ class LinkederpDashboardSla(models.Model):
             "name": _("Tickets created & closed — last 4 weeks"),
             "type": "columns2", "model": "helpdesk.ticket",
             "mode": "computed", "measure": _("Tickets"), "groupby": _("Week"),
-            "color": "#b03030", "help": _(
-                "Completed Monday-Sunday weeks. Red = created, green = "
-                "closed; click a bar for the tickets."),
+            "color": "#b03030", "help": _("Completed Monday–Sunday weeks."),
             "value": float(sum(p["a"] for p in points)), "format": "integer",
             "domain": self._json_safe([("id", "in", week_ticket_ids)]),
             "points": points, "rows": [], "columns": [],
@@ -572,9 +619,7 @@ class LinkederpDashboardSla(models.Model):
             "name": _("Hours consumed — last 4 weeks"),
             "type": "combo", "model": "",
             "mode": "computed", "measure": _("Hours"), "groupby": _("Week"),
-            "color": "#1e5b96", "help": _(
-                "Line = SLA hours (billable, non-CR, non-PM); bars = "
-                "Change-request hours. Completed weeks."),
+            "color": "#1e5b96", "help": "",
             "value": float(sum(p["line"] for p in points)), "format": "number",
             "domain": [], "points": points, "rows": [], "columns": [],
             "span": 6, "error": False,
@@ -611,9 +656,7 @@ class LinkederpDashboardSla(models.Model):
                 {"key": "status", "label": _("Ticket Status"), "format": "text"},
                 {"key": "hours", "label": _("Total Time Spent"), "format": "money"},
             ],
-            _("Ticket Status comes from the Status(N) field; “*” = not set, "
-              "showing the helpdesk stage instead. “Carried over” = created "
-              "under a previous contract and still open."),
+            "",
             _("ID"), span=12, color="#1e5b96")
         widget["model"] = "helpdesk.ticket"
         widget["domain"] = self._json_safe(
@@ -635,14 +678,11 @@ class LinkederpDashboardSla(models.Model):
             })
         return {
             "id": "sla_billed_monthly",
-            "name": _("Monthly SLA Hours — billed on invoices"),
+            "name": _("Monthly SLA Hours"),
             "type": "column", "model": "account.move",
             "mode": "computed", "measure": _("Hours billed"),
             "groupby": _("Fiscal month"), "color": "#1e5b96",
-            "help": _(
-                "Support hours invoiced per fiscal month. Fixed fees and "
-                "prepaid packs are not counted. Dashed line = the monthly "
-                "allowance."),
+            "help": "",
             "value": float(sum(p["value"] for p in points)),
             "format": "number", "domain": [], "points": points,
             "rows": [], "columns": [], "span": 5, "error": False,
@@ -673,9 +713,7 @@ class LinkederpDashboardSla(models.Model):
                 {"key": "amount", "label": _("Amount"), "format": "money"},
                 {"key": "status", "label": _("Overdue Status"), "format": "text"},
             ],
-            _("Unpaid posted invoices of the SLA sale order, in their own "
-              "currency. Due date = invoice date + 30 days flat (contract "
-              "rule)."),
+            "",
             _("Number"), span=7, color="#1e5b96")
         widget["model"] = "account.move"
         return widget
@@ -684,9 +722,11 @@ class LinkederpDashboardSla(models.Model):
     # PDF export
     # ------------------------------------------------------------------
     @api.model
-    def action_export_sla_pdf(self, customer_id=False, month=False):
+    def action_export_sla_pdf(self, customer_id=False, month=False,
+                              week=False):
         options = self.sudo()._sla_filter_options(
-            {"sla_customer_id": customer_id, "sla_month": month})
+            {"sla_customer_id": customer_id, "sla_month": month,
+             "sla_week": week})
         return {
             "type": "ir.actions.report",
             "report_type": "qweb-pdf",
@@ -694,7 +734,8 @@ class LinkederpDashboardSla(models.Model):
             "report_file": "linkederp_dashboard_studio.sla_report_pdf",
             "name": _("Weekly Support & SLA Report"),
             "data": {"customer_id": options["customer"],
-                     "month": options["month"]},
+                     "month": options["month"],
+                     "week": options["week"]},
             "context": dict(self.env.context, landscape=False),
         }
 
@@ -708,15 +749,20 @@ class SlaReport(models.AbstractModel):
         options = Dashboard._sla_filter_options({
             "sla_customer_id": (data or {}).get("customer_id"),
             "sla_month": (data or {}).get("month"),
+            "sla_week": (data or {}).get("week"),
         })
         customer_id = options["customer"]
         values = Dashboard._sla_report_values(
-            customer_id, month=options["month"]) if customer_id else {}
+            customer_id, month=options["month"],
+            week=options["week"]) if customer_id else {}
+        company = (values.get("order").company_id
+                   if values.get("order") else self.env.company)
         return {
             "doc_ids": docids or [],
             "doc_model": "linkederp.dashboard",
             "docs": Dashboard.browse([]),
             "v": values,
+            "company": company,
             "short_hours": Dashboard._ops_short_hours,
             "date_text": Dashboard._ops_date_text,
             "money_text": Dashboard._ops_money,

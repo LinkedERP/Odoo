@@ -17,6 +17,7 @@ const SELECTED_SALES_COMPANY_KEY = "linkederp_dashboard_studio.sales_company";
 const SELECTED_SALES_TEAMS_KEY = "linkederp_dashboard_studio.sales_teams";
 const SELECTED_SLA_CUSTOMER_KEY = "linkederp_dashboard_studio.sla_customer";
 const SELECTED_SLA_MONTH_KEY = "linkederp_dashboard_studio.sla_month";
+const SELECTED_SLA_WEEK_KEY = "linkederp_dashboard_studio.sla_week";
 
 export class LinkedERPDashboardAction extends Component {
     setup() {
@@ -80,6 +81,8 @@ export class LinkedERPDashboardAction extends Component {
             "isSlaCustomerSelected",
             "onSlaMonthChange",
             "isSlaMonthSelected",
+            "onSlaWeekChange",
+            "isSlaWeekSelected",
             "onSlaExportPdf",
             "columns2Style",
             "comboBarStyle",
@@ -155,6 +158,7 @@ export class LinkedERPDashboardAction extends Component {
             salesTeams: this.parseSalesTeams(window.localStorage.getItem(SELECTED_SALES_TEAMS_KEY)),
             slaCustomer: window.localStorage.getItem(SELECTED_SLA_CUSTOMER_KEY) || "",
             slaMonth: window.localStorage.getItem(SELECTED_SLA_MONTH_KEY) || "",
+            slaWeek: window.localStorage.getItem(SELECTED_SLA_WEEK_KEY) || "",
         };
     }
 
@@ -298,6 +302,16 @@ export class LinkedERPDashboardAction extends Component {
         return `${this.state.filters.slaMonth || ""}` === `${value}`;
     }
 
+    async onSlaWeekChange(ev) {
+        this.state.filters.slaWeek = ev.target.value || "";
+        window.localStorage.setItem(SELECTED_SLA_WEEK_KEY, this.state.filters.slaWeek);
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    isSlaWeekSelected(value) {
+        return `${this.state.filters.slaWeek || ""}` === `${value}`;
+    }
+
     async onSlaExportPdf() {
         const action = await this.orm.call(
             "linkederp.dashboard",
@@ -306,6 +320,7 @@ export class LinkedERPDashboardAction extends Component {
             {
                 customer_id: this.state.filters.slaCustomer || false,
                 month: this.state.filters.slaMonth || false,
+                week: this.state.filters.slaWeek || false,
             }
         );
         this.action.doAction(action);
@@ -419,6 +434,7 @@ export class LinkedERPDashboardAction extends Component {
                         sales_team_ids: this.state.filters.salesTeams || [],
                         sla_customer_id: this.state.filters.slaCustomer || false,
                         sla_month: this.state.filters.slaMonth || false,
+                        sla_week: this.state.filters.slaWeek || false,
                     },
                 }
             );
@@ -436,8 +452,10 @@ export class LinkedERPDashboardAction extends Component {
             if (this.state.slaFilters.enabled) {
                 this.state.filters.slaCustomer = String(this.state.slaFilters.customer || "");
                 this.state.filters.slaMonth = String(this.state.slaFilters.month || "");
+                this.state.filters.slaWeek = String(this.state.slaFilters.week || "");
                 window.localStorage.setItem(SELECTED_SLA_CUSTOMER_KEY, this.state.filters.slaCustomer);
                 window.localStorage.setItem(SELECTED_SLA_MONTH_KEY, this.state.filters.slaMonth);
+                window.localStorage.setItem(SELECTED_SLA_WEEK_KEY, this.state.filters.slaWeek);
             }
             if (this.state.salesFilters.enabled) {
                 // The server echoes the VALIDATED values: write them back so
@@ -492,6 +510,7 @@ export class LinkedERPDashboardAction extends Component {
         window.localStorage.removeItem(SELECTED_SALES_TEAMS_KEY);
         window.localStorage.removeItem(SELECTED_SLA_CUSTOMER_KEY);
         window.localStorage.removeItem(SELECTED_SLA_MONTH_KEY);
+        window.localStorage.removeItem(SELECTED_SLA_WEEK_KEY);
         this.state.filters = this.defaultFilters();
         await this.applyFilters();
     }
