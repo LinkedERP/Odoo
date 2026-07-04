@@ -30,7 +30,8 @@ AI_DASHBOARD_LEGACY = "AI Generated Leads Performance"
 
 DEFAULT_BUCKET_BY_NAME = {
     "Sales & CRM Dashboard": "sales",
-    "Sales Performance Dashboard": "sales",
+    "Sales Performance Dashboard": "management",
+    "Aurika Sales Dashboard": "management",
     "Nighthawk Review Dashboard": "sales",
     "AI Generated Leads Performance": "sales",
     "Ops Weekly review": "ops",

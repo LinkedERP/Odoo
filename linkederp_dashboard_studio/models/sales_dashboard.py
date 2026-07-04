@@ -1,6 +1,9 @@
 from odoo import fields, models, _
 
-SALES_DASHBOARD_NAME = "Sales Performance Dashboard"
+SALES_DASHBOARD_NAME = "Aurika Sales Dashboard"
+# Renamed + moved to the Management bucket per Akshay 2026-07-04 (born
+# "Sales Performance Dashboard" in the Sales bucket earlier the same day).
+SALES_DASHBOARD_LEGACY = "Sales Performance Dashboard"
 
 # ---------------------------------------------------------------------------
 # Linked BD Pipeline Strength Scoring (deck of 2026; the matrix screenshots
@@ -64,7 +67,13 @@ class LinkederpDashboardSales(models.Model):
         self._ensure_sales_dashboard()
 
     def _ensure_sales_dashboard(self):
-        if self._ensure_dashboard_name(SALES_DASHBOARD_NAME, []):
+        if self._ensure_dashboard_name(SALES_DASHBOARD_NAME,
+                                       [SALES_DASHBOARD_LEGACY]):
+            # One-time bucket migration: the record was born in Sales.
+            record = self.with_context(active_test=False).search(
+                [("name", "=", SALES_DASHBOARD_NAME)], limit=1)
+            if record and record.bucket != "management":
+                record.write({"bucket": "management"})
             return
         if "crm.lead" not in self.env:
             return
@@ -72,7 +81,7 @@ class LinkederpDashboardSales(models.Model):
             {
                 "name": SALES_DASHBOARD_NAME,
                 "sequence": 15,
-                "bucket": "sales",
+                "bucket": "management",
                 "description": _(
                     "BD pipeline strength (Stage · Velocity · Value · Timing "
                     "· Probability): every open deal scored against its "
