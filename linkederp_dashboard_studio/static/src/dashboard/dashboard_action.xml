@@ -70,6 +70,25 @@
                         </t>
                     </select>
                     <select
+                        t-if="state.slaFilters.enabled &amp;&amp; state.slaFilters.customers.length"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onSlaCustomerChange">
+                        <t t-foreach="state.slaFilters.customers" t-as="option" t-key="option.id">
+                            <option
+                                t-att-value="option.id"
+                                t-att-selected="isSlaCustomerSelected(option.id)"
+                                t-esc="option.name"/>
+                        </t>
+                    </select>
+                    <button
+                        t-if="state.slaFilters.enabled"
+                        class="btn btn-primary"
+                        type="button"
+                        t-on-click="onSlaExportPdf"
+                        title="Export this customer's report as PDF">
+                        <i class="fa fa-file-pdf-o"/> PDF
+                    </button>
+                    <select
                         t-if="state.crmFilters.enabled"
                         class="form-select o_lds_filter_select"
                         t-on-change="(ev) => setFilter('campaignId', ev.target.value)">
@@ -150,8 +169,8 @@
                                 t-esc="option.label"/>
                         </t>
                     </select>
-                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom"/>
-                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo"/>
+                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled &amp;&amp; !state.slaFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom"/>
+                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled &amp;&amp; !state.slaFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo"/>
                     <button class="btn btn-primary" type="button" t-on-click="applyFilters" title="Apply filters">
                         <i class="fa fa-filter"/>
                     </button>
@@ -567,6 +586,71 @@
                                             <strong t-esc="formatPointValue(widget, point.value)"/>
                                         </button>
                                     </t>
+                                </div>
+                            </div>
+                        </t>
+
+                        <t t-elif="widget.type === 'columns2'">
+                            <div class="o_lds_c2">
+                                <div class="o_lds_c2_legend">
+                                    <span><i style="background:#b03030"></i><t t-esc="widget.label_a"/></span>
+                                    <span><i style="background:#2e7d2e"></i><t t-esc="widget.label_b"/></span>
+                                </div>
+                                <div class="o_lds_c2_plot">
+                                    <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                        <div class="o_lds_c2_group">
+                                            <div class="o_lds_c2_bars">
+                                                <button
+                                                    class="o_lds_c2_bar"
+                                                    type="button"
+                                                    t-att-style="columns2Style(widget, point, 'a')"
+                                                    t-on-click="() => openRecords(widget.model, point.domain)">
+                                                    <strong t-esc="point.a"/>
+                                                </button>
+                                                <button
+                                                    class="o_lds_c2_bar"
+                                                    type="button"
+                                                    t-att-style="columns2Style(widget, point, 'b')"
+                                                    t-on-click="() => openRecords(widget.model, point.domain_b)">
+                                                    <strong t-esc="point.b"/>
+                                                </button>
+                                            </div>
+                                            <span class="o_lds_c2_label" t-esc="point.label"/>
+                                        </div>
+                                    </t>
+                                </div>
+                            </div>
+                        </t>
+
+                        <t t-elif="widget.type === 'combo'">
+                            <div class="o_lds_combo">
+                                <div class="o_lds_c2_legend">
+                                    <span><i style="background:#1e5b96"></i><t t-esc="widget.label_line"/></span>
+                                    <span><i style="background:#b8860b"></i><t t-esc="widget.label_bar"/></span>
+                                </div>
+                                <div class="o_lds_combo_plot">
+                                    <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                        <div class="o_lds_c2_group">
+                                            <div class="o_lds_c2_bars">
+                                                <span class="o_lds_combo_bar" t-att-style="comboBarStyle(widget, point)" t-att-title="widget.label_bar + ': ' + point.bar"/>
+                                            </div>
+                                            <span class="o_lds_c2_label" t-esc="point.label"/>
+                                        </div>
+                                    </t>
+                                    <div class="o_lds_combo_overlay">
+                                        <svg class="o_lds_combo_svg" viewBox="0 0 600 150" preserveAspectRatio="none" role="img">
+                                            <polyline class="o_lds_combo_line" t-att-points="comboLinePoints(widget)"/>
+                                        </svg>
+                                        <t t-foreach="comboMarkers(widget)" t-as="m" t-key="m.point.label">
+                                            <span
+                                                class="o_lds_combo_dot"
+                                                t-att-style="'left:' + m.leftPct + '%; top:' + m.topPct + '%;'"/>
+                                            <span
+                                                class="o_lds_combo_val"
+                                                t-att-style="'left:' + m.leftPct + '%; top:' + m.valueTopPct + '%;'"
+                                                t-esc="formatPointValue(widget, m.point.line)"/>
+                                        </t>
+                                    </div>
                                 </div>
                             </div>
                         </t>

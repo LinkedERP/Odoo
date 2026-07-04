@@ -15,6 +15,7 @@ const SELECTED_SALES_YEAR_KEY = "linkederp_dashboard_studio.sales_year";
 const SELECTED_SALES_PERSON_KEY = "linkederp_dashboard_studio.sales_person";
 const SELECTED_SALES_COMPANY_KEY = "linkederp_dashboard_studio.sales_company";
 const SELECTED_SALES_TEAMS_KEY = "linkederp_dashboard_studio.sales_teams";
+const SELECTED_SLA_CUSTOMER_KEY = "linkederp_dashboard_studio.sla_customer";
 
 export class LinkedERPDashboardAction extends Component {
     setup() {
@@ -39,6 +40,7 @@ export class LinkedERPDashboardAction extends Component {
             weeklyFilters: { enabled: false },
             mgmtFilters: { enabled: false },
             salesFilters: { enabled: false },
+            slaFilters: { enabled: false },
             modal: false,
             filters: this.defaultFilters(),
             tooltip: { visible: false, x: 0, y: 0, title: "", detail: null },
@@ -73,6 +75,13 @@ export class LinkedERPDashboardAction extends Component {
             "onSalesTeamToggle",
             "isSalesTeamSelected",
             "clearSalesTeams",
+            "onSlaCustomerChange",
+            "isSlaCustomerSelected",
+            "onSlaExportPdf",
+            "columns2Style",
+            "comboBarStyle",
+            "comboLinePoints",
+            "comboMarkers",
             "applyFilters",
             "resetFilters",
             "setFilter",
@@ -141,6 +150,7 @@ export class LinkedERPDashboardAction extends Component {
             salesPerson: window.localStorage.getItem(SELECTED_SALES_PERSON_KEY) || "",
             salesCompany: window.localStorage.getItem(SELECTED_SALES_COMPANY_KEY) || "",
             salesTeams: this.parseSalesTeams(window.localStorage.getItem(SELECTED_SALES_TEAMS_KEY)),
+            slaCustomer: window.localStorage.getItem(SELECTED_SLA_CUSTOMER_KEY) || "",
         };
     }
 
@@ -264,6 +274,87 @@ export class LinkedERPDashboardAction extends Component {
         await this.load(this.state.dashboard && this.state.dashboard.id);
     }
 
+    async onSlaCustomerChange(ev) {
+        this.state.filters.slaCustomer = ev.target.value || "";
+        window.localStorage.setItem(SELECTED_SLA_CUSTOMER_KEY, this.state.filters.slaCustomer);
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    isSlaCustomerSelected(value) {
+        return `${this.state.filters.slaCustomer || ""}` === `${value}`;
+    }
+
+    async onSlaExportPdf() {
+        const action = await this.orm.call(
+            "linkederp.dashboard",
+            "action_export_sla_pdf",
+            [],
+            { customer_id: this.state.filters.slaCustomer || false }
+        );
+        this.action.doAction(action);
+    }
+
+    columns2Max(widget) {
+        const values = [];
+        for (const point of widget.points || []) {
+            values.push(Number(point.a || 0));
+            values.push(Number(point.b || 0));
+        }
+        return Math.max(...values, 1) * 1.15;
+    }
+
+    columns2Style(widget, point, key) {
+        const value = Number(point[key] || 0);
+        const height = value ? Math.max(4, (value / this.columns2Max(widget)) * 100) : 2;
+        const color = key === "a" ? "#b03030" : "#2e7d2e";
+        return `height: ${height}%; background: ${color};`;
+    }
+
+    comboMax(widget) {
+        const values = [];
+        for (const point of widget.points || []) {
+            values.push(Number(point.line || 0));
+            values.push(Number(point.bar || 0));
+        }
+        return Math.max(...values, 1) * 1.15;
+    }
+
+    comboBarStyle(widget, point) {
+        const value = Number(point.bar || 0);
+        const height = value ? Math.max(3, (value / this.comboMax(widget)) * 100) : 2;
+        return `height: ${height}%;`;
+    }
+
+    comboCoords(widget) {
+        const points = widget.points || [];
+        const n = points.length;
+        if (!n) {
+            return [];
+        }
+        const max = this.comboMax(widget);
+        return points.map((point, index) => {
+            const x = ((index + 0.5) / n) * 600;
+            const y = 140 - (Number(point.line || 0) / max) * 128;
+            const topPct = (y / 150) * 100;
+            return {
+                point,
+                x,
+                y,
+                leftPct: (x / 600) * 100,
+                topPct,
+                valueTopPct: Math.max(2, topPct - 13),
+            };
+        });
+    }
+
+    comboLinePoints(widget) {
+        return this.comboCoords(widget).map((c) => `${c.x},${c.y}`).join(" ");
+    }
+
+    comboMarkers(widget) {
+        return this.comboCoords(widget);
+    }
+
     bucketGroups() {
         const order = this.state.bucketOrder || [];
         const groups = [];
@@ -309,6 +400,7 @@ export class LinkedERPDashboardAction extends Component {
                         sales_person_id: this.state.filters.salesPerson || false,
                         sales_company_id: this.state.filters.salesCompany || false,
                         sales_team_ids: this.state.filters.salesTeams || [],
+                        sla_customer_id: this.state.filters.slaCustomer || false,
                     },
                 }
             );
@@ -322,6 +414,11 @@ export class LinkedERPDashboardAction extends Component {
             this.state.weeklyFilters = payload.weekly_filters || { enabled: false };
             this.state.mgmtFilters = payload.mgmt_filters || { enabled: false };
             this.state.salesFilters = payload.sales_filters || { enabled: false };
+            this.state.slaFilters = payload.sla_filters || { enabled: false };
+            if (this.state.slaFilters.enabled) {
+                this.state.filters.slaCustomer = String(this.state.slaFilters.customer || "");
+                window.localStorage.setItem(SELECTED_SLA_CUSTOMER_KEY, this.state.filters.slaCustomer);
+            }
             if (this.state.salesFilters.enabled) {
                 // The server echoes the VALIDATED values: write them back so
                 // stale localStorage self-heals (same pattern as teamWeek).
@@ -373,6 +470,7 @@ export class LinkedERPDashboardAction extends Component {
         window.localStorage.removeItem(SELECTED_SALES_PERSON_KEY);
         window.localStorage.removeItem(SELECTED_SALES_COMPANY_KEY);
         window.localStorage.removeItem(SELECTED_SALES_TEAMS_KEY);
+        window.localStorage.removeItem(SELECTED_SLA_CUSTOMER_KEY);
         this.state.filters = this.defaultFilters();
         await this.applyFilters();
     }

@@ -41,6 +41,7 @@ DEFAULT_BUCKET_BY_NAME = {
     "Ops Weekly Teams": "management",
     "Aurika Ops Dashboard": "management",
     "Ops Management": "management",
+    "Weekly Support & SLA Dashboard": "management",
 }
 
 
@@ -187,6 +188,12 @@ class LinkederpDashboard(models.Model):
                     date_to=date_to,
                     filters=filters,
                 )
+            elif dashboard._is_sla_dashboard():
+                widgets = dashboard._sla_dashboard_widgets(
+                    date_from=date_from,
+                    date_to=date_to,
+                    filters=filters,
+                )
 
         bucket_labels = dict(DASHBOARD_BUCKETS)
         return {
@@ -233,6 +240,9 @@ class LinkederpDashboard(models.Model):
             else {"enabled": False},
             "sales_filters": dashboard._sales_filter_options(filters)
             if dashboard and dashboard._is_sales_dashboard()
+            else {"enabled": False},
+            "sla_filters": dashboard._sla_filter_options(filters)
+            if dashboard and dashboard._is_sla_dashboard()
             else {"enabled": False},
         }
 

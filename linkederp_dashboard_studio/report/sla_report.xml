@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="sla_report_pdf_action" model="ir.actions.report">
+        <field name="name">Weekly Support &amp; SLA Report</field>
+        <field name="model">linkederp.dashboard</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">linkederp_dashboard_studio.sla_report_pdf</field>
+        <field name="report_file">linkederp_dashboard_studio.sla_report_pdf</field>
+    </record>
+
+    <template id="sla_report_pdf">
+        <t t-call="web.html_container">
+            <t t-call="web.external_layout">
+                <div class="page" style="font-family:Arial, sans-serif; color:#0f172a; font-size:11px;">
+                    <div style="text-align:center; border-bottom:3px solid #1e5b96; padding-bottom:6px; margin-bottom:8px;">
+                        <span style="font-size:16px; font-weight:bold; color:#1e5b96;">WEEKLY SUPPORT &amp; SLA PERFORMANCE DASHBOARD</span>
+                    </div>
+                    <table style="width:100%; background:#f1f4f8; font-size:10.5px; margin-bottom:10px;">
+                        <tr>
+                            <td style="padding:5px 8px;">Customer: <b t-esc="v.get('customer_name')"/></td>
+                            <td style="padding:5px 8px;">Week: <b t-esc="v.get('week_label')"/></td>
+                            <td style="padding:5px 8px;">Contract: <b><t t-esc="date_text(v.get('contract_start'))"/> – <t t-esc="date_text(v.get('contract_end'))"/></b></td>
+                            <td style="padding:5px 8px;">Fiscal month: <b t-esc="v.get('fiscal_label')"/></td>
+                        </tr>
+                    </table>
+
+                    <table style="width:100%; margin-bottom:12px;">
+                        <tr>
+                            <td style="width:16%; border:1px solid #e5e7eb; padding:7px; text-align:center;">
+                                <div style="color:#64748b; font-size:9px;">TOTAL TICKETS CREATED</div>
+                                <div style="font-size:19px; font-weight:bold;" t-esc="len(v.get('created_ctd', []))"/>
+                                <div style="color:#64748b; font-size:9px;">since contract start</div>
+                            </td>
+                            <td style="width:16%; border:1px solid #e5e7eb; padding:7px; text-align:center;">
+                                <div style="color:#64748b; font-size:9px;">TOTAL TICKETS CLOSED</div>
+                                <div style="font-size:19px; font-weight:bold;" t-esc="len(v.get('closed_ctd', []))"/>
+                                <div style="color:#64748b; font-size:9px;">since contract start</div>
+                            </td>
+                            <td style="width:16%; border:1px solid #e5e7eb; padding:7px; text-align:center;">
+                                <div style="color:#64748b; font-size:9px;">TICKETS OPEN</div>
+                                <div style="font-size:19px; font-weight:bold;" t-esc="len(v.get('open_now', []))"/>
+                                <div style="color:#64748b; font-size:9px;">
+                                    <t t-esc="len(v.get('open_now', [])) - len(v.get('on_hold', []))"/> Active &amp;
+                                    <t t-esc="len(v.get('on_hold', []))"/> On Hold
+                                </div>
+                            </td>
+                            <td style="width:16%; border:1px solid #e5e7eb; padding:7px; text-align:center;">
+                                <div style="color:#64748b; font-size:9px;">SLA HOURS USED (FISCAL MTH)</div>
+                                <div style="font-size:19px; font-weight:bold;" t-esc="short_hours(v.get('mtd_sla', 0.0))"/>
+                                <div style="color:#64748b; font-size:9px;">CR hours: <t t-esc="short_hours(v.get('mtd_cr', 0.0))"/></div>
+                            </td>
+                            <td style="width:18%; border:1px solid #e5e7eb; padding:7px; text-align:center;">
+                                <div style="color:#64748b; font-size:9px;">MONTHLY SLA HRS USED</div>
+                                <div style="font-size:19px; font-weight:bold;">
+                                    <t t-if="v.get('allowance')"><t t-esc="round(v.get('pct_used', 0.0))"/>%</t>
+                                    <t t-else="">—</t>
+                                </div>
+                                <div style="color:#64748b; font-size:9px;">
+                                    <t t-if="v.get('allowance')">of <t t-esc="short_hours(v.get('allowance'))"/> h allowance</t>
+                                    <t t-else="">allowance not set</t>
+                                </div>
+                            </td>
+                            <td style="width:18%; border:1px solid #e5e7eb; padding:7px; text-align:center;">
+                                <div style="color:#64748b; font-size:9px;">TENURE ELAPSED</div>
+                                <div style="font-size:19px; font-weight:bold;"><t t-esc="round(v.get('tenure_pct', 0.0))"/>%</div>
+                                <div style="color:#64748b; font-size:9px;">expires <t t-esc="date_text(v.get('contract_end'))"/></div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table style="width:100%; margin-bottom:12px;">
+                        <tr>
+                            <td style="width:49%; vertical-align:top; border:1px solid #e5e7eb; padding:8px;">
+                                <div style="font-weight:bold; color:#1e5b96; margin-bottom:5px;">Tickets created &amp; closed — last 4 weeks</div>
+                                <table style="width:100%; font-size:10px;">
+                                    <tr style="color:#64748b;">
+                                        <td></td>
+                                        <t t-foreach="v.get('weeks', [])" t-as="week">
+                                            <td style="text-align:center;" t-esc="week['label']"/>
+                                        </t>
+                                    </tr>
+                                    <tr>
+                                        <td style="color:#b03030; font-weight:bold;">Created</td>
+                                        <t t-foreach="v.get('weeks', [])" t-as="week">
+                                            <td style="text-align:center; font-weight:bold;" t-esc="len(week['created'])"/>
+                                        </t>
+                                    </tr>
+                                    <tr>
+                                        <td style="color:#2e7d2e; font-weight:bold;">Closed</td>
+                                        <t t-foreach="v.get('weeks', [])" t-as="week">
+                                            <td style="text-align:center; font-weight:bold;" t-esc="len(week['closed'])"/>
+                                        </t>
+                                    </tr>
+                                </table>
+                            </td>
+                            <td style="width:2%;"></td>
+                            <td style="width:49%; vertical-align:top; border:1px solid #e5e7eb; padding:8px;">
+                                <div style="font-weight:bold; color:#1e5b96; margin-bottom:5px;">Hours consumed — last 4 weeks</div>
+                                <table style="width:100%; font-size:10px;">
+                                    <tr style="color:#64748b;">
+                                        <td></td>
+                                        <t t-foreach="v.get('weeks', [])" t-as="week">
+                                            <td style="text-align:center;" t-esc="week['label']"/>
+                                        </t>
+                                    </tr>
+                                    <tr>
+                                        <td style="color:#1e5b96; font-weight:bold;">SLA hours</td>
+                                        <t t-foreach="v.get('weeks', [])" t-as="week">
+                                            <td style="text-align:center; font-weight:bold;" t-esc="short_hours(week['sla_hours'])"/>
+                                        </t>
+                                    </tr>
+                                    <tr>
+                                        <td style="color:#b8860b; font-weight:bold;">CR hours</td>
+                                        <t t-foreach="v.get('weeks', [])" t-as="week">
+                                            <td style="text-align:center; font-weight:bold;" t-esc="short_hours(week['cr_hours'])"/>
+                                        </t>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div style="font-weight:bold; color:#1e5b96; margin-bottom:4px;">Open Tickets Details</div>
+                    <table style="width:100%; border-collapse:collapse; font-size:9.5px; margin-bottom:12px;">
+                        <tr style="color:#64748b; border-bottom:1px solid #e5e7eb;">
+                            <th style="text-align:left; padding:4px;">ID</th>
+                            <th style="text-align:left; padding:4px;">Created on</th>
+                            <th style="text-align:left; padding:4px;">Owner</th>
+                            <th style="text-align:left; padding:4px;">Subject</th>
+                            <th style="text-align:left; padding:4px;">Ticket Status</th>
+                            <th style="text-align:right; padding:4px;">Time Spent</th>
+                        </tr>
+                        <t t-foreach="v.get('open_now', [])" t-as="ticket">
+                            <tr style="border-bottom:1px solid #f1f5f9;">
+                                <td style="padding:4px;" t-esc="ticket['ref']"/>
+                                <td style="padding:4px;">
+                                    <t t-esc="date_text(ticket['created'])"/>
+                                    <span t-if="ticket['carryover']" style="color:#9a3412;"> · carried over</span>
+                                </td>
+                                <td style="padding:4px;" t-esc="ticket['owner']"/>
+                                <td style="padding:4px;" t-esc="ticket['name'][:60]"/>
+                                <td style="padding:4px;" t-esc="ticket['status'] or ((ticket['stage'] or '?') + ' *')"/>
+                                <td style="padding:4px; text-align:right;" t-esc="short_hours(ticket['hours'])"/>
+                            </tr>
+                        </t>
+                    </table>
+
+                    <table style="width:100%;">
+                        <tr>
+                            <td style="width:42%; vertical-align:top; border:1px solid #e5e7eb; padding:8px;">
+                                <div style="font-weight:bold; color:#1e5b96; margin-bottom:5px;">Monthly SLA Hours — billed on invoices</div>
+                                <t t-set="allowance" t-value="v.get('allowance') or 0.0"/>
+                                <t t-set="scale" t-value="max([m['billed'] for m in v.get('months', [])] + [allowance, 1.0])"/>
+                                <table style="width:100%; font-size:10px;">
+                                    <t t-foreach="v.get('months', [])" t-as="month">
+                                        <tr>
+                                            <td style="width:52px; padding:2px 4px;" t-esc="month['label']"/>
+                                            <td style="padding:2px 4px;">
+                                                <div style="background:#eef2f7; height:9px; width:100%;">
+                                                    <div t-att-style="'height:9px; background:%s; width:%s%%;' % ('#d97706' if allowance and month['billed'] &gt; allowance else '#1e5b96', min(100.0, month['billed'] / scale * 100.0))"/>
+                                                </div>
+                                            </td>
+                                            <td style="width:40px; text-align:right; padding:2px 4px; font-weight:bold;" t-esc="short_hours(month['billed'])"/>
+                                        </tr>
+                                    </t>
+                                </table>
+                                <div style="color:#64748b; font-size:9px; margin-top:4px;">
+                                    Allowance: <t t-esc="short_hours(allowance)"/> h / fiscal month · fixed-fee invoices bill 0 hours
+                                </div>
+                            </td>
+                            <td style="width:2%;"></td>
+                            <td style="width:56%; vertical-align:top; border:1px solid #e5e7eb; padding:8px;">
+                                <div style="font-weight:bold; color:#1e5b96; margin-bottom:5px;">Open SLA Invoices Details</div>
+                                <table style="width:100%; border-collapse:collapse; font-size:9.5px;">
+                                    <tr style="color:#64748b; border-bottom:1px solid #e5e7eb;">
+                                        <th style="text-align:left; padding:4px;">Number</th>
+                                        <th style="text-align:left; padding:4px;">Invoice Date</th>
+                                        <th style="text-align:left; padding:4px;">Due Date (+30d)</th>
+                                        <th style="text-align:left; padding:4px;">Currency</th>
+                                        <th style="text-align:right; padding:4px;">Amount</th>
+                                        <th style="text-align:left; padding:4px;">Status</th>
+                                    </tr>
+                                    <t t-foreach="[inv for inv in v.get('invoices', []) if inv['open']]" t-as="inv">
+                                        <tr style="border-bottom:1px solid #f1f5f9;">
+                                            <td style="padding:4px;" t-esc="inv['name']"/>
+                                            <td style="padding:4px;" t-esc="date_text(inv['date'])"/>
+                                            <td style="padding:4px;" t-esc="date_text(inv['due'])"/>
+                                            <td style="padding:4px;" t-esc="inv['currency']"/>
+                                            <td style="padding:4px; text-align:right;" t-esc="money_text(inv['amount'], inv['currency_rec'])"/>
+                                            <td t-att-style="'padding:4px; font-weight:bold; color:%s;' % ('#dc2626' if inv['overdue'] else '#059669')"
+                                                t-esc="'Overdue' if inv['overdue'] else 'On Time'"/>
+                                        </tr>
+                                    </t>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </t>
+        </t>
+    </template>
+</odoo>
