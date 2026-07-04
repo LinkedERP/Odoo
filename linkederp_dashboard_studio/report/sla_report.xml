@@ -186,7 +186,7 @@
                                             <td style="padding:4px;" t-esc="date_text(inv['date'])"/>
                                             <td style="padding:4px;" t-esc="date_text(inv['due'])"/>
                                             <td style="padding:4px;" t-esc="inv['currency']"/>
-                                            <td style="padding:4px; text-align:right;" t-esc="money_text(inv['amount'], inv['currency_rec'])"/>
+                                            <td style="padding:4px; text-align:right;" t-esc="'{:,.2f}'.format(inv['amount'] or 0.0)"/>
                                             <td t-att-style="'padding:4px; font-weight:bold; color:%s;' % ('#dc2626' if inv['overdue'] else '#059669')"
                                                 t-esc="'Overdue' if inv['overdue'] else 'On Time'"/>
                                         </tr>

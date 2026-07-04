@@ -201,10 +201,20 @@ class LinkederpDashboardSla(models.Model):
             for move in order.invoice_ids:
                 if move.move_type != "out_invoice" or move.state != "posted":
                     continue
+                # Billed SLA hours = lines whose SO line is invoiced from
+                # timesheets. Fixed-fee/milestone lines are excluded even
+                # when they are hour-denominated (Akshay 2026-07-04: a
+                # fixed line billed as 231.5 "hours" polluted the chart).
                 billed = 0.0
                 for mline in move.invoice_line_ids:
-                    uom = (mline.product_uom_id.name or "").lower()
-                    if "hour" in uom:
+                    sols = mline.sale_line_ids
+                    if sols and any(sol.qty_delivered_method == "timesheet"
+                                    for sol in sols):
+                        billed += mline.quantity
+                    elif not sols and "hour" in (
+                            mline.product_uom_id.name or "").lower():
+                        # manual invoice line without an SO link: fall back
+                        # to the hour-unit heuristic
                         billed += mline.quantity
                 inv_date = move.invoice_date
                 due = inv_date + timedelta(days=INVOICE_DUE_DAYS) if inv_date else False
@@ -213,8 +223,9 @@ class LinkederpDashboardSla(models.Model):
                     "id": move.id, "name": move.name,
                     "date": inv_date, "due": due,
                     "currency": move.currency_id.name or "",
+                    # Invoice's OWN currency, never converted; shown as a
+                    # plain number (the Currency column names it).
                     "amount": move.amount_total,
-                    "currency_rec": move.currency_id,
                     "open": open_inv,
                     "overdue": bool(open_inv and due and due < today),
                     "billed_hours": billed,
@@ -408,16 +419,14 @@ class LinkederpDashboardSla(models.Model):
                 len(values["created_ctd"]), "integer",
                 self._sla_delta_caption(weeks, "created"),
                 "#2563eb",
-                _("Tickets created since the contract start (%s). "
-                  "Performance-Management-tagged tickets are excluded "
-                  "everywhere.") % self._ops_date_text(values["contract_start"]),
+                _("Tickets raised since the contract began."),
                 domain=[("id", "in", [t["id"] for t in values["created_ctd"]])]),
             self._sla_kpi(
                 "sla_closed", _("Total Tickets Closed"),
                 len(values["closed_ctd"]), "integer",
                 self._sla_delta_caption(weeks, "closed"),
                 "#059669",
-                _("Tickets closed since the contract start."),
+                _("Tickets resolved since the contract began."),
                 domain=[("id", "in", [t["id"] for t in values["closed_ctd"]])]),
             self._sla_kpi(
                 "sla_open", _("Tickets Open"),
@@ -427,35 +436,27 @@ class LinkederpDashboardSla(models.Model):
                     "hold": len(values["on_hold"]),
                     "carry": len(values["carryovers"])},
                 "#7c3aed",
-                _("All currently open tickets regardless of age — tickets "
-                  "created under a previous contract are counted and badged "
-                  "as carried over."),
+                _("Tickets currently being worked on or waiting."),
                 domain=[("id", "in", open_ids)]),
             self._sla_kpi(
                 "sla_hours_mtd", _("SLA Hours Used (fiscal mth)"),
                 round(values["mtd_sla"], 2), "number",
                 _("CR hours used: %s") % self._ops_short_hours(values["mtd_cr"]),
                 "#1e5b96",
-                _("Billable hours logged on this customer's tickets in the "
-                  "current fiscal month (%s). SLA = non-Change-request, "
-                  "non-Performance-Management; CR shown separately.")
+                _("Support hours used this month (%s).")
                 % values["fiscal_label"],
                 domain=[("id", "in", all_ticket_ids)]),
             self._sla_gauge(
                 "sla_monthly_pct", _("Monthly SLA hrs used"),
                 round(min(pct, 100.0), 1), allowance_caption, gauge_color,
-                _("Fiscal-month consumption vs the Monthly SLA Hours "
-                  "Allowance on the contract's sale order.")
-                + (_(" Currently %(pct)s%% of %(all)s h.") % {
-                    "pct": round(pct, 1),
-                    "all": self._ops_short_hours(allowance)} if allowance else "")),
+                _("Share of this month's included support hours already "
+                  "used.")),
             self._sla_gauge(
                 "sla_tenure", _("Tenure Elapsed"),
                 round(values["tenure_pct"], 1),
                 _("⌛ expires %s") % self._ops_date_text(values["contract_end"]),
                 "#1e5b96",
-                _("Share of the contract period already elapsed (as of "
-                  "today).")),
+                _("How much of the contract period has passed.")),
             self._sla_weekly_tickets(weeks),
             self._sla_weekly_hours(weeks),
             self._sla_open_table(values),
@@ -592,7 +593,7 @@ class LinkederpDashboardSla(models.Model):
                 "date": self._ops_date_text(inv["date"]),
                 "due": self._ops_date_text(inv["due"]),
                 "ccy": inv["currency"],
-                "amount": self._ops_money(inv["amount"], inv["currency_rec"]),
+                "amount": "{:,.2f}".format(inv["amount"] or 0.0),
                 "status": _("⚠ Overdue") if inv["overdue"] else _("✓ On Time"),
                 "tones": {"status": "bad" if inv["overdue"] else "good"},
             })
