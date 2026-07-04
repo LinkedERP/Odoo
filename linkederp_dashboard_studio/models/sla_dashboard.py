@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 
 from odoo import api, fields, models, _
@@ -19,6 +20,13 @@ SLA_MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
 PROJECT_NATURE_FIELD = "x_studio_nature"
 STATUS_N_FIELD = "x_studio_statusn"
 INVOICE_DUE_DAYS = 30
+
+# LinkedERP product catalogue: <country>SP<T|F|M><seq> = Sales-Project-
+# Time/Fixed/Milestone. Only TIME product lines are billed HOURS; fixed
+# retainers and prepaid pools are hour- or month-denominated too, so
+# neither the UoM nor qty_delivered_method (always "timesheet" on this DB)
+# can tell them apart — the product code is the convention that does.
+SLA_TIME_PRODUCT = re.compile(r"^[A-Z]{2}SPT", re.IGNORECASE)
 
 
 class LinkederpDashboardSla(models.Model):
@@ -201,20 +209,18 @@ class LinkederpDashboardSla(models.Model):
             for move in order.invoice_ids:
                 if move.move_type != "out_invoice" or move.state != "posted":
                     continue
-                # Billed SLA hours = lines whose SO line is invoiced from
-                # timesheets. Fixed-fee/milestone lines are excluded even
-                # when they are hour-denominated (Akshay 2026-07-04: a
-                # fixed line billed as 231.5 "hours" polluted the chart).
+                # Billed SLA hours = TIME product lines only (××SPT…).
+                # Fixed retainers/prepaid pools (××SPF/××SPM) are excluded
+                # even when hour-denominated (Akshay 2026-07-04: a 192 h
+                # fixed-pool line billed as "hours" polluted the chart).
                 billed = 0.0
                 for mline in move.invoice_line_ids:
-                    sols = mline.sale_line_ids
-                    if sols and any(sol.qty_delivered_method == "timesheet"
-                                    for sol in sols):
+                    product_name = mline.product_id.name or ""
+                    if SLA_TIME_PRODUCT.match(product_name):
                         billed += mline.quantity
-                    elif not sols and "hour" in (
+                    elif not mline.product_id and "hour" in (
                             mline.product_uom_id.name or "").lower():
-                        # manual invoice line without an SO link: fall back
-                        # to the hour-unit heuristic
+                        # manual line without a product: hour-unit heuristic
                         billed += mline.quantity
                 inv_date = move.invoice_date
                 due = inv_date + timedelta(days=INVOICE_DUE_DAYS) if inv_date else False
@@ -572,10 +578,9 @@ class LinkederpDashboardSla(models.Model):
             "mode": "computed", "measure": _("Hours billed"),
             "groupby": _("Fiscal month"), "color": "#1e5b96",
             "help": _(
-                "Hours invoiced per fiscal month (invoice lines with an "
-                "hour-based unit, bucketed by the invoice date's fiscal "
-                "month). Fixed-fee invoices bill 0 hours. Dashed line = "
-                "the monthly allowance."),
+                "Support hours invoiced per fiscal month. Fixed fees and "
+                "prepaid packs are not counted. Dashed line = the monthly "
+                "allowance."),
             "value": float(sum(p["value"] for p in points)),
             "format": "number", "domain": [], "points": points,
             "rows": [], "columns": [], "span": 5, "error": False,
