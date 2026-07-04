@@ -490,7 +490,7 @@
                                         <button
                                             class="o_lds_column_item"
                                             type="button"
-                                            t-on-click="() => openRecords(widget.model, point.domain)"
+                                            t-on-click="() => onColumnClick(widget, point)"
                                             t-on-mouseenter="(ev) => showDetail(ev, point)"
                                             t-on-mousemove="moveDetail"
                                             t-on-mouseleave="hideDetail">

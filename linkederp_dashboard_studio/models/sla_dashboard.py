@@ -694,7 +694,43 @@ class LinkederpDashboardSla(models.Model):
                     [("id", "in", month.get("invoice_ids", []))]),
                 "detail": None,
             })
+        # Clicking the graph opens a month-by-month popup (rows click
+        # through to that month's invoices).
+        allowance = values["allowance"]
+        rows = []
+        for month in values["months"]:
+            share = (month["billed"] / allowance * 100.0) if allowance else None
+            rows.append({
+                "label": month["label"],
+                "domain": self._json_safe(
+                    [("id", "in", month.get("invoice_ids", []))]),
+                "hours": self._ops_short_hours(month["billed"]),
+                "inv": "%d" % len(month.get("invoice_ids", [])),
+                "share": self._ops_pct_text(share) if allowance else "—",
+                "tones": {"share": ("bad" if share and share > 100
+                                    else "good" if share else "")},
+            })
+        total_billed = sum(month["billed"] for month in values["months"])
+        total_inv = sum(len(month.get("invoice_ids", []))
+                        for month in values["months"])
+        rows.append({
+            "label": _("Total"), "domain": [],
+            "hours": self._ops_short_hours(total_billed),
+            "inv": "%d" % total_inv, "share": "", "tones": {},
+        })
+        modal = self._sales_matrix(
+            "sla_billed_months", _("Monthly SLA Hours"), rows,
+            [
+                {"key": "hours", "label": _("Hours billed"), "format": "money"},
+                {"key": "inv", "label": _("Invoices"), "format": "money"},
+                {"key": "share", "label": _("of allowance"), "format": "money"},
+            ],
+            _("Support hours invoiced per fiscal month; click a month for "
+              "its invoices."),
+            _("Fiscal month"), span=12, color="#1e5b96")
+        modal["model"] = "account.move"
         return {
+            "modal_table": modal,
             "id": "sla_billed_monthly",
             "name": _("Monthly SLA Hours"),
             "type": "column", "model": "account.move",
