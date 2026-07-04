@@ -469,6 +469,7 @@ class LinkederpDashboardSla(models.Model):
             "fiscal_label": self._sla_window_label(f_key),
             "fiscal_month_name": SLA_MONTH_FULL[f_key[1] - 1],
             "weeks": weeks,
+            "pdf_chart": self._sla_pdf_chart(weeks),
             "created_ctd": created_ctd, "closed_ctd": closed_ctd,
             "open_now": open_now, "on_hold": on_hold,
             "carryovers": carryovers,
@@ -580,6 +581,42 @@ class LinkederpDashboardSla(models.Model):
             "sla_timesheet",
             _("Time Sheet — %s") % values["fiscal_month_name"],
             values["timesheet"], values["mtd_line_ids"])
+
+    def _sla_pdf_chart(self, weeks):
+        """Pixel geometry for the PDF's weekly SVG charts (wkhtmltopdf
+        renders inline SVG but not the OWL widgets). viewBox 340x130,
+        plot baseline y=100, plot height 90."""
+        n = len(weeks) or 1
+        ticket_vals = ([len(w["created"]) for w in weeks]
+                       + [len(w["closed"]) for w in weeks])
+        tmax = max(ticket_vals + [1]) * 1.15
+        hour_vals = ([w["sla_hours"] for w in weeks]
+                     + [w["cr_hours"] for w in weeks])
+        hmax = max(hour_vals + [1.0]) * 1.15
+        tickets, hours, line = [], [], []
+        for index, week in enumerate(weeks):
+            cx = round(340.0 * (index + 0.5) / n, 1)
+            created_h = round(len(week["created"]) / tmax * 90, 1)
+            closed_h = round(len(week["closed"]) / tmax * 90, 1)
+            tickets.append({
+                "cx": cx, "label": week["label"],
+                "c_h": created_h, "c_y": round(100 - created_h, 1),
+                "c_v": len(week["created"]),
+                "s_h": closed_h, "s_y": round(100 - closed_h, 1),
+                "s_v": len(week["closed"]),
+            })
+            bar_h = round(week["cr_hours"] / hmax * 90, 1)
+            dot_y = round(100 - week["sla_hours"] / hmax * 90, 1)
+            hours.append({
+                "cx": cx, "label": week["label"],
+                "bar_h": bar_h, "bar_y": round(100 - bar_h, 1),
+                "cr": self._ops_short_hours(week["cr_hours"]),
+                "dot_y": dot_y,
+                "sla": self._ops_short_hours(week["sla_hours"]),
+            })
+            line.append("%s,%s" % (cx, dot_y))
+        return {"tickets": tickets, "hours": hours,
+                "line": " ".join(line)}
 
     def _sla_hours_kpi(self, values):
         """The SLA-hours card drills into the TIMESHEET LINES behind the
