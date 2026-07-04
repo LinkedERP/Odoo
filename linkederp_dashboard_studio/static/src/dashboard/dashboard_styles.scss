@@ -1625,6 +1625,52 @@
         border-radius: 50%;
     }
 
+    // Opt-in "tall" charts (finance): fill the card instead of leaving
+    // blank space when a row neighbor (e.g. the P&L ladder) is taller.
+    .o_lds_widget_tall {
+        .o_lds_column_axis {
+            height: 300px;
+        }
+
+        .o_lds_column_item {
+            grid-template-rows: 300px 36px;
+        }
+
+        .o_lds_column_plot {
+            min-height: 340px;
+            background-size: 100% 75px;
+        }
+
+        .o_lds_c2_plot,
+        .o_lds_combo_plot {
+            height: 300px;
+        }
+
+        .o_lds_c2_bars {
+            height: 274px;
+        }
+    }
+
+    .o_lds_widget_tall.o_lds_widget_bar {
+        display: flex;
+        flex-direction: column;
+
+        .o_lds_widget_header {
+            flex: 0 0 auto;
+        }
+
+        .o_lds_bars {
+            flex: 1 1 auto;
+            align-content: space-evenly;
+            gap: 14px;
+        }
+
+        .o_lds_bar_track,
+        .o_lds_bar_fill {
+            height: 14px;
+        }
+    }
+
     .o_lds_ladder_dot_good {
         background: #2e7d2e;
     }
