@@ -437,16 +437,14 @@ class LinkederpDashboardFinance(models.Model):
                  ("state", "=", "posted"),
                  ("payment_state", "in", ["not_paid", "partial"])]
                 + company_domain,
-                ["name", "invoice_date", "invoice_date_due",
-                 "amount_residual_signed", "company_id",
-                 "commercial_partner_id"]):
+                ["name", "invoice_date", "amount_residual_signed",
+                 "company_id", "commercial_partner_id"]):
             cid = move["company_id"] and move["company_id"][0] or 0
             partner = move["commercial_partner_id"] or (0, _("Unknown"))
             ap_bills.append({
                 "id": move["id"],
                 "name": move["name"] or "?",
                 "date": move["invoice_date"],
-                "due": move["invoice_date_due"] or move["invoice_date"],
                 "partner": partner[1],
                 "usd": -usd_of(cid, move["amount_residual_signed"]),
                 "ic": partner[0] in ic_partners,
@@ -461,7 +459,6 @@ class LinkederpDashboardFinance(models.Model):
 
         return {
             "companies": [(c.id, c.name) for c in companies],
-            "factors": factors,
             "rate_warnings": rate_warnings,
             "ic_partners": ic_partners,
             "invoices": invoices,
@@ -734,238 +731,6 @@ class LinkederpDashboardFinance(models.Model):
             wid, _("%s — by account") % line["label"].lstrip("−+= "), rows,
             [{"key": "usd", "label": _("USD"), "format": "money"}],
             scope_note, _("Account"), model="account.move.line")
-
-    # ------------------------------------------------------------------
-    # Forecast ("Looking ahead") widgets — simple, honest projections
-    # ------------------------------------------------------------------
-    def _fin_due_split(self, entries, today, amount_key):
-        """Split open items by due date into overdue / ≤30 / 31–60 / 61–90
-        days from today; items due later than 90 days are excluded.
-        Returns (rows, total, ids) for the popup matrix."""
-        buckets = [
-            ("overdue", _("Overdue (owed now)")),
-            ("d30", _("Due within 30 days")),
-            ("d60", _("Due in 31–60 days")),
-            ("d90", _("Due in 61–90 days")),
-        ]
-        split = {key: {"usd": 0.0, "ids": [], "n": 0} for key, _l in buckets}
-        for entry in entries:
-            due = entry.get("due")
-            due_date = fields.Date.to_date(str(due)) if due else today
-            days = (due_date - today).days
-            if days > 90:
-                continue
-            key = ("overdue" if days < 0 else "d30" if days <= 30
-                   else "d60" if days <= 60 else "d90")
-            split[key]["usd"] += entry[amount_key]
-            split[key]["ids"].append(entry["id"])
-            split[key]["n"] += 1
-        rows = []
-        total = 0.0
-        all_ids = []
-        for key, label in buckets:
-            total += split[key]["usd"]
-            all_ids += split[key]["ids"]
-            rows.append({
-                "label": label,
-                "domain": self._json_safe([("id", "in", split[key]["ids"])]),
-                "n": "%s" % split[key]["n"],
-                "usd": self._fin_usd_short(split[key]["usd"]),
-                "tones": {"usd": "bad" if key == "overdue"
-                          and split[key]["usd"] > 0 else ""},
-            })
-        return rows, total, all_ids
-
-    def _fin_to_invoice(self, company_id, usd, today, factors):
-        """(total_usd, matrix) of confirmed sale orders' not-yet-invoiced
-        value, converted per SO currency; None when the field is absent."""
-        if "sale.order" not in self.env:
-            return None
-        Order = self.env["sale.order"]
-        if "amount_to_invoice" not in Order._fields:
-            return None
-        domain = [("state", "=", "sale")]
-        if company_id:
-            domain.append(("company_id", "=", company_id))
-        rate_cache = {}
-
-        def currency_factor(cid, currency_id):
-            key = (cid, currency_id)
-            if key not in rate_cache:
-                try:
-                    currency = self.env["res.currency"].browse(currency_id)
-                    company = self.env["res.company"].browse(cid)
-                    rate_cache[key] = currency._convert(
-                        1.0, usd, company, today, round=False)
-                except Exception:
-                    rate_cache[key] = factors.get(cid, 1.0)
-            return rate_cache[key]
-
-        entries = []
-        for order in Order.search_read(
-                domain, ["name", "partner_id", "amount_to_invoice",
-                         "currency_id", "company_id"]):
-            remaining = order["amount_to_invoice"] or 0.0
-            if remaining <= 0.005:
-                continue
-            cid = order["company_id"] and order["company_id"][0] or 0
-            currency_id = order["currency_id"] and order["currency_id"][0]
-            factor = (currency_factor(cid, currency_id) if currency_id
-                      else factors.get(cid, 1.0))
-            entries.append({
-                "id": order["id"],
-                "name": order["name"] or "?",
-                "partner": (order["partner_id"][1]
-                            if order["partner_id"] else "?")[:40],
-                "usd": remaining * factor,
-            })
-        entries.sort(key=lambda e: -e["usd"])
-        total = sum(e["usd"] for e in entries)
-        rows = [{
-            "label": entry["name"],
-            "domain": self._json_safe([("id", "=", entry["id"])]),
-            "partner": entry["partner"],
-            "usd": self._fin_usd_short(entry["usd"]),
-            "tones": {},
-        } for entry in entries[:15]]
-        rows.append({
-            "label": _("Total (%s orders)") % len(entries), "domain": [],
-            "partner": "", "usd": self._fin_usd_short(total), "tones": {},
-        })
-        matrix = self._fin_matrix(
-            "fin_to_invoice_orders", _("Sold, not yet invoiced — by order"),
-            rows,
-            [
-                {"key": "partner", "label": _("Customer"), "format": "text"},
-                {"key": "usd", "label": _("Remaining (USD)"),
-                 "format": "money"},
-            ],
-            _("Confirmed sale orders' uninvoiced value, converted per "
-              "order currency; 15 biggest shown."),
-            _("Order"), model="sale.order",
-            domain=[("id", "in", [e["id"] for e in entries])])
-        return total, matrix
-
-    def _fin_forecast_widgets(self, data, keep, company_id, basis, today,
-                              usd, cash_total, open_invoices, scope_note,
-                              usd_note):
-        widgets = [self._fin_sechead(
-            "fin_sec_forecast", _("Looking ahead — simple forecasts"))]
-
-        in_rows, in_total, in_ids = self._fin_due_split(
-            [{"id": i["id"], "due": i["due"], "usd": i["residual_usd"]}
-             for i in open_invoices], today, "usd")
-        in_matrix = self._fin_matrix(
-            "fin_cash_in_split", _("Expected in — by due date"), in_rows,
-            [
-                {"key": "n", "label": _("Invoices"), "format": "number"},
-                {"key": "usd", "label": _("USD"), "format": "money"},
-            ],
-            _("Open customer invoices due within 90 days, overdue "
-              "included (it is owed now)."), _("When"),
-            model="account.move", domain=[("id", "in", in_ids)])
-        widgets.append(self._fin_kpi(
-            "fin_cash_in_90", _("Expected In — next 90 days"), in_total,
-            "usd", _("open invoices due by %s, incl. overdue")
-            % (today + timedelta(days=90)).strftime("%d %b"),
-            FIN_GREEN,
-            _("What customers owe that falls due within 90 days — IF "
-              "everyone pays on time. Click for the due-date split.%s")
-            % usd_note + " " + scope_note,
-            model="account.move", modal_table=in_matrix))
-
-        ap_rows_src = [b for b in data["ap_bills"] if keep(b)]
-        out_rows, out_total, out_ids = self._fin_due_split(
-            ap_rows_src, today, "usd")
-        out_matrix = self._fin_matrix(
-            "fin_cash_out_split", _("Expected out — by due date"), out_rows,
-            [
-                {"key": "n", "label": _("Bills"), "format": "number"},
-                {"key": "usd", "label": _("USD"), "format": "money"},
-            ],
-            _("Open supplier bills due within 90 days, overdue included."),
-            _("When"), model="account.move",
-            domain=[("id", "in", out_ids)])
-        widgets.append(self._fin_kpi(
-            "fin_cash_out_90", _("Expected Out — next 90 days"), out_total,
-            "usd", _("supplier bills falling due"), FIN_RED,
-            _("What we owe suppliers that falls due within 90 days. Click "
-              "for the due-date split.%s") % usd_note + " " + scope_note,
-            model="account.move", modal_table=out_matrix))
-
-        projected = cash_total + in_total - out_total
-        widgets.append(self._fin_kpi(
-            "fin_cash_90", _("Cash in 90 Days (if paid on time)"),
-            projected, "usd",
-            _("%(cash)s now + %(inn)s in − %(out)s out") % {
-                "cash": self._fin_usd_short(cash_total),
-                "inn": self._fin_usd_short(in_total),
-                "out": self._fin_usd_short(out_total)},
-            FIN_GREEN if projected >= 0 else FIN_RED,
-            _("Today's bank balance plus invoices due in, minus bills due "
-              "out — assumes everyone pays when due and ignores new "
-              "billing, payroll timing and taxes. A direction, not a "
-              "promise.%s") % usd_note + " " + scope_note))
-
-        # Year-end on run rate: last 6 COMPLETED months' average net,
-        # projected over the remaining months of the basis year.
-        run_months = self._fin_months_back(self._fin_default_month(today), 6)
-        month_nets = [(m, self._fin_ladder_values(data, keep, [m])["net"])
-                      for m in run_months]
-        months_ytd = self._fin_ytd_months(basis, today)
-        ytd_net = self._fin_ladder_values(data, keep, months_ytd)["net"]
-        remaining = 12 - len(months_ytd)
-        if month_nets:
-            avg_net = sum(net for _m, net in month_nets) / len(month_nets)
-            projection = ytd_net + avg_net * remaining
-            rr_rows = [{
-                "label": self._fin_month_label(m), "domain": [],
-                "usd": self._fin_usd_short(net), "tones": {},
-            } for m, net in month_nets]
-            rr_rows += [
-                {"label": _("Average of the 6 months"), "domain": [],
-                 "usd": self._fin_usd_short(avg_net), "tones": {}},
-                {"label": _("Year so far (%s)") % self._fin_window_label(
-                    basis, today), "domain": [],
-                 "usd": self._fin_usd_short(ytd_net), "tones": {}},
-                {"label": _("+ %s remaining months × average") % remaining,
-                 "domain": [],
-                 "usd": self._fin_usd_short(avg_net * remaining),
-                 "tones": {}},
-                {"label": _("= Projected year end"), "domain": [],
-                 "usd": self._fin_usd_short(projection),
-                 "tones": {"usd": "good" if projection >= 0 else "bad"}},
-            ]
-            rr_matrix = self._fin_matrix(
-                "fin_runrate_table", _("Year-end projection — the math"),
-                rr_rows,
-                [{"key": "usd", "label": _("Net (USD)"), "format": "money"}],
-                _("Actual net result of the last 6 completed months, "
-                  "averaged and extended over the rest of the year."),
-                _("Month"))
-            widgets.append(self._fin_kpi(
-                "fin_runrate", _("Year End on Run Rate"), projection, "usd",
-                _("last 6 months averaged %s/mo")
-                % self._fin_usd_short(avg_net),
-                FIN_GREEN if projection >= 0 else FIN_RED,
-                _("Where the %(basis)s year lands if the last 6 completed "
-                  "months' pace simply continues. Click for the math.%(n)s")
-                % {"basis": "SA" if basis == "sa" else _("calendar"),
-                   "n": usd_note} + " " + scope_note,
-                modal_table=rr_matrix))
-
-        to_invoice = self._fin_to_invoice(
-            company_id, usd, today, data.get("factors") or {})
-        if to_invoice is not None:
-            total, matrix = to_invoice
-            widgets.append(self._fin_kpi(
-                "fin_to_invoice", _("Sold, Not Yet Invoiced"), total, "usd",
-                _("confirmed orders → future invoicing"), FIN_BLUE,
-                _("Value already sold on confirmed sale orders that has "
-                  "not been invoiced yet — revenue on its way. Click for "
-                  "the per-order list.%s") % usd_note + " " + scope_note,
-                model="sale.order", modal_table=matrix))
-        return widgets
 
     # ------------------------------------------------------------------
     # Insights
@@ -1556,9 +1321,8 @@ class LinkederpDashboardFinance(models.Model):
 
         widgets += [self._fin_sechead("fin_sec_paid", _("Getting paid")),
                     aging, chase]
-        widgets += self._fin_forecast_widgets(
-            data, keep, company_id, basis, today, usd, cash_total,
-            open_invoices, scope_note, usd_note)
+        # "Looking ahead" forecast section: built in 19.0.1.8.1 (`0502f8d`),
+        # removed in r3 per Akshay — too basic. Revert kit: that commit.
 
         # ---------------- customers & spend ----------------
         conc_set = set(conc_months)
