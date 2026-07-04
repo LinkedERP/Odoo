@@ -16,6 +16,7 @@ const SELECTED_SALES_PERSON_KEY = "linkederp_dashboard_studio.sales_person";
 const SELECTED_SALES_COMPANY_KEY = "linkederp_dashboard_studio.sales_company";
 const SELECTED_SALES_TEAMS_KEY = "linkederp_dashboard_studio.sales_teams";
 const SELECTED_SLA_CUSTOMER_KEY = "linkederp_dashboard_studio.sla_customer";
+const SELECTED_SLA_MONTH_KEY = "linkederp_dashboard_studio.sla_month";
 
 export class LinkedERPDashboardAction extends Component {
     setup() {
@@ -77,6 +78,8 @@ export class LinkedERPDashboardAction extends Component {
             "clearSalesTeams",
             "onSlaCustomerChange",
             "isSlaCustomerSelected",
+            "onSlaMonthChange",
+            "isSlaMonthSelected",
             "onSlaExportPdf",
             "columns2Style",
             "comboBarStyle",
@@ -151,6 +154,7 @@ export class LinkedERPDashboardAction extends Component {
             salesCompany: window.localStorage.getItem(SELECTED_SALES_COMPANY_KEY) || "",
             salesTeams: this.parseSalesTeams(window.localStorage.getItem(SELECTED_SALES_TEAMS_KEY)),
             slaCustomer: window.localStorage.getItem(SELECTED_SLA_CUSTOMER_KEY) || "",
+            slaMonth: window.localStorage.getItem(SELECTED_SLA_MONTH_KEY) || "",
         };
     }
 
@@ -284,12 +288,25 @@ export class LinkedERPDashboardAction extends Component {
         return `${this.state.filters.slaCustomer || ""}` === `${value}`;
     }
 
+    async onSlaMonthChange(ev) {
+        this.state.filters.slaMonth = ev.target.value || "";
+        window.localStorage.setItem(SELECTED_SLA_MONTH_KEY, this.state.filters.slaMonth);
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    isSlaMonthSelected(value) {
+        return `${this.state.filters.slaMonth || ""}` === `${value}`;
+    }
+
     async onSlaExportPdf() {
         const action = await this.orm.call(
             "linkederp.dashboard",
             "action_export_sla_pdf",
             [],
-            { customer_id: this.state.filters.slaCustomer || false }
+            {
+                customer_id: this.state.filters.slaCustomer || false,
+                month: this.state.filters.slaMonth || false,
+            }
         );
         this.action.doAction(action);
     }
@@ -401,6 +418,7 @@ export class LinkedERPDashboardAction extends Component {
                         sales_company_id: this.state.filters.salesCompany || false,
                         sales_team_ids: this.state.filters.salesTeams || [],
                         sla_customer_id: this.state.filters.slaCustomer || false,
+                        sla_month: this.state.filters.slaMonth || false,
                     },
                 }
             );
@@ -417,7 +435,9 @@ export class LinkedERPDashboardAction extends Component {
             this.state.slaFilters = payload.sla_filters || { enabled: false };
             if (this.state.slaFilters.enabled) {
                 this.state.filters.slaCustomer = String(this.state.slaFilters.customer || "");
+                this.state.filters.slaMonth = String(this.state.slaFilters.month || "");
                 window.localStorage.setItem(SELECTED_SLA_CUSTOMER_KEY, this.state.filters.slaCustomer);
+                window.localStorage.setItem(SELECTED_SLA_MONTH_KEY, this.state.filters.slaMonth);
             }
             if (this.state.salesFilters.enabled) {
                 // The server echoes the VALIDATED values: write them back so
@@ -471,6 +491,7 @@ export class LinkedERPDashboardAction extends Component {
         window.localStorage.removeItem(SELECTED_SALES_COMPANY_KEY);
         window.localStorage.removeItem(SELECTED_SALES_TEAMS_KEY);
         window.localStorage.removeItem(SELECTED_SLA_CUSTOMER_KEY);
+        window.localStorage.removeItem(SELECTED_SLA_MONTH_KEY);
         this.state.filters = this.defaultFilters();
         await this.applyFilters();
     }

@@ -80,6 +80,17 @@
                                 t-esc="option.name"/>
                         </t>
                     </select>
+                    <select
+                        t-if="state.slaFilters.enabled &amp;&amp; state.slaFilters.months.length"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onSlaMonthChange">
+                        <t t-foreach="state.slaFilters.months" t-as="option" t-key="option.value">
+                            <option
+                                t-att-value="option.value"
+                                t-att-selected="isSlaMonthSelected(option.value)"
+                                t-esc="option.label"/>
+                        </t>
+                    </select>
                     <button
                         t-if="state.slaFilters.enabled"
                         class="btn btn-primary"

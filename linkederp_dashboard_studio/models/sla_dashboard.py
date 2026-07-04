@@ -16,6 +16,9 @@ TAG_PM = "performance management"
 
 SLA_MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+SLA_MONTH_FULL = ["January", "February", "March", "April", "May", "June",
+                  "July", "August", "September", "October", "November",
+                  "December"]
 
 PROJECT_NATURE_FIELD = "x_studio_nature"
 STATUS_N_FIELD = "x_studio_statusn"
@@ -89,6 +92,30 @@ class LinkederpDashboardSla(models.Model):
     def _sla_fiscal_label(self, key):
         return "%s %02d" % (SLA_MONTH_LABELS[key[1] - 1], key[0] % 100)
 
+    @api.model
+    def _sla_window_label(self, key):
+        """'26 Jun – 25 Jul' for the fiscal month `key` (its 26th->25th
+        window)."""
+        prev = key[1] - 2 if key[1] >= 2 else 10 + key[1]
+        return _("26 %(a)s – 25 %(b)s") % {
+            "a": SLA_MONTH_LABELS[prev % 12],
+            "b": SLA_MONTH_LABELS[key[1] - 1]}
+
+    @api.model
+    def _sla_month_value(self, key):
+        return "%04d-%02d" % key
+
+    @api.model
+    def _sla_month_key(self, value):
+        try:
+            year, month = str(value).split("-")
+            year, month = int(year), int(month)
+        except (TypeError, ValueError):
+            return None
+        if 1 <= month <= 12 and 2000 <= year <= 2100:
+            return (year, month)
+        return None
+
     # ------------------------------------------------------------------
     # Customer & contract resolution
     # ------------------------------------------------------------------
@@ -120,11 +147,42 @@ class LinkederpDashboardSla(models.Model):
         ordered = self._sla_customer_options()
         return ordered[0]["id"] if ordered else False
 
+    def _sla_month_options(self, customer_id, today):
+        """Fiscal months from the contract start to today's fiscal month,
+        newest first (falls back to the last 6 when no contract)."""
+        contract = self._sla_contract(customer_id, today) if customer_id else None
+        current = self._sla_fiscal_key(today)
+        start = (self._sla_fiscal_key(contract[1])
+                 if contract and contract[1] else None)
+        keys = []
+        key = current
+        while len(keys) < 18:
+            keys.append(key)
+            if start and key <= start:
+                break
+            if not start and len(keys) >= 6:
+                break
+            key = ((key[0] - 1, 12) if key[1] == 1 else (key[0], key[1] - 1))
+        return [{"value": self._sla_month_value(k),
+                 "label": self._sla_fiscal_label(k)} for k in keys]
+
+    def _sla_selected_month(self, filters, options):
+        filters = filters or {}
+        value = str(filters.get("sla_month") or "")
+        if any(option["value"] == value for option in options):
+            return value
+        return options[0]["value"] if options else ""
+
     def _sla_filter_options(self, filters=False):
+        today = fields.Date.context_today(self)
+        customer = self._sla_selected_customer(filters) or ""
+        months = self._sla_month_options(customer, today) if customer else []
         return {
             "enabled": True,
-            "customer": self._sla_selected_customer(filters) or "",
+            "customer": customer,
             "customers": self._sla_customer_options(),
+            "month": self._sla_selected_month(filters, months),
+            "months": months,
         }
 
     def _sla_contract(self, customer_id, today):
@@ -245,7 +303,7 @@ class LinkederpDashboardSla(models.Model):
     # ------------------------------------------------------------------
     # Report values (shared by the dashboard payload AND the PDF)
     # ------------------------------------------------------------------
-    def _sla_report_values(self, customer_id):
+    def _sla_report_values(self, customer_id, month=None):
         today = fields.Date.context_today(self)
         data = self._sla_collect(customer_id, today)
         tickets, lines = data["tickets"], data["lines"]
@@ -282,8 +340,9 @@ class LinkederpDashboardSla(models.Model):
         on_hold = [t for t in open_now if t["on_hold"]]
         carryovers = [t for t in open_now if t["carryover"]]
 
-        f_start, f_end = self._sla_fiscal_window(today)
-        f_key = self._sla_fiscal_key(today)
+        # Selected fiscal month (filter), defaulting to today's.
+        f_key = (self._sla_month_key(month) if month else None) \
+            or self._sla_fiscal_key(today)
         mtd_sla = sum(l["hours"] for l in lines
                       if l["bucket"] == "SLA"
                       and self._sla_fiscal_key(l["date"]) == f_key)
@@ -330,9 +389,9 @@ class LinkederpDashboardSla(models.Model):
             "week_label": _("%(a)s – %(b)s") % {
                 "a": mondays[-1].strftime("%d %b"),
                 "b": (mondays[-1] + timedelta(days=6)).strftime("%d %b %Y")},
-            "fiscal_label": _("26 %(a)s – 25 %(b)s") % {
-                "a": SLA_MONTH_LABELS[f_start.month - 1],
-                "b": SLA_MONTH_LABELS[f_end.month - 1]},
+            "fiscal_key": f_key,
+            "fiscal_label": self._sla_window_label(f_key),
+            "fiscal_month_name": SLA_MONTH_FULL[f_key[1] - 1],
             "weeks": weeks,
             "created_ctd": created_ctd, "closed_ctd": closed_ctd,
             "open_now": open_now, "on_hold": on_hold,
@@ -375,14 +434,15 @@ class LinkederpDashboardSla(models.Model):
 
     def _sla_dashboard_widgets(self, date_from=False, date_to=False,
                                filters=False):
-        customer_id = self._sla_selected_customer(filters)
+        options = self._sla_filter_options(filters)
+        customer_id = options["customer"]
         if not customer_id or "helpdesk.ticket" not in self.env:
             return [self._sla_kpi(
                 "sla_empty", _("Weekly Support & SLA Dashboard"), 0, "integer",
                 _("No customer with a Support-nature project found."),
                 "#64748b", _("Tag support projects with Nature = Support to "
                              "populate the customer list."), span=12)]
-        values = self._sla_report_values(customer_id)
+        values = self._sla_report_values(customer_id, month=options["month"])
         weeks = values["weeks"]
         allowance = values["allowance"]
 
@@ -402,7 +462,9 @@ class LinkederpDashboardSla(models.Model):
                      "a": self._ops_date_text(values["contract_start"]),
                      "b": self._ops_date_text(values["contract_end"])}},
                 {"icon": "fa-clock-o", "tone": "",
-                 "text": _("Fiscal month: %s") % values["fiscal_label"]},
+                 "text": _("Fiscal month: %(name)s (%(window)s)") % {
+                     "name": values["fiscal_month_name"],
+                     "window": values["fiscal_label"]}},
             ],
         }
 
@@ -622,16 +684,17 @@ class LinkederpDashboardSla(models.Model):
     # PDF export
     # ------------------------------------------------------------------
     @api.model
-    def action_export_sla_pdf(self, customer_id=False):
-        customer_id = self.sudo()._sla_selected_customer(
-            {"sla_customer_id": customer_id})
+    def action_export_sla_pdf(self, customer_id=False, month=False):
+        options = self.sudo()._sla_filter_options(
+            {"sla_customer_id": customer_id, "sla_month": month})
         return {
             "type": "ir.actions.report",
             "report_type": "qweb-pdf",
             "report_name": "linkederp_dashboard_studio.sla_report_pdf",
             "report_file": "linkederp_dashboard_studio.sla_report_pdf",
             "name": _("Weekly Support & SLA Report"),
-            "data": {"customer_id": customer_id},
+            "data": {"customer_id": options["customer"],
+                     "month": options["month"]},
             "context": dict(self.env.context, landscape=False),
         }
 
@@ -642,10 +705,13 @@ class SlaReport(models.AbstractModel):
 
     def _get_report_values(self, docids, data=None):
         Dashboard = self.env["linkederp.dashboard"].sudo()
-        customer_id = (data or {}).get("customer_id")
-        customer_id = Dashboard._sla_selected_customer(
-            {"sla_customer_id": customer_id})
-        values = Dashboard._sla_report_values(customer_id) if customer_id else {}
+        options = Dashboard._sla_filter_options({
+            "sla_customer_id": (data or {}).get("customer_id"),
+            "sla_month": (data or {}).get("month"),
+        })
+        customer_id = options["customer"]
+        values = Dashboard._sla_report_values(
+            customer_id, month=options["month"]) if customer_id else {}
         return {
             "doc_ids": docids or [],
             "doc_model": "linkederp.dashboard",

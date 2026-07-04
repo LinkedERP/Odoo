@@ -9,9 +9,11 @@
     </record>
 
     <template id="sla_report_pdf">
-        <t t-call="web.html_container">
-            <t t-call="web.external_layout">
-                <div class="page" style="font-family:Arial, sans-serif; color:#0f172a; font-size:11px;">
+        <!-- web.basic_layout on purpose: this customer report prints as a
+             clean standalone page WITHOUT the company letterhead; every
+             other PDF in the system keeps the standard external layout. -->
+        <t t-call="web.basic_layout">
+                <div class="page" style="font-family:Arial, sans-serif; color:#0f172a; font-size:11px; padding:14px 6px 0;">
                     <div style="text-align:center; border-bottom:3px solid #1e5b96; padding-bottom:6px; margin-bottom:8px;">
                         <span style="font-size:16px; font-weight:bold; color:#1e5b96;">WEEKLY SUPPORT &amp; SLA PERFORMANCE DASHBOARD</span>
                     </div>
@@ -20,7 +22,7 @@
                             <td style="padding:5px 8px;">Customer: <b t-esc="v.get('customer_name')"/></td>
                             <td style="padding:5px 8px;">Week: <b t-esc="v.get('week_label')"/></td>
                             <td style="padding:5px 8px;">Contract: <b><t t-esc="date_text(v.get('contract_start'))"/> – <t t-esc="date_text(v.get('contract_end'))"/></b></td>
-                            <td style="padding:5px 8px;">Fiscal month: <b t-esc="v.get('fiscal_label')"/></td>
+                            <td style="padding:5px 8px;">Fiscal Month - <b t-esc="v.get('fiscal_month_name')"/></td>
                         </tr>
                     </table>
 
@@ -164,9 +166,6 @@
                                         </tr>
                                     </t>
                                 </table>
-                                <div style="color:#64748b; font-size:9px; margin-top:4px;">
-                                    Allowance: <t t-esc="short_hours(allowance)"/> h / fiscal month · fixed-fee invoices bill 0 hours
-                                </div>
                             </td>
                             <td style="width:2%;"></td>
                             <td style="width:56%; vertical-align:top; border:1px solid #e5e7eb; padding:8px;">
@@ -196,7 +195,6 @@
                         </tr>
                     </table>
                 </div>
-            </t>
         </t>
     </template>
 </odoo>
