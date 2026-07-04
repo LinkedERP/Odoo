@@ -169,7 +169,7 @@
                                             <td style="width:52px; padding:2px 4px;" t-esc="month['label']"/>
                                             <td style="padding:2px 4px;">
                                                 <div style="background:#eef2f7; height:9px; width:100%;">
-                                                    <div t-att-style="'height:9px; background:{}; width:{}%;'.format('#d97706' if allowance and month['billed'] &gt; allowance else '#1e5b96', min(100.0, month['billed'] / scale * 100.0))"/>
+                                                    <div t-att-style="'height:9px; background:#1e5b96; width:{}%;'.format(min(100.0, month['billed'] / scale * 100.0))"/>
                                                 </div>
                                             </td>
                                             <td style="width:40px; text-align:right; padding:2px 4px; font-weight:bold;" t-esc="short_hours(month['billed'])"/>
@@ -202,6 +202,42 @@
                                     </t>
                                 </table>
                             </td>
+                        </tr>
+                    </table>
+
+                    <div style="font-weight:bold; color:#1e5b96; margin:12px 0 4px;">
+                        Time Sheet — <t t-esc="v.get('fiscal_month_name')"/>
+                    </div>
+                    <table style="width:100%; border-collapse:collapse; font-size:9px;">
+                        <tr style="color:#64748b; border-bottom:1px solid #e5e7eb;">
+                            <th style="text-align:left; padding:3px;">#</th>
+                            <th style="text-align:left; padding:3px;">Date</th>
+                            <th style="text-align:left; padding:3px;">Ticket</th>
+                            <th style="text-align:left; padding:3px;">Subject</th>
+                            <th style="text-align:left; padding:3px;">Work Done</th>
+                            <th style="text-align:left; padding:3px;">Team Member</th>
+                            <th style="text-align:left; padding:3px;">Type</th>
+                            <th style="text-align:right; padding:3px;">Hours</th>
+                        </tr>
+                        <t t-foreach="v.get('timesheet', [])" t-as="entry">
+                            <tr style="border-bottom:1px solid #f1f5f9;">
+                                <td style="padding:3px;" t-esc="entry_index + 1"/>
+                                <td style="padding:3px; white-space:nowrap;" t-esc="entry['date']"/>
+                                <td style="padding:3px;" t-esc="entry['ticket']"/>
+                                <td style="padding:3px;" t-esc="entry['subject']"/>
+                                <td style="padding:3px;" t-esc="entry['description']"/>
+                                <td style="padding:3px; white-space:nowrap;" t-esc="entry['employee']"/>
+                                <td style="padding:3px; white-space:nowrap;" t-esc="entry['tag']"/>
+                                <td style="padding:3px; text-align:right;" t-esc="short_hours(entry['hours'])"/>
+                            </tr>
+                        </t>
+                        <tr t-if="not v.get('timesheet')">
+                            <td colspan="8" style="padding:4px; color:#64748b;">No time entries in this fiscal month.</td>
+                        </tr>
+                        <tr style="border-top:1px solid #e5e7eb; font-weight:bold;">
+                            <td colspan="7" style="padding:3px;">Total</td>
+                            <td style="padding:3px; text-align:right;"
+                                t-esc="short_hours(sum(entry['hours'] for entry in v.get('timesheet', [])))"/>
                         </tr>
                     </table>
                 </div>

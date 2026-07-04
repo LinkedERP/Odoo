@@ -296,6 +296,9 @@ class LinkederpDashboardSla(models.Model):
                     "date": line.date,
                     "hours": line.unit_amount or 0.0,
                     "bucket": bucket_by_id.get(line.helpdesk_ticket_id.id, "SLA"),
+                    "ticket_id": line.helpdesk_ticket_id.id,
+                    "description": line.name or "",
+                    "employee": line.employee_id.name or "",
                 })
 
         # posted customer invoices of the SLA sale order
@@ -471,6 +474,9 @@ class LinkederpDashboardSla(models.Model):
             # Drill-down covers BOTH SLA and CR entries of the month —
             # clicking the card must show the CR hours' timesheets too.
             "mtd_line_ids": [l["id"] for l in mtd_lines + mtd_cr_lines],
+            # The complete customer-facing timesheet of the fiscal month.
+            "timesheet": self._sla_timesheet_rows(
+                mtd_lines + mtd_cr_lines, tickets),
             "months": months, "invoices": data["invoices"],
             "tenure_pct": tenure_pct,
         }
@@ -496,6 +502,66 @@ class LinkederpDashboardSla(models.Model):
         widget["type"] = "gauge"
         # Pure percentage tiles: no record list makes sense behind them.
         widget["model"] = ""
+        return widget
+
+    def _sla_timesheet_rows(self, month_lines, tickets):
+        """Customer-ready rows for the fiscal month's time entries."""
+        by_ticket = {t["id"]: t for t in tickets}
+        rows = []
+        for line in sorted(month_lines, key=lambda l: (l["date"], l["id"])):
+            ticket = by_ticket.get(line["ticket_id"], {})
+            rows.append({
+                "line_id": line["id"],
+                "date": self._ops_date_text(line["date"]),
+                "ticket": ticket.get("ref", "?"),
+                "subject": (ticket.get("name") or "")[:60],
+                "description": (line["description"] or "")[:80],
+                "employee": line["employee"],
+                "tag": (_("Change request") if line["bucket"] == "CR"
+                        else _("service Request")),
+                "hours": line["hours"],
+            })
+        return rows
+
+    def _sla_timesheet_table(self, values):
+        rows = []
+        for index, entry in enumerate(values["timesheet"], start=1):
+            rows.append({
+                "label": str(index),
+                "domain": self._json_safe([("id", "=", entry["line_id"])]),
+                "date": entry["date"],
+                "ticket": entry["ticket"],
+                "subject": entry["subject"],
+                "description": entry["description"],
+                "employee": entry["employee"],
+                "tag": entry["tag"],
+                "hours": self._ops_short_hours(entry["hours"]),
+                "tones": {},
+            })
+        rows.append({
+            "label": _("Total"), "domain": [],
+            "date": "", "ticket": "", "subject": "", "description": "",
+            "employee": "", "tag": "",
+            "hours": self._ops_short_hours(
+                sum(e["hours"] for e in values["timesheet"])),
+            "tones": {},
+        })
+        widget = self._sales_matrix(
+            "sla_timesheet",
+            _("Time Sheet — %s") % values["fiscal_month_name"], rows,
+            [
+                {"key": "date", "label": _("Date"), "format": "text"},
+                {"key": "ticket", "label": _("Ticket"), "format": "text"},
+                {"key": "subject", "label": _("Subject"), "format": "text"},
+                {"key": "description", "label": _("Work Done"), "format": "text"},
+                {"key": "employee", "label": _("Team Member"), "format": "text"},
+                {"key": "tag", "label": _("Type"), "format": "text"},
+                {"key": "hours", "label": _("Hours"), "format": "money"},
+            ],
+            "", _("#"), span=12, color="#1e5b96")
+        widget["model"] = "account.analytic.line"
+        widget["domain"] = self._json_safe(
+            [("id", "in", values["mtd_line_ids"])])
         return widget
 
     def _sla_hours_kpi(self, values):
@@ -608,6 +674,7 @@ class LinkederpDashboardSla(models.Model):
             self._sla_open_table(values),
             self._sla_billed_column(values),
             self._sla_invoice_table(values),
+            self._sla_timesheet_table(values),
         ]
         return widgets
 
@@ -702,9 +769,8 @@ class LinkederpDashboardSla(models.Model):
             points.append({
                 "label": month["label"],
                 "value": round(month["billed"], 1),
-                "color": ("#d97706" if values["allowance"]
-                          and month["billed"] > values["allowance"]
-                          else "#1e5b96"),
+                # Uniform color, no over-target highlight (Akshay r9).
+                "color": "#1e5b96",
                 "domain": self._json_safe(
                     [("id", "in", month.get("invoice_ids", []))]),
                 "detail": None,
@@ -755,7 +821,8 @@ class LinkederpDashboardSla(models.Model):
             "value": float(sum(p["value"] for p in points)),
             "format": "number", "domain": [], "points": points,
             "rows": [], "columns": [], "span": 5, "error": False,
-            "target": float(values["allowance"] or 0.0),
+            # No allowance target line on the chart (Akshay r9).
+            "target": 0.0,
         }
 
     def _sla_invoice_table(self, values):
