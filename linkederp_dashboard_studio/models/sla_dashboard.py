@@ -443,6 +443,9 @@ class LinkederpDashboardSla(models.Model):
                     "cr_hours": sum(l["hours"] for l in month_lines
                                     if l["bucket"] == "CR"),
                     "line_ids": [l["id"] for l in month_lines],
+                    # Ticket-level rows for the bar's timesheet popup.
+                    "timesheet": self._sla_timesheet_rows(
+                        month_lines, tickets),
                 })
                 key = ((key[0] + 1, 1) if key[1] == 12
                        else (key[0], key[1] + 1))
@@ -532,9 +535,11 @@ class LinkederpDashboardSla(models.Model):
                                  or fields.Date.to_date("1900-01-01")))
         return rows
 
-    def _sla_timesheet_table(self, values):
+    def _sla_timesheet_matrix(self, wid, name, entries, domain_ids):
+        """Ticket-level timesheet matrix (shared by the bottom section and
+        the per-month popups of the Monthly SLA Hours graph)."""
         rows = []
-        for index, entry in enumerate(values["timesheet"], start=1):
+        for index, entry in enumerate(entries, start=1):
             rows.append({
                 "label": str(index),
                 # Row click opens the ticket's time entries of the month.
@@ -551,12 +556,11 @@ class LinkederpDashboardSla(models.Model):
             "label": _("Total"), "domain": [],
             "date": "", "ticket": "", "subject": "",
             "employee": "", "tag": "",
-            "hours": round(sum(e["hours"] for e in values["timesheet"]), 2),
+            "hours": round(sum(e["hours"] for e in entries), 2),
             "tones": {},
         })
         widget = self._sales_matrix(
-            "sla_timesheet",
-            _("Time Sheet — %s") % values["fiscal_month_name"], rows,
+            wid, name, rows,
             [
                 {"key": "date", "label": _("Date"), "format": "text"},
                 {"key": "ticket", "label": _("Ticket"), "format": "text"},
@@ -568,9 +572,14 @@ class LinkederpDashboardSla(models.Model):
             ],
             "", _("#"), span=12, color="#1e5b96")
         widget["model"] = "account.analytic.line"
-        widget["domain"] = self._json_safe(
-            [("id", "in", values["mtd_line_ids"])])
+        widget["domain"] = self._json_safe([("id", "in", list(domain_ids))])
         return widget
+
+    def _sla_timesheet_table(self, values):
+        return self._sla_timesheet_matrix(
+            "sla_timesheet",
+            _("Time Sheet — %s") % values["fiscal_month_name"],
+            values["timesheet"], values["mtd_line_ids"])
 
     def _sla_hours_kpi(self, values):
         """The SLA-hours card drills into the TIMESHEET LINES behind the
@@ -785,6 +794,12 @@ class LinkederpDashboardSla(models.Model):
                 "domain": self._json_safe(
                     [("id", "in", month.get("line_ids", []))]),
                 "detail": None,
+                # Clicking THIS bar opens the month's full ticket-level
+                # timesheet (Akshay r12).
+                "modal_table": self._sla_timesheet_matrix(
+                    "sla_ts_%04d_%02d" % month["key"],
+                    _("Time Sheet — %s") % month["label"],
+                    month["timesheet"], month.get("line_ids", [])),
             })
         allowance = values["allowance"]
         rows = []
