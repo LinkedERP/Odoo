@@ -11,6 +11,10 @@ const SELECTED_OPS_TEAM_KEY = "linkederp_dashboard_studio.ops_team";
 const SELECTED_MONTH_KEY = "linkederp_dashboard_studio.awards_month";
 const SELECTED_TEAM_WEEK_KEY = "linkederp_dashboard_studio.teams_week";
 const SELECTED_MGMT_TEAM_KEY = "linkederp_dashboard_studio.mgmt_team";
+const SELECTED_SALES_YEAR_KEY = "linkederp_dashboard_studio.sales_year";
+const SELECTED_SALES_PERSON_KEY = "linkederp_dashboard_studio.sales_person";
+const SELECTED_SALES_COMPANY_KEY = "linkederp_dashboard_studio.sales_company";
+const SELECTED_SALES_TEAMS_KEY = "linkederp_dashboard_studio.sales_teams";
 
 export class LinkedERPDashboardAction extends Component {
     setup() {
@@ -34,6 +38,7 @@ export class LinkedERPDashboardAction extends Component {
             awardsFilters: { enabled: false },
             weeklyFilters: { enabled: false },
             mgmtFilters: { enabled: false },
+            salesFilters: { enabled: false },
             modal: false,
             filters: this.defaultFilters(),
             tooltip: { visible: false, x: 0, y: 0, title: "", detail: null },
@@ -59,6 +64,15 @@ export class LinkedERPDashboardAction extends Component {
             "onModalBackdropClick",
             "onMgmtTeamChange",
             "isMgmtTeamSelected",
+            "onSalesYearChange",
+            "isSalesYearSelected",
+            "onSalesPersonChange",
+            "isSalesPersonSelected",
+            "onSalesCompanyChange",
+            "isSalesCompanySelected",
+            "onSalesTeamToggle",
+            "isSalesTeamSelected",
+            "clearSalesTeams",
             "applyFilters",
             "resetFilters",
             "setFilter",
@@ -123,7 +137,28 @@ export class LinkedERPDashboardAction extends Component {
             month: window.localStorage.getItem(SELECTED_MONTH_KEY) || "",
             teamWeek: window.localStorage.getItem(SELECTED_TEAM_WEEK_KEY) || "",
             mgmtTeam: window.localStorage.getItem(SELECTED_MGMT_TEAM_KEY) || "",
+            salesYear: window.localStorage.getItem(SELECTED_SALES_YEAR_KEY) || "",
+            salesPerson: window.localStorage.getItem(SELECTED_SALES_PERSON_KEY) || "",
+            salesCompany: window.localStorage.getItem(SELECTED_SALES_COMPANY_KEY) || "",
+            salesTeams: this.parseSalesTeams(window.localStorage.getItem(SELECTED_SALES_TEAMS_KEY)),
         };
+    }
+
+    parseSalesTeams(raw) {
+        try {
+            const parsed = JSON.parse(raw || "[]");
+            if (Array.isArray(parsed)) {
+                return parsed.map(Number).filter((id) => Number.isFinite(id) && id > 0);
+            }
+        } catch {
+            // Garbage in localStorage: fall through to no selection.
+        }
+        return [];
+    }
+
+    saveSalesTeams() {
+        window.localStorage.setItem(
+            SELECTED_SALES_TEAMS_KEY, JSON.stringify(this.state.filters.salesTeams || []));
     }
 
     dateToInput(date) {
@@ -175,6 +210,60 @@ export class LinkedERPDashboardAction extends Component {
         return (this.state.filters.mgmtTeam || "") === value;
     }
 
+    async onSalesYearChange(ev) {
+        this.state.filters.salesYear = ev.target.value || "";
+        window.localStorage.setItem(SELECTED_SALES_YEAR_KEY, this.state.filters.salesYear);
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    isSalesYearSelected(value) {
+        return `${this.state.filters.salesYear || ""}` === `${value}`;
+    }
+
+    async onSalesPersonChange(ev) {
+        this.state.filters.salesPerson = ev.target.value || "";
+        window.localStorage.setItem(SELECTED_SALES_PERSON_KEY, this.state.filters.salesPerson);
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    isSalesPersonSelected(value) {
+        return `${this.state.filters.salesPerson || ""}` === `${value}`;
+    }
+
+    async onSalesCompanyChange(ev) {
+        this.state.filters.salesCompany = ev.target.value || "";
+        window.localStorage.setItem(SELECTED_SALES_COMPANY_KEY, this.state.filters.salesCompany);
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    isSalesCompanySelected(value) {
+        return `${this.state.filters.salesCompany || ""}` === `${value}`;
+    }
+
+    async onSalesTeamToggle(teamId) {
+        const id = Number(teamId);
+        const current = (this.state.filters.salesTeams || []).slice();
+        const index = current.indexOf(id);
+        if (index === -1) {
+            current.push(id);
+        } else {
+            current.splice(index, 1);
+        }
+        this.state.filters.salesTeams = current;
+        this.saveSalesTeams();
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    isSalesTeamSelected(teamId) {
+        return (this.state.filters.salesTeams || []).indexOf(Number(teamId)) !== -1;
+    }
+
+    async clearSalesTeams() {
+        this.state.filters.salesTeams = [];
+        this.saveSalesTeams();
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
     bucketGroups() {
         const order = this.state.bucketOrder || [];
         const groups = [];
@@ -216,6 +305,10 @@ export class LinkedERPDashboardAction extends Component {
                         month: this.state.filters.month || false,
                         team_week: this.state.filters.teamWeek || false,
                         mgmt_team: this.state.filters.mgmtTeam || false,
+                        sales_year: this.state.filters.salesYear || false,
+                        sales_person_id: this.state.filters.salesPerson || false,
+                        sales_company_id: this.state.filters.salesCompany || false,
+                        sales_team_ids: this.state.filters.salesTeams || [],
                     },
                 }
             );
@@ -228,6 +321,19 @@ export class LinkedERPDashboardAction extends Component {
             this.state.awardsFilters = payload.awards_filters || { enabled: false };
             this.state.weeklyFilters = payload.weekly_filters || { enabled: false };
             this.state.mgmtFilters = payload.mgmt_filters || { enabled: false };
+            this.state.salesFilters = payload.sales_filters || { enabled: false };
+            if (this.state.salesFilters.enabled) {
+                // The server echoes the VALIDATED values: write them back so
+                // stale localStorage self-heals (same pattern as teamWeek).
+                this.state.filters.salesYear = String(this.state.salesFilters.year || "");
+                this.state.filters.salesPerson = String(this.state.salesFilters.salesperson || "");
+                this.state.filters.salesCompany = String(this.state.salesFilters.company || "");
+                this.state.filters.salesTeams = (this.state.salesFilters.team_ids || []).slice();
+                window.localStorage.setItem(SELECTED_SALES_YEAR_KEY, this.state.filters.salesYear);
+                window.localStorage.setItem(SELECTED_SALES_PERSON_KEY, this.state.filters.salesPerson);
+                window.localStorage.setItem(SELECTED_SALES_COMPANY_KEY, this.state.filters.salesCompany);
+                this.saveSalesTeams();
+            }
             if (this.state.mgmtFilters.enabled) {
                 this.state.filters.mgmtTeam = this.state.mgmtFilters.team || "";
                 window.localStorage.setItem(SELECTED_MGMT_TEAM_KEY, this.state.filters.mgmtTeam);
@@ -263,6 +369,10 @@ export class LinkedERPDashboardAction extends Component {
         window.localStorage.removeItem(SELECTED_MONTH_KEY);
         window.localStorage.removeItem(SELECTED_TEAM_WEEK_KEY);
         window.localStorage.removeItem(SELECTED_MGMT_TEAM_KEY);
+        window.localStorage.removeItem(SELECTED_SALES_YEAR_KEY);
+        window.localStorage.removeItem(SELECTED_SALES_PERSON_KEY);
+        window.localStorage.removeItem(SELECTED_SALES_COMPANY_KEY);
+        window.localStorage.removeItem(SELECTED_SALES_TEAMS_KEY);
         this.state.filters = this.defaultFilters();
         await this.applyFilters();
     }

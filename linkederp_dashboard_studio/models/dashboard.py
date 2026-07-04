@@ -30,6 +30,7 @@ AI_DASHBOARD_LEGACY = "AI Generated Leads Performance"
 
 DEFAULT_BUCKET_BY_NAME = {
     "Sales & CRM Dashboard": "sales",
+    "Sales Performance Dashboard": "sales",
     "Nighthawk Review Dashboard": "sales",
     "AI Generated Leads Performance": "sales",
     "Ops Weekly review": "ops",
@@ -179,6 +180,12 @@ class LinkederpDashboard(models.Model):
                     date_to=date_to,
                     filters=filters,
                 )
+            elif dashboard._is_sales_dashboard():
+                widgets = dashboard._sales_dashboard_widgets(
+                    date_from=date_from,
+                    date_to=date_to,
+                    filters=filters,
+                )
 
         bucket_labels = dict(DASHBOARD_BUCKETS)
         return {
@@ -222,6 +229,9 @@ class LinkederpDashboard(models.Model):
             else {"enabled": False},
             "mgmt_filters": dashboard._mgmt_filter_options(filters)
             if dashboard and dashboard._is_mgmt_dashboard()
+            else {"enabled": False},
+            "sales_filters": dashboard._sales_filter_options(filters)
+            if dashboard and dashboard._is_sales_dashboard()
             else {"enabled": False},
         }
 

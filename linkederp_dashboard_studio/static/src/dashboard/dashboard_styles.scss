@@ -1170,6 +1170,56 @@
         cursor: pointer;
     }
 
+    // Sales dashboard: multi-select Sales Team chips under the toolbar.
+    .o_lds_team_filter {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 16px;
+
+        .o_lds_team_filter_label {
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+    }
+
+    .o_lds_team_chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 13px;
+        border: 1px solid #dde3ea;
+        border-radius: 999px;
+        background: #ffffff;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+
+        small {
+            color: #94a3b8;
+            font-weight: 700;
+        }
+
+        &:hover {
+            border-color: #93c5fd;
+        }
+    }
+
+    .o_lds_team_chip_on {
+        border-color: #2563eb;
+        background: #2563eb;
+        color: #ffffff;
+
+        small {
+            color: #bfdbfe;
+        }
+    }
+
     .o_lds_tooltip {
         position: fixed;
         z-index: 1080;

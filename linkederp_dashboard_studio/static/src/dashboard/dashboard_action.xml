@@ -35,6 +35,41 @@
                         </t>
                     </select>
                     <select
+                        t-if="state.salesFilters.enabled"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onSalesYearChange">
+                        <t t-foreach="state.salesFilters.years" t-as="option" t-key="option.value">
+                            <option
+                                t-att-value="option.value"
+                                t-att-selected="isSalesYearSelected(option.value)"
+                                t-esc="option.label"/>
+                        </t>
+                    </select>
+                    <select
+                        t-if="state.salesFilters.enabled"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onSalesPersonChange">
+                        <option value="">All salespeople</option>
+                        <t t-foreach="state.salesFilters.salespersons" t-as="option" t-key="option.id">
+                            <option
+                                t-att-value="option.id"
+                                t-att-selected="isSalesPersonSelected(option.id)"
+                                t-esc="optionLabel(option)"/>
+                        </t>
+                    </select>
+                    <select
+                        t-if="state.salesFilters.enabled"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onSalesCompanyChange">
+                        <option value="">All companies</option>
+                        <t t-foreach="state.salesFilters.companies" t-as="option" t-key="option.id">
+                            <option
+                                t-att-value="option.id"
+                                t-att-selected="isSalesCompanySelected(option.id)"
+                                t-esc="option.name"/>
+                        </t>
+                    </select>
+                    <select
                         t-if="state.crmFilters.enabled"
                         class="form-select o_lds_filter_select"
                         t-on-change="(ev) => setFilter('campaignId', ev.target.value)">
@@ -115,8 +150,8 @@
                                 t-esc="option.label"/>
                         </t>
                     </select>
-                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom"/>
-                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo"/>
+                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom"/>
+                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo"/>
                     <button class="btn btn-primary" type="button" t-on-click="applyFilters" title="Apply filters">
                         <i class="fa fa-filter"/>
                     </button>
@@ -124,6 +159,27 @@
                         <i class="fa fa-refresh"/>
                     </button>
                 </div>
+            </div>
+
+            <div
+                t-if="state.salesFilters.enabled &amp;&amp; state.salesFilters.teams.length &amp;&amp; !state.loading"
+                class="o_lds_team_filter">
+                <span class="o_lds_team_filter_label">Sales Teams</span>
+                <button
+                    type="button"
+                    t-att-class="'o_lds_team_chip' + (state.filters.salesTeams.length ? '' : ' o_lds_team_chip_on')"
+                    t-on-click="clearSalesTeams">
+                    All
+                </button>
+                <t t-foreach="state.salesFilters.teams" t-as="team" t-key="team.id">
+                    <button
+                        type="button"
+                        t-att-class="'o_lds_team_chip' + (isSalesTeamSelected(team.id) ? ' o_lds_team_chip_on' : '')"
+                        t-on-click="() => onSalesTeamToggle(team.id)">
+                        <span t-esc="team.name"/>
+                        <small t-esc="team.count"/>
+                    </button>
+                </t>
             </div>
 
             <div t-if="state.loading" class="o_lds_empty">
