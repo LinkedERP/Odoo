@@ -41,7 +41,7 @@ DEFAULT_BUCKET_BY_NAME = {
     "Ops Weekly Teams": "management",
     "Aurika Ops Dashboard": "management",
     "Ops Management": "management",
-    "Weekly Support & SLA Dashboard": "management",
+    "Weekly Support & SLA Dashboard": "ops",
 }
 
 

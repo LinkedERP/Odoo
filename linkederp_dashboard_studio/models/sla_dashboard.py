@@ -44,6 +44,11 @@ class LinkederpDashboardSla(models.Model):
 
     def _ensure_sla_dashboard(self):
         if self._ensure_dashboard_name(SLA_DASHBOARD_NAME, []):
+            # One-time bucket migration (moved to Ops per Akshay 2026-07-04).
+            record = self.with_context(active_test=False).search(
+                [("name", "=", SLA_DASHBOARD_NAME)], limit=1)
+            if record and record.bucket != "ops":
+                record.write({"bucket": "ops"})
             return
         if "helpdesk.ticket" not in self.env:
             return
@@ -51,7 +56,7 @@ class LinkederpDashboardSla(models.Model):
             {
                 "name": SLA_DASHBOARD_NAME,
                 "sequence": 65,
-                "bucket": "management",
+                "bucket": "ops",
                 "description": _(
                     "Customer-facing weekly support report: tickets, SLA "
                     "hours vs the contract allowance (fiscal months, 26th "
@@ -388,10 +393,10 @@ class LinkederpDashboardSla(models.Model):
         f_key = month_key or self._sla_fiscal_key(anchor)
         mtd_lines = [l for l in lines if l["bucket"] == "SLA"
                      and self._sla_fiscal_key(l["date"]) == f_key]
+        mtd_cr_lines = [l for l in lines if l["bucket"] == "CR"
+                        and self._sla_fiscal_key(l["date"]) == f_key]
         mtd_sla = sum(l["hours"] for l in mtd_lines)
-        mtd_cr = sum(l["hours"] for l in lines
-                     if l["bucket"] == "CR"
-                     and self._sla_fiscal_key(l["date"]) == f_key)
+        mtd_cr = sum(l["hours"] for l in mtd_cr_lines)
         pct_used = mtd_sla / allowance * 100.0 if allowance else 0.0
 
         # Contract fiscal months + billed hours per fiscal month. The loop
@@ -440,7 +445,9 @@ class LinkederpDashboardSla(models.Model):
             "open_now": open_now, "on_hold": on_hold,
             "carryovers": carryovers,
             "mtd_sla": mtd_sla, "mtd_cr": mtd_cr, "pct_used": pct_used,
-            "mtd_line_ids": [l["id"] for l in mtd_lines],
+            # Drill-down covers BOTH SLA and CR entries of the month —
+            # clicking the card must show the CR hours' timesheets too.
+            "mtd_line_ids": [l["id"] for l in mtd_lines + mtd_cr_lines],
             "months": months, "invoices": data["invoices"],
             "tenure_pct": tenure_pct,
         }
@@ -476,8 +483,7 @@ class LinkederpDashboardSla(models.Model):
             round(values["mtd_sla"], 2), "number",
             _("CR hours used: %s") % self._ops_short_hours(values["mtd_cr"]),
             "#1e5b96",
-            _("Support hours used this month. Click for the timesheet "
-              "lines."),
+            _("Support hours used this month."),
             domain=[("id", "in", values["mtd_line_ids"])])
         widget["model"] = "account.analytic.line"
         return widget
