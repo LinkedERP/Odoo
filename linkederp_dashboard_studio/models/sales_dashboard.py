@@ -793,10 +793,13 @@ class LinkederpDashboardSales(models.Model):
         for deal in deals:
             by_user.setdefault(deal["user"], []).append(deal)
         entries = []
-        for user, grp in by_user.items():
+        # NB: do not name a local "user" in any function that calls _() —
+        # Odoo 19's translation helper reads the caller's locals and does
+        # int(user) on it (crashed with a salesperson NAME here once).
+        for rep_name, grp in by_user.items():
             weighted = sum(d["usd"] * d["strength"] / 100.0 for d in grp)
             entries.append({
-                "user": user, "grp": grp, "weighted": weighted,
+                "user": rep_name, "grp": grp, "weighted": weighted,
                 "usd": sum(d["usd"] for d in grp),
                 "avg": sum(d["strength"] for d in grp) / len(grp),
             })
