@@ -173,10 +173,17 @@ class LinkederpDashboardSla(models.Model):
              "label": self._sla_fiscal_label(k)} for k in keys]
 
     def _sla_week_options(self, today):
-        """'Latest week' + the last 16 completed Mon-Sun weeks (for
-        re-sending a missed weekly report)."""
+        """'Latest week' (auto = last completed), the CURRENT in-progress
+        week, then the last 16 completed Mon-Sun weeks (for re-sending a
+        missed weekly report)."""
         this_monday = today - timedelta(days=today.weekday())
-        options = [{"value": "", "label": _("Latest week")}]
+        options = [
+            {"value": "", "label": _("Latest week")},
+            {"value": str(this_monday),
+             "label": _("%(a)s – %(b)s · current") % {
+                 "a": this_monday.strftime("%d %b"),
+                 "b": today.strftime("%d %b")}},
+        ]
         for back in range(1, 17):
             monday = this_monday - timedelta(weeks=back)
             options.append({
@@ -355,17 +362,25 @@ class LinkederpDashboardSla(models.Model):
         month_key = self._sla_month_key(month) if month else None
         week_monday = fields.Date.to_date(week) if week else None
         if week_monday:
-            anchor = week_monday + timedelta(days=6)
+            # An explicitly selected week may be the CURRENT (partial) one:
+            # the anchor caps at today and the chart shows it as its last,
+            # in-progress column.
+            anchor = min(week_monday + timedelta(days=6), today)
         elif month_key:
             anchor = min(fields.Date.to_date(
                 "%04d-%02d-25" % month_key), today)
         else:
             anchor = today
 
-        # weeks: last 4 completed Mon-Sun weeks as of the anchor
+        # weeks: the selected week (even partial) or the last 4 completed
+        # Mon-Sun weeks as of the anchor
         anchor_monday = anchor - timedelta(days=anchor.weekday())
-        latest_monday = (anchor_monday if anchor == anchor_monday + timedelta(days=6)
-                         else anchor_monday - timedelta(weeks=1))
+        if week_monday:
+            latest_monday = week_monday
+        else:
+            latest_monday = (anchor_monday
+                             if anchor == anchor_monday + timedelta(days=6)
+                             else anchor_monday - timedelta(weeks=1))
         mondays = [latest_monday - timedelta(weeks=i) for i in (3, 2, 1, 0)]
         weeks = []
         for monday in mondays:
