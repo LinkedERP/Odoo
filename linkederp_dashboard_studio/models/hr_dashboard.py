@@ -16,6 +16,16 @@ PEOPLE_SEX_FIELD = "sex"
 PEOPLE_CONCENTRATION_ALERT = 35.0   # a department over this % of people = risk
 PEOPLE_ATTRITION_CONCERN = 15.0     # exits over this % of headcount = concern
 
+# Cost section — classify operating-expense accounts into "people cost" by
+# NAME (tunable, like the Finance dashboard's EBITDA account rules). Staff =
+# own payroll; subcontractors = outsourced delivery ("Partners" here).
+PEOPLE_STAFF_PAT = re.compile(
+    r"salar|payroll|\bpaye\b|\bfte\b|\bwage|staff|personnel|\bctc\b", re.I)
+PEOPLE_SUB_PAT = re.compile(
+    r"partner|subcontract|contractor|freelanc|associate|outsourc", re.I)
+PEOPLE_IC_ACCOUNT_PAT = re.compile(r"^ic\b", re.I)
+PEOPLE_MONTHS = 12  # annualise a monthly wage
+
 PEOPLE_MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
@@ -123,6 +133,7 @@ class LinkederpDashboardPeople(models.Model):
         efields = Employee._fields
         has_join = PEOPLE_JOIN_FIELD in efields
         has_sex = PEOPLE_SEX_FIELD in efields
+        has_wage = "wage" in efields
         companies = self.env["res.company"].search([])
         company_names = {c.id: c.name for c in companies}
 
@@ -131,6 +142,8 @@ class LinkederpDashboardPeople(models.Model):
             read_fields.append(PEOPLE_JOIN_FIELD)
         if has_sex:
             read_fields.append(PEOPLE_SEX_FIELD)
+        if has_wage:
+            read_fields.append("wage")
 
         raw = Employee.search_read([("active", "=", True)], read_fields)
         real = [e for e in raw if not self._people_is_test(e["name"])]
@@ -184,6 +197,10 @@ class LinkederpDashboardPeople(models.Model):
                                 if e["department_id"] else False),
                     "join": e.get(PEOPLE_JOIN_FIELD) if has_join else False,
                     "sex": e.get(PEOPLE_SEX_FIELD) if has_sex else False,
+                    # Monthly wage in the record's company currency; 0 until
+                    # entered. Converted to USD per home company in the cost
+                    # section (never hardcoded to one currency/country).
+                    "wage": e.get("wage") if has_wage else 0.0,
                     "_home": is_home,
                 }
             else:
@@ -723,7 +740,7 @@ class LinkederpDashboardPeople(models.Model):
               "idea as the Finance housekeeping row.") + " " + scope_note,
             _("Check"), span=6)
 
-        return [chips, story] + hero + [
+        widgets = [chips, story] + hero + [
             self._people_sechead("people_sec_who", _("Who we are")),
             dept_bar, tenure_col,
             self._people_sechead("people_sec_move", _("Coming & going")),
@@ -731,6 +748,194 @@ class LinkederpDashboardPeople(models.Model):
             self._people_sechead("people_sec_day", _("Day to day")),
             leave_bar, hygiene,
         ]
+        widgets += self._people_cost_widgets(
+            data, company_id, start, end, headcount, scope_note)
+        return widgets
+
+    # ------------------------------------------------------------------
+    # Cost & compensation (Phase C — generic, group USD, never India-only)
+    # ------------------------------------------------------------------
+    def _people_cost_ledger(self, company_id, start, end):
+        """People-cost split of operating expense + revenue over [start,end],
+        USD, group-view IC-excluded. Reuses the Finance engine so the People
+        and Finance dashboards can never disagree on the account rules."""
+        if "account.move.line" not in self.env:
+            return None
+        usd = self._mgmt_usd()
+        today = fields.Date.context_today(self)
+        companies = self.env["res.company"].search([])
+        factors = self._fin_usd_factors(usd, today, companies)
+        ic_partners = set(companies.mapped("partner_id").ids)
+        buckets, names, _special = self._fin_account_buckets()
+        op_ids = [aid for aid, b in buckets.items() if b in ("dc", "opex")]
+        rev_ids = {aid for aid, b in buckets.items() if b in ("rev", "oth")}
+        staff_ids, sub_ids = set(), set()
+        for aid in op_ids:
+            nm = names.get(aid, "")
+            if PEOPLE_SUB_PAT.search(nm):
+                sub_ids.add(aid)
+            elif PEOPLE_STAFF_PAT.search(nm):
+                staff_ids.add(aid)
+        domain = [("account_id", "in", op_ids + list(rev_ids)),
+                  ("parent_state", "=", "posted"),
+                  ("date", ">=", str(start)), ("date", "<=", str(end))]
+        if company_id:
+            domain.append(("company_id", "=", company_id))
+        rev = op = staff = sub = 0.0
+        for ln in self.env["account.move.line"].search_read(
+                domain, ["balance", "company_id", "account_id", "partner_id"]):
+            cid = ln["company_id"][0] if ln["company_id"] else 0
+            aid = ln["account_id"][0]
+            pid = ln["partner_id"][0] if ln["partner_id"] else 0
+            is_ic = (pid in ic_partners
+                     or bool(PEOPLE_IC_ACCOUNT_PAT.match(names.get(aid, ""))))
+            if not company_id and is_ic:
+                continue
+            value = (ln["balance"] or 0.0) * factors.get(cid, 1.0)
+            if aid in rev_ids:
+                rev -= value
+            else:
+                op += value
+                if aid in staff_ids:
+                    staff += value
+                elif aid in sub_ids:
+                    sub += value
+        return {"usd": usd, "factors": factors, "revenue": rev,
+                "operating": op, "staff": staff, "sub": sub,
+                "people": staff + sub, "other": max(op - staff - sub, 0.0)}
+
+    def _people_usd_short(self, value):
+        sign = "−" if value < 0 else ""
+        amount = abs(value or 0.0)
+        if amount >= 999.5:
+            return "%s$%sK" % (sign, "{:,.0f}".format(round(amount / 1000.0)))
+        return "%s$%s" % (sign, "{:,.0f}".format(round(amount)))
+
+    def _people_cost_widgets(self, data, company_id, start, end, headcount,
+                             scope_note):
+        """The Cost & compensation section — group ratios from the ledger
+        (work today, all companies) + per-person detail from Odoo wages
+        (whatever is loaded; India first, others as their pay goes in)."""
+        widgets = [self._people_sechead("people_sec_cost",
+                                        _("Cost & compensation"))]
+        ledger = self._people_cost_ledger(company_id, start, end)
+        if not ledger:
+            return widgets
+        factors = ledger["factors"]
+        usd = ledger["usd"]
+
+        # --- salary % of overhead (donut) ---
+        op = ledger["operating"]
+        people_pct = round(ledger["people"] / op * 100) if op else 0
+        donut = {
+            "id": "people_cost_share", "name": _("People as a Share of Operating Cost"),
+            "type": "donut", "model": "account.move.line", "mode": "computed",
+            "measure": _("of operating cost is people"), "groupby": _("Cost"),
+            "color": TEAL,
+            "help": _("Of every unit spent running the business, how much is "
+                      "people. From the accounting ledger, %(basis)s. Staff = "
+                      "own payroll accounts; subcontractors = outsourced "
+                      "delivery ('Partners'). Classification is tunable.") % {
+                "basis": _("group, intercompany removed") if not company_id
+                else scope_note},
+            "value": float(people_pct), "format": "percent", "domain": [],
+            "points": [
+                {"label": _("Staff salaries"),
+                 "value": round(ledger["staff"]), "domain": []},
+                {"label": _("Subcontractors / partners"),
+                 "value": round(ledger["sub"]), "domain": []},
+                {"label": _("Everything else"),
+                 "value": round(ledger["other"]), "domain": []},
+            ],
+        }
+
+        # --- people cost vs revenue + revenue per head ---
+        rev = ledger["revenue"]
+        cost_rev_pct = round(ledger["people"] / rev * 100) if rev > 0 else 0
+        rev_per_head = (rev / headcount) if headcount else 0.0
+        cost_vs_rev = self._people_kpi(
+            "people_cost_revenue", _("People Cost vs Revenue"),
+            cost_rev_pct, "percent",
+            _("%(p)s people cost · %(r)s revenue") % {
+                "p": self._people_usd_short(ledger["people"]),
+                "r": self._people_usd_short(rev)}, TEAL,
+            _("People cost as a share of revenue over the period — are we "
+              "the right size for the money we support? Ledger, USD.") + " "
+            + scope_note,
+            hero=False, span=4,
+            value_text=_("≈ %s%%") % cost_rev_pct)
+        rev_head = self._people_kpi(
+            "people_rev_head", _("Revenue per Head"), round(rev_per_head),
+            "usd", _("revenue ÷ %s people (period)") % headcount, TEAL,
+            _("What the average person's revenue contribution is. Ledger "
+              "revenue ÷ headcount.") + " " + scope_note,
+            span=4, value_text=self._people_usd_short(rev_per_head))
+
+        widgets += [donut, cost_vs_rev, rev_head]
+
+        # --- per-person wage detail (whatever is loaded) ---
+        priced = [p for p in data["people"] if (p.get("wage") or 0) > 0]
+        payroll_month = sum((p["wage"] or 0) * factors.get(p["company_id"], 1.0)
+                            for p in priced)
+        if not priced:
+            widgets.append(self._people_kpi(
+                "people_payroll_empty", _("Team Payroll"), 0, "integer",
+                _("no wages entered in Odoo yet"), AMBER,
+                _("Once employee wages are entered in Odoo, this lights up "
+                  "with total payroll, cost per team and salary bands — "
+                  "group-wide in USD, whichever countries have pay loaded."),
+                span=4))
+            return widgets
+
+        payroll_year = payroll_month * PEOPLE_MONTHS
+        widgets.append(self._people_kpi(
+            "people_payroll", _("Team Payroll (loaded)"),
+            round(payroll_year), "usd",
+            _("%(n)s of %(t)s people priced · %(m)s/mo") % {
+                "n": len(priced), "t": headcount,
+                "m": self._people_usd_short(payroll_month)}, TEAL,
+            _("Annualised payroll from wages entered in Odoo, USD at today's "
+              "rates. Shows whoever has pay loaded (India first; SA & "
+              "Indonesia join as theirs go in).") + " " + scope_note,
+            span=4, value_text=self._people_usd_short(payroll_year)))
+
+        # cost per department (USD/yr)
+        dept_cost = {}
+        for p in priced:
+            key = p["dept"] or _("No department")
+            entry = dept_cost.setdefault(key, {"usd": 0.0, "ids": []})
+            entry["usd"] += (p["wage"] or 0) * factors.get(p["company_id"], 1.0) \
+                * PEOPLE_MONTHS
+            entry["ids"] += p["emp_ids"]
+        dept_points = [{
+            "label": name, "value": round(entry["usd"]), "color": TEAL,
+            "domain": self._json_safe([("id", "in", entry["ids"])]),
+        } for name, entry in sorted(dept_cost.items(), key=lambda kv: -kv[1]["usd"])]
+        widgets.append(self._people_bar(
+            "people_cost_dept", _("Cost by Department (USD/yr)"), dept_points,
+            _("Annual payroll by team, from loaded wages, USD.") + " "
+            + scope_note, _("Cost"), _("Department")))
+
+        # salary bands (monthly USD)
+        band_defs = [("< $500", 0, 500), ("$500–1.5k", 500, 1500),
+                     ("$1.5–3k", 1500, 3000), ("$3k+", 3000, 10 ** 9)]
+        shades = ["#6bb3ba", "#3a97a0", "#1a7f89", "#0f6b74"]
+        band_points = []
+        for i, (label, lo, hi) in enumerate(band_defs):
+            n = sum(1 for p in priced
+                    if lo <= (p["wage"] or 0) * factors.get(p["company_id"], 1.0) < hi)
+            band_points.append({"label": label, "value": n,
+                                "color": shades[i], "domain": [], "detail": None})
+        widgets.append({
+            "id": "people_bands", "name": _("Salary Bands (USD/mo)"),
+            "type": "column", "model": "", "mode": "computed",
+            "measure": _("People"), "groupby": _("Band"), "color": TEAL,
+            "help": _("Monthly gross spread, USD — a common yardstick across "
+                      "countries.") + " " + scope_note,
+            "value": float(len(priced)), "format": "integer", "domain": [],
+            "points": band_points, "rows": [], "columns": [], "span": 6,
+            "error": False, "target": 0.0, "tall": True})
+        return widgets
 
     def _people_matrix(self, wid, name, rows, columns, help_text, groupby,
                        span=12):
