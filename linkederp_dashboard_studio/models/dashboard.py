@@ -43,6 +43,7 @@ DEFAULT_BUCKET_BY_NAME = {
     "Ops Management": "management",
     "Weekly Support & SLA Dashboard": "ops",
     "Aurika Finance Dashboard": "management",
+    "Aurika People Dashboard": "management",
 }
 
 
@@ -201,6 +202,12 @@ class LinkederpDashboard(models.Model):
                     date_to=date_to,
                     filters=filters,
                 )
+            elif dashboard._is_people_dashboard():
+                widgets = dashboard._people_dashboard_widgets(
+                    date_from=date_from,
+                    date_to=date_to,
+                    filters=filters,
+                )
 
         bucket_labels = dict(DASHBOARD_BUCKETS)
         return {
@@ -253,6 +260,9 @@ class LinkederpDashboard(models.Model):
             else {"enabled": False},
             "fin_filters": dashboard._fin_filter_options(filters)
             if dashboard and dashboard._is_finance_dashboard()
+            else {"enabled": False},
+            "people_filters": dashboard._people_filter_options(filters)
+            if dashboard and dashboard._is_people_dashboard()
             else {"enabled": False},
         }
 
