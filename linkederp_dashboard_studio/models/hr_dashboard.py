@@ -220,8 +220,10 @@ class LinkederpDashboardPeople(models.Model):
                        or (e["company_id"] and e["company_id"][0] == company_id)]
 
         # departed people (archived) with a departure date — dedup by identity
-        dep_fields = ["name", "user_id", "company_id", "departure_date",
-                      "departure_reason_id"]
+        dep_fields = ["name", "user_id", "company_id", "department_id",
+                      "departure_date", "departure_reason_id"]
+        if has_join:
+            dep_fields.append(PEOPLE_JOIN_FIELD)
         departed = {}
         for e in Employee.with_context(active_test=False).search_read(
                 [("departure_date", "!=", False)], dep_fields):
@@ -245,7 +247,12 @@ class LinkederpDashboardPeople(models.Model):
                 continue
             departed[dedup] = {
                 "emp_id": e["id"],
+                "key": key,
+                "name": self._people_norm(e["name"]).title(),
                 "date": d,
+                "dept": (e["department_id"][1] if e["department_id"] else False),
+                "dept_id": (e["department_id"][0] if e["department_id"] else False),
+                "join": e.get(PEOPLE_JOIN_FIELD) if has_join else False,
                 "reason": (e["departure_reason_id"][1]
                            if e["departure_reason_id"] else _("Not recorded")),
                 "reason_id": (e["departure_reason_id"][0]
@@ -360,13 +367,44 @@ class LinkederpDashboardPeople(models.Model):
                 "error": False}
 
     def _people_bar(self, wid, name, points, help_text, measure, groupby,
-                    model="hr.employee", span=6):
+                    model="hr.employee", span=6, fmt="integer"):
         return {"id": wid, "name": name, "type": "bar", "model": model,
                 "mode": "computed", "measure": measure, "groupby": groupby,
                 "color": TEAL, "help": help_text, "value": float(len(points)),
-                "format": "integer", "domain": [], "points": points,
-                "rows": [], "columns": [], "span": span, "error": False,
-                "tall": True}
+                "format": fmt, "domain": [], "points": points,
+                "rows": [], "columns": [], "span": span, "error": False}
+
+    def _people_roster(self, wid, title, rows_data, metric_label, help_text):
+        """A popup listing people — Name · Department · <metric> — where each
+        row clicks through to that person's Odoo record. rows_data items:
+        {label, domain, dept, metric}."""
+        rows = [{
+            "label": r["label"],
+            "domain": r["domain"],
+            "model": "hr.employee",
+            "dept": r.get("dept") or "—",
+            "metric": r.get("metric", ""),
+            "tones": {},
+        } for r in rows_data]
+        widget = self._sales_matrix(
+            wid, title, rows,
+            [{"key": "dept", "label": _("Department"), "format": "text"},
+             {"key": "metric", "label": metric_label, "format": "text"}],
+            help_text, _("Name"), span=12, compact=True, color=TEAL)
+        widget["model"] = "hr.employee"
+        return widget
+
+    def _people_person_rows(self, subset, metric_fn):
+        return [{"label": p["name"],
+                 "domain": self._json_safe([("id", "in", p["emp_ids"])]),
+                 "dept": p["dept"], "metric": metric_fn(p)}
+                for p in subset]
+
+    def _people_leaver_rows(self, subset, metric_fn):
+        return [{"label": d["name"],
+                 "domain": self._json_safe([("id", "=", d["emp_id"])]),
+                 "dept": d["dept"], "metric": metric_fn(d)}
+                for d in subset]
 
     def _people_story(self, items):
         return {"id": "people_story", "name": _("The Story for the Board"),
@@ -525,6 +563,32 @@ class LinkederpDashboardPeople(models.Model):
             top_dept, top_dept_n, sex_counts, median_tenure, period_label))
 
         active_emp_ids = [eid for p in people for eid in p["emp_ids"]]
+
+        # Per-person formatters + rosters reused by the click-through popups.
+        def _yrs(p):
+            y = self._people_years(p["join"], today)
+            return _("%s yrs") % round(y, 1) if y is not None else _("— (no date)")
+        _sex_label = {"male": _("Man"), "female": _("Woman")}
+
+        def _sexlbl(p):
+            return _sex_label.get(p["sex"], _("Not recorded"))
+
+        gender_popup = self._people_roster(
+            "people_gender_list", _("Team by Gender"),
+            self._people_person_rows(
+                sorted(people, key=lambda p: (p["sex"] or "z", p["name"])),
+                _sexlbl),
+            _("Gender"),
+            _("Everyone, with their recorded gender. Click a name to open "
+              "the record.") + " " + scope_note)
+        tenure_popup = self._people_roster(
+            "people_tenure_list", _("Tenure per Person"),
+            self._people_person_rows(
+                sorted(people, key=lambda p: -(self._people_years(p["join"], today) or 0)),
+                _yrs),
+            _("Tenure"),
+            _("Everyone, longest-serving first.") + " " + scope_note)
+
         hero = [
             self._people_kpi(
                 "people_headcount", _("Headcount"), headcount, "integer",
@@ -540,9 +604,9 @@ class LinkederpDashboardPeople(models.Model):
                 _("%(m)s men · %(f)s women · %(u)s unrecorded") % {
                     "m": male, "f": female, "u": unset}, "#2a92b8",
                 _("Share of the team that is male (from the employee sex "
-                  "field). %s unrecorded — worth filling in.") % unset + " "
-                + scope_note,
-                hero=True,
+                  "field). %s unrecorded — worth filling in. Click for the "
+                  "list.") % unset + " " + scope_note,
+                hero=True, modal_table=gender_popup,
                 split=[
                     {"pct": male_pct, "color": "#2a92b8", "label": _("Men")},
                     {"pct": round(female / headcount * 100) if headcount else 0,
@@ -584,45 +648,68 @@ class LinkederpDashboardPeople(models.Model):
                 _("avg %(a)s · longest %(l)s yrs") % {
                     "a": round(avg_tenure, 1), "l": round(longest)}, TEAL,
                 _("Years since joining, middle value. A young median means a "
-                  "fast-grown team.") + " " + scope_note,
-                hero=True, span=2, value_text=_("%s yrs") % round(median_tenure, 1)),
+                  "fast-grown team. Click for tenure per person.") + " "
+                + scope_note,
+                hero=True, span=2, modal_table=tenure_popup,
+                value_text=_("%s yrs") % round(median_tenure, 1)),
         ]
 
-        # ---- department bar ----
-        dept_points = [{
-            "label": name,
-            "value": entry["n"],
-            "color": TEAL,
-            "domain": self._json_safe(
-                [("department_id", "=", entry["id"]), ("active", "=", True)]
-                if entry["id"] else
-                [("department_id", "=", False), ("active", "=", True)]),
-        } for name, entry in dept_sorted]
+        # ---- department bar (per-bar popup → the team, click to record) ----
+        dept_points = []
+        for name, entry in dept_sorted:
+            members = [p for p in people
+                       if (p["dept"] or _("No department")) == name]
+            dept_points.append({
+                "label": name, "value": entry["n"], "color": TEAL,
+                "domain": self._json_safe(
+                    [("department_id", "=", entry["id"]), ("active", "=", True)]
+                    if entry["id"] else
+                    [("department_id", "=", False), ("active", "=", True)]),
+                "modal_table": self._people_roster(
+                    "people_dept_%s" % (entry["id"] or "none"),
+                    _("%s — team") % name,
+                    self._people_person_rows(
+                        sorted(members, key=lambda p: p["name"]), _yrs),
+                    _("Tenure"),
+                    _("Everyone in %s. Click a name for the record.") % name),
+            })
         dept_bar = self._people_bar(
             "people_departments", _("Where Everyone Sits"), dept_points,
-            _("Headcount by department (by person). Click a row for the "
-              "team.") + " " + scope_note,
+            _("Headcount by department (by person). Click a bar for the "
+              "team, then a name for the record.") + " " + scope_note,
             _("People"), _("Department"))
 
-        # ---- tenure distribution ----
-        buckets = [("< 2 yrs", 0, 2), ("2–5 yrs", 2, 5),
-                   ("5–10 yrs", 5, 10), ("10+ yrs", 10, 999)]
+        # ---- tenure distribution (per-bucket popup → who) ----
+        # tenure per person computed ONCE (dates parse cost adds up otherwise)
+        person_years = [(p, self._people_years(p["join"], today))
+                        for p in people]
+        buckets = [(_("< 2 yrs"), 0, 2), (_("2–5 yrs"), 2, 5),
+                   (_("5–10 yrs"), 5, 10), (_("10+ yrs"), 10, 999)]
         ten_points = []
         shades = ["#0f6b74", "#1a7f89", "#3a97a0", "#6bb3ba"]
         for i, (label, lo, hi) in enumerate(buckets):
-            n = sum(1 for t in tenures if t is not None and lo <= t < hi)
-            ten_points.append({"label": label, "value": n,
-                               "color": shades[i], "domain": [],
-                               "detail": None})
+            members = [p for p, y in person_years
+                       if y is not None and lo <= y < hi]
+            ten_points.append({
+                "label": label, "value": len(members), "color": shades[i],
+                "domain": [], "detail": None,
+                "modal_table": self._people_roster(
+                    "people_tenure_b%d" % i, _("Tenure %s") % label,
+                    self._people_person_rows(
+                        sorted(members, key=lambda p: p["name"]), _yrs),
+                    _("Tenure"),
+                    _("Everyone with %s of tenure. Click a name for the "
+                      "record.") % label),
+            })
         tenure_col = {
             "id": "people_tenure_dist", "name": _("How Long People Stay"),
             "type": "column", "model": "", "mode": "computed",
             "measure": _("People"), "groupby": _("Tenure"), "color": TEAL,
-            "help": _("Distribution of tenure across the team.") + " "
-            + scope_note,
+            "help": _("Distribution of tenure. Click a bar for who's in it.")
+            + " " + scope_note,
             "value": float(headcount), "format": "integer", "domain": [],
             "points": ten_points, "rows": [], "columns": [], "span": 6,
-            "error": False, "target": 0.0, "tall": True}
+            "error": False, "target": 0.0}
 
         # ---- joins vs exits by year (columns2: a=left/red, b=joined/green) ----
         years = list(range(today.year - 5, today.year + 1))
@@ -663,16 +750,28 @@ class LinkederpDashboardPeople(models.Model):
             entry["n"] += 1
             entry["ids"].append(d["emp_id"])
         reason_sorted = sorted(reasons.items(), key=lambda kv: -kv[1]["n"])
-        reason_points = [{
-            "label": name,
-            "value": entry["n"],
-            "color": RED if i == 0 else AMBER if i == 1 else TEAL,
-            "domain": self._json_safe([("id", "in", entry["ids"])]),
-        } for i, (name, entry) in enumerate(reason_sorted)]
+        reason_points = []
+        for i, (name, entry) in enumerate(reason_sorted):
+            leavers = [d for d in exits if d["reason"] == name]
+            reason_points.append({
+                "label": name, "value": entry["n"],
+                "color": RED if i == 0 else AMBER if i == 1 else TEAL,
+                "domain": self._json_safe([("id", "in", entry["ids"])]),
+                "modal_table": self._people_roster(
+                    "people_reason_%s" % (entry["id"] or "none"),
+                    _("Left: %s") % name,
+                    self._people_leaver_rows(
+                        sorted(leavers, key=lambda d: d["date"], reverse=True),
+                        lambda d: self._ops_date_text(
+                            self._people_safe_date(d["date"]))),
+                    _("Left on"),
+                    _("Who left, reason '%s'. Click a name for the (archived) "
+                      "record.") % name),
+            })
         reasons_bar = self._people_bar(
             "people_reasons", _("Why People Leave"), reason_points,
-            _("Recorded exit reasons over %s. Click a row for who.")
-            % period_label + " " + scope_note,
+            _("Recorded exit reasons over %s. Click a bar for who, then a "
+              "name for the record.") % period_label + " " + scope_note,
             _("Leavers"), _("Reason"))
 
         # ---- time off ----
@@ -745,6 +844,10 @@ class LinkederpDashboardPeople(models.Model):
             dept_bar, tenure_col,
             self._people_sechead("people_sec_move", _("Coming & going")),
             movement, reasons_bar,
+        ]
+        widgets += self._people_retention_widgets(
+            data, people, exits, today, scope_note, period_label)
+        widgets += [
             self._people_sechead("people_sec_day", _("Day to day")),
             leave_bar, hygiene,
         ]
@@ -802,7 +905,10 @@ class LinkederpDashboardPeople(models.Model):
                     sub += value
         return {"usd": usd, "factors": factors, "revenue": rev,
                 "operating": op, "staff": staff, "sub": sub,
-                "people": staff + sub, "other": max(op - staff - sub, 0.0)}
+                "people": staff + sub, "other": max(op - staff - sub, 0.0),
+                "staff_ids": list(staff_ids), "sub_ids": list(sub_ids),
+                "other_ids": [a for a in op_ids
+                              if a not in staff_ids and a not in sub_ids]}
 
     def _people_usd_short(self, value):
         sign = "−" if value < 0 else ""
@@ -822,35 +928,29 @@ class LinkederpDashboardPeople(models.Model):
         if not ledger:
             return widgets
         factors = ledger["factors"]
-        usd = ledger["usd"]
+        today = fields.Date.context_today(self)
+        allp = data["people"]
 
-        # --- salary % of overhead (donut) ---
-        op = ledger["operating"]
-        people_pct = round(ledger["people"] / op * 100) if op else 0
-        donut = {
-            "id": "people_cost_share", "name": _("People as a Share of Operating Cost"),
-            "type": "donut", "model": "account.move.line", "mode": "computed",
-            "measure": _("of operating cost is people"), "groupby": _("Cost"),
-            "color": TEAL,
-            "help": _("Of every unit spent running the business, how much is "
-                      "people. From the accounting ledger, %(basis)s. Staff = "
-                      "own payroll accounts; subcontractors = outsourced "
-                      "delivery ('Partners'). Classification is tunable.") % {
-                "basis": _("group, intercompany removed") if not company_id
-                else scope_note},
-            "value": float(people_pct), "format": "percent", "domain": [],
-            "points": [
-                {"label": _("Staff salaries"),
-                 "value": round(ledger["staff"]), "domain": []},
-                {"label": _("Subcontractors / partners"),
-                 "value": round(ledger["sub"]), "domain": []},
-                {"label": _("Everything else"),
-                 "value": round(ledger["other"]), "domain": []},
-            ],
-        }
+        def _yrs(p):
+            y = self._people_years(p["join"], today)
+            return _("%s yrs") % round(y, 1) if y is not None else _("—")
 
-        # --- people cost vs revenue + revenue per head ---
+        def acct_domain(ids):
+            dom = [("account_id", "in", ids), ("parent_state", "=", "posted"),
+                   ("date", ">=", str(start)), ("date", "<=", str(end))]
+            if company_id:
+                dom.append(("company_id", "=", company_id))
+            return self._json_safe(dom)
+
+        def mUSD(p):
+            return (p["wage"] or 0) * factors.get(p["company_id"], 1.0)
+
         rev = ledger["revenue"]
+        op = ledger["operating"]
+        basis = (_("group, intercompany removed") if not company_id
+                 else scope_note)
+
+        # --- Row A: three summary KPIs (equal height) ---
         cost_rev_pct = round(ledger["people"] / rev * 100) if rev > 0 else 0
         rev_per_head = (rev / headcount) if headcount else 0.0
         cost_vs_rev = self._people_kpi(
@@ -859,82 +959,296 @@ class LinkederpDashboardPeople(models.Model):
             _("%(p)s people cost · %(r)s revenue") % {
                 "p": self._people_usd_short(ledger["people"]),
                 "r": self._people_usd_short(rev)}, TEAL,
-            _("People cost as a share of revenue over the period — are we "
-              "the right size for the money we support? Ledger, USD.") + " "
-            + scope_note,
-            hero=False, span=4,
+            _("People cost as a share of revenue — are we the right size for "
+              "the money we support? Ledger, USD, %s. Click for the people-"
+              "cost entries.") % basis,
+            model="account.move.line", span=4,
+            domain=acct_domain(ledger["staff_ids"] + ledger["sub_ids"]),
             value_text=_("≈ %s%%") % cost_rev_pct)
         rev_head = self._people_kpi(
             "people_rev_head", _("Revenue per Head"), round(rev_per_head),
-            "usd", _("revenue ÷ %s people (period)") % headcount, TEAL,
-            _("What the average person's revenue contribution is. Ledger "
-              "revenue ÷ headcount.") + " " + scope_note,
-            span=4, value_text=self._people_usd_short(rev_per_head))
+            "usd", _("revenue ÷ %s people") % headcount, TEAL,
+            _("The average person's revenue contribution — ledger revenue ÷ "
+              "headcount. Click for the people counted.") + " " + scope_note,
+            span=4,
+            modal_table=self._people_roster(
+                "people_rev_head_list", _("The %s people counted") % headcount,
+                self._people_person_rows(
+                    sorted(allp, key=lambda p: p["name"]), _yrs),
+                _("Tenure"),
+                _("The headcount used as the denominator.") + " " + scope_note),
+            value_text=self._people_usd_short(rev_per_head))
 
-        widgets += [donut, cost_vs_rev, rev_head]
-
-        # --- per-person wage detail (whatever is loaded) ---
         priced = [p for p in data["people"] if (p.get("wage") or 0) > 0]
-        payroll_month = sum((p["wage"] or 0) * factors.get(p["company_id"], 1.0)
-                            for p in priced)
-        if not priced:
-            widgets.append(self._people_kpi(
-                "people_payroll_empty", _("Team Payroll"), 0, "integer",
+        payroll_month = sum(mUSD(p) for p in priced)
+        payroll_year = payroll_month * PEOPLE_MONTHS
+        if priced:
+            payroll_kpi = self._people_kpi(
+                "people_payroll", _("Team Payroll (loaded)"),
+                round(payroll_year), "usd",
+                _("%(n)s of %(t)s people priced · %(m)s/mo") % {
+                    "n": len(priced), "t": headcount,
+                    "m": self._people_usd_short(payroll_month)}, TEAL,
+                _("Annualised payroll from wages entered in Odoo, USD at "
+                  "today's rates. Whoever has pay loaded (SA & Indonesia join "
+                  "as theirs go in). Click for the per-person list.") + " "
+                + scope_note,
+                span=4,
+                modal_table=self._people_roster(
+                    "people_payroll_list", _("Payroll — per person (USD/mo)"),
+                    self._people_person_rows(
+                        sorted(priced, key=lambda p: -mUSD(p)),
+                        lambda p: _("%s/mo") % self._people_usd_short(mUSD(p))),
+                    _("Monthly (USD)"),
+                    _("Everyone with pay loaded, highest first.") + " "
+                    + scope_note),
+                value_text=self._people_usd_short(payroll_year))
+        else:
+            payroll_kpi = self._people_kpi(
+                "people_payroll", _("Team Payroll"), 0, "integer",
                 _("no wages entered in Odoo yet"), AMBER,
                 _("Once employee wages are entered in Odoo, this lights up "
-                  "with total payroll, cost per team and salary bands — "
-                  "group-wide in USD, whichever countries have pay loaded."),
-                span=4))
-            return widgets
+                  "with payroll, cost per team and salary bands — group-wide "
+                  "in USD, whichever countries have pay loaded."), span=4)
+        widgets += [cost_vs_rev, rev_head, payroll_kpi]
 
-        payroll_year = payroll_month * PEOPLE_MONTHS
-        widgets.append(self._people_kpi(
-            "people_payroll", _("Team Payroll (loaded)"),
-            round(payroll_year), "usd",
-            _("%(n)s of %(t)s people priced · %(m)s/mo") % {
-                "n": len(priced), "t": headcount,
-                "m": self._people_usd_short(payroll_month)}, TEAL,
-            _("Annualised payroll from wages entered in Odoo, USD at today's "
-              "rates. Shows whoever has pay loaded (India first; SA & "
-              "Indonesia join as theirs go in).") + " " + scope_note,
-            span=4, value_text=self._people_usd_short(payroll_year)))
+        # --- Row B: donut (share) + salary bands ---
+        def pct(v):
+            return round(v / op * 100) if op else 0
+        # Center = sum of the two people slices so it always equals the legend.
+        people_pct = pct(ledger["staff"]) + pct(ledger["sub"])
+        donut_modal = self._sales_matrix(
+            "people_cost_share_tbl", _("Operating cost — people vs rest"),
+            [
+                {"label": _("Staff salaries"),
+                 "domain": acct_domain(ledger["staff_ids"]),
+                 "model": "account.move.line",
+                 "usd": self._people_usd_short(ledger["staff"]),
+                 "share": "%s%%" % pct(ledger["staff"]), "tones": {}},
+                {"label": _("Subcontractors / partners"),
+                 "domain": acct_domain(ledger["sub_ids"]),
+                 "model": "account.move.line",
+                 "usd": self._people_usd_short(ledger["sub"]),
+                 "share": "%s%%" % pct(ledger["sub"]), "tones": {}},
+                {"label": _("Everything else"),
+                 "domain": acct_domain(ledger["other_ids"]),
+                 "model": "account.move.line",
+                 "usd": self._people_usd_short(ledger["other"]),
+                 "share": "%s%%" % pct(ledger["other"]), "tones": {}},
+            ],
+            [{"key": "usd", "label": _("USD"), "format": "money"},
+             {"key": "share", "label": _("of op. cost"), "format": "money"}],
+            _("Click a row for the ledger entries."), _("Cost group"),
+            span=12, compact=True, color=TEAL)
+        donut_modal["model"] = ""
+        donut = {
+            "id": "people_cost_share",
+            "name": _("People as a Share of Operating Cost"),
+            "type": "donut", "model": "", "mode": "computed",
+            "measure": _("of operating cost is people"), "groupby": _("Cost"),
+            "color": TEAL,
+            "help": _("Of every unit spent running the business, how much is "
+                      "people. Ledger, %(basis)s. Staff = own payroll; "
+                      "subcontractors = outsourced delivery. Click for the "
+                      "breakdown; classification is tunable.") % {"basis": basis},
+            # Values are % of operating cost so the legend reads as shares,
+            # not raw money with a stray % sign.
+            "value": float(people_pct), "format": "percent", "domain": [],
+            "span": 6, "rows": [], "columns": [], "error": False,
+            "modal_table": donut_modal,
+            "points": [
+                {"label": _("Staff salaries"), "value": pct(ledger["staff"]),
+                 "domain": acct_domain(ledger["staff_ids"])},
+                {"label": _("Subcontractors / partners"),
+                 "value": pct(ledger["sub"]),
+                 "domain": acct_domain(ledger["sub_ids"])},
+                {"label": _("Everything else"), "value": pct(ledger["other"]),
+                 "domain": acct_domain(ledger["other_ids"])},
+            ],
+        }
+        donut["model"] = "account.move.line"  # legend rows open ledger lines
 
-        # cost per department (USD/yr)
-        dept_cost = {}
-        for p in priced:
-            key = p["dept"] or _("No department")
-            entry = dept_cost.setdefault(key, {"usd": 0.0, "ids": []})
-            entry["usd"] += (p["wage"] or 0) * factors.get(p["company_id"], 1.0) \
-                * PEOPLE_MONTHS
-            entry["ids"] += p["emp_ids"]
-        dept_points = [{
-            "label": name, "value": round(entry["usd"]), "color": TEAL,
-            "domain": self._json_safe([("id", "in", entry["ids"])]),
-        } for name, entry in sorted(dept_cost.items(), key=lambda kv: -kv[1]["usd"])]
-        widgets.append(self._people_bar(
-            "people_cost_dept", _("Cost by Department (USD/yr)"), dept_points,
-            _("Annual payroll by team, from loaded wages, USD.") + " "
-            + scope_note, _("Cost"), _("Department")))
-
-        # salary bands (monthly USD)
-        band_defs = [("< $500", 0, 500), ("$500–1.5k", 500, 1500),
-                     ("$1.5–3k", 1500, 3000), ("$3k+", 3000, 10 ** 9)]
+        band_defs = [(_("< $500"), 0, 500), (_("$500–1.5k"), 500, 1500),
+                     (_("$1.5–3k"), 1500, 3000), (_("$3k+"), 3000, 10 ** 9)]
         shades = ["#6bb3ba", "#3a97a0", "#1a7f89", "#0f6b74"]
         band_points = []
         for i, (label, lo, hi) in enumerate(band_defs):
-            n = sum(1 for p in priced
-                    if lo <= (p["wage"] or 0) * factors.get(p["company_id"], 1.0) < hi)
-            band_points.append({"label": label, "value": n,
-                                "color": shades[i], "domain": [], "detail": None})
-        widgets.append({
+            members = [p for p in priced if lo <= mUSD(p) < hi]
+            band_points.append({
+                "label": label, "value": len(members), "color": shades[i],
+                "domain": [], "detail": None,
+                "modal_table": self._people_roster(
+                    "people_band_%d" % i, _("Salary band %s") % label,
+                    self._people_person_rows(
+                        sorted(members, key=lambda p: -mUSD(p)),
+                        lambda p: _("%s/mo") % self._people_usd_short(mUSD(p))),
+                    _("Monthly (USD)"),
+                    _("People in the %s band. Click a name for the record.")
+                    % label) if members else False,
+            })
+        bands = {
             "id": "people_bands", "name": _("Salary Bands (USD/mo)"),
             "type": "column", "model": "", "mode": "computed",
             "measure": _("People"), "groupby": _("Band"), "color": TEAL,
-            "help": _("Monthly gross spread, USD — a common yardstick across "
-                      "countries.") + " " + scope_note,
+            "help": (_("Monthly gross spread, USD — one yardstick across "
+                       "countries. Click a bar for who.") + " " + scope_note)
+            if priced else _("Loads once wages are entered."),
             "value": float(len(priced)), "format": "integer", "domain": [],
             "points": band_points, "rows": [], "columns": [], "span": 6,
-            "error": False, "target": 0.0, "tall": True})
+            "error": False, "target": 0.0}
+        widgets += [donut, bands]
+
+        # --- Row C: cost by department (full width), if wages loaded ---
+        if priced:
+            dept_cost = {}
+            for p in priced:
+                key = p["dept"] or _("No department")
+                entry = dept_cost.setdefault(key, {"usd": 0.0, "members": []})
+                entry["usd"] += mUSD(p) * PEOPLE_MONTHS
+                entry["members"].append(p)
+            dept_points = []
+            for name, entry in sorted(dept_cost.items(),
+                                      key=lambda kv: -kv[1]["usd"]):
+                dept_points.append({
+                    "label": name, "value": round(entry["usd"]), "color": TEAL,
+                    "domain": self._json_safe([
+                        ("id", "in", [eid for p in entry["members"]
+                                      for eid in p["emp_ids"]])]),
+                    "modal_table": self._people_roster(
+                        "people_costdept_%s" % re.sub(r"\W+", "_", name.lower()),
+                        _("%s — cost per person") % name,
+                        self._people_person_rows(
+                            sorted(entry["members"], key=lambda p: -mUSD(p)),
+                            lambda p: _("%s/yr") % self._people_usd_short(
+                                mUSD(p) * PEOPLE_MONTHS)),
+                        _("Annual (USD)"),
+                        _("Cost of each person in %s. Click a name for the "
+                          "record.") % name),
+                })
+            widgets.append(self._people_bar(
+                "people_cost_dept", _("Cost by Department (USD/yr)"),
+                dept_points,
+                _("Annual payroll by team from loaded wages, USD. Click a bar "
+                  "for the people.") + " " + scope_note,
+                _("Cost"), _("Department"), span=12, fmt="usd"))
+        return widgets
+
+    # ------------------------------------------------------------------
+    # Retention & risk (Phase B — same dashboard, same generic engine)
+    # ------------------------------------------------------------------
+    def _people_retention_widgets(self, data, people, exits, today,
+                                  scope_note, period_label):
+        widgets = [self._people_sechead("people_sec_retain",
+                                        _("Retention & risk"))]
+
+        def leaver_when(d):
+            return self._ops_date_text(self._people_safe_date(d["date"]))
+
+        def exit_tenure(d):
+            j = self._people_safe_date(d["join"])
+            dp = self._people_safe_date(d["date"])
+            if j and dp:
+                return (dp - j).days / 365.25
+            return None
+
+        # --- attrition by department ---
+        by_dept = {}
+        for d in exits:
+            key = d["dept"] or _("No department")
+            by_dept.setdefault(key, []).append(d)
+        dept_points = []
+        for name, leavers in sorted(by_dept.items(), key=lambda kv: -len(kv[1])):
+            dept_points.append({
+                "label": name, "value": len(leavers),
+                "color": RED if len(leavers) >= 3 else AMBER,
+                "domain": self._json_safe([
+                    ("id", "in", [d["emp_id"] for d in leavers])]),
+                "modal_table": self._people_roster(
+                    "people_attr_dept_%s" % re.sub(r"\W+", "_", name.lower()),
+                    _("Left from %s") % name,
+                    self._people_leaver_rows(
+                        sorted(leavers, key=lambda d: d["date"], reverse=True),
+                        leaver_when),
+                    _("Left on"),
+                    _("Who left from %s. Click a name for the (archived) "
+                      "record.") % name),
+            })
+        attr_dept_bar = self._people_bar(
+            "people_attr_dept", _("Where Churn Concentrates"), dept_points,
+            _("Leavers over %s by the team they left. Click a bar for who.")
+            % period_label + " " + scope_note,
+            _("Leavers"), _("Department"), span=8)
+
+        # --- how long leavers stayed (tenure at exit) ---
+        buckets = [(_("< 1 yr"), 0, 1), (_("1–2 yrs"), 1, 2),
+                   (_("2–5 yrs"), 2, 5), (_("5+ yrs"), 5, 999)]
+        shades = ["#c0392f", "#d08a2e", "#3a97a0", "#0f6b74"]
+        exit_ten = [(d, exit_tenure(d)) for d in exits]  # compute once
+        stay_points = []
+        for i, (label, lo, hi) in enumerate(buckets):
+            members = [d for d, y in exit_ten if y is not None and lo <= y < hi]
+            stay_points.append({
+                "label": label, "value": len(members), "color": shades[i],
+                "domain": [], "detail": None,
+                "modal_table": self._people_roster(
+                    "people_exit_ten_%d" % i, _("Stayed %s") % label,
+                    self._people_leaver_rows(
+                        sorted(members, key=lambda d: d["date"], reverse=True),
+                        leaver_when),
+                    _("Left on"),
+                    _("Leavers who stayed %s before leaving.") % label)
+                if members else False,
+            })
+        exit_tenure_col = {
+            "id": "people_exit_tenure", "name": _("How Long Leavers Stayed"),
+            "type": "column", "model": "", "mode": "computed",
+            "measure": _("Leavers"), "groupby": _("Tenure at exit"),
+            "color": RED,
+            "help": _("Did people leave early or after years? A tall '< 1 yr' "
+                      "bar is an onboarding/fit problem. Click a bar for who.")
+            + " " + scope_note,
+            "value": float(len(exits)), "format": "integer", "domain": [],
+            "points": stay_points, "rows": [], "columns": [], "span": 12,
+            "error": False, "target": 0.0}
+
+        # --- new-joiner retention (survival of 1–2-year-ago joiners) ---
+        win_lo = today - timedelta(days=730)
+        win_hi = today - timedelta(days=365)
+
+        def joined_in_window(join):
+            j = self._people_safe_date(join)
+            return bool(j and win_lo <= j <= win_hi)
+
+        churned = [d for d in data["departed"] if joined_in_window(d["join"])]
+        # A person marked departed but still active would otherwise land in
+        # BOTH lists — exclude anyone in the churned set from "stayed".
+        churned_keys = {d["key"] for d in churned}
+        stayed = [p for p in people if joined_in_window(p["join"])
+                  and p["pid"] not in churned_keys]
+        cohort = len(stayed) + len(churned)
+        survival = round(len(stayed) / cohort * 100) if cohort else 0
+        retention_kpi = self._people_kpi(
+            "people_newjoiner", _("New-Joiner Retention"), survival, "percent",
+            _("%(s)s of %(c)s who joined 1–2 yrs ago still here") % {
+                "s": len(stayed), "c": cohort},
+            GREEN if survival >= 70 else AMBER if survival >= 50 else RED,
+            _("Of the people who joined between 1 and 2 years ago, how many "
+              "are still on the team — do our hires stick? Click for the "
+              "cohort.") + " " + scope_note,
+            span=4, value_text=_("%s%%") % survival,
+            modal_table=self._people_roster(
+                "people_newjoiner_list", _("Joined 1–2 years ago"),
+                self._people_person_rows(
+                    sorted(stayed, key=lambda p: p["name"]),
+                    lambda p: _("still here"))
+                + self._people_leaver_rows(
+                    sorted(churned, key=lambda d: d["date"], reverse=True),
+                    lambda d: _("left %s") % leaver_when(d)),
+                _("Status"),
+                _("The joiners' cohort — who stayed and who left.") + " "
+                + scope_note))
+        # Row 1: retention KPI + churn-by-team; Row 2: full-width exit tenure.
+        widgets += [retention_kpi, attr_dept_bar, exit_tenure_col]
         return widgets
 
     def _people_matrix(self, wid, name, rows, columns, help_text, groupby,

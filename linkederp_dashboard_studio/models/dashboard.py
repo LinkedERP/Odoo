@@ -1084,7 +1084,10 @@ class LinkederpDashboard(models.Model):
                 [False, "graph"],
             ],
             "domain": parsed_domain,
-            "context": {"active_test": False} if model_name == "crm.lead" else {},
+            # crm.lead hides lost leads and hr.employee hides departed staff
+            # by default; drill-downs of those (e.g. leavers) must show them.
+            "context": {"active_test": False}
+            if model_name in ("crm.lead", "hr.employee") else {},
             "target": "current",
         }
 
