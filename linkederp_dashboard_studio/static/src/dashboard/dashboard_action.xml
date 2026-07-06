@@ -293,7 +293,7 @@
             <div t-else="" class="o_lds_grid">
                 <t t-foreach="state.widgets" t-as="widget" t-key="widget.id">
                     <section
-                        t-att-class="'o_lds_widget o_lds_widget_' + widget.type + (widget.span ? ' o_lds_span_' + widget.span : '') + (widget.hero ? ' o_lds_widget_hero' : '') + (widget.tall ? ' o_lds_widget_tall' : '')"
+                        t-att-class="'o_lds_widget o_lds_widget_' + widget.type + (widget.span ? ' o_lds_span_' + widget.span : '') + (widget.hero ? ' o_lds_widget_hero' + (widget.hero === 'teal' ? ' o_lds_hero_teal' : '') : '') + (widget.tall ? ' o_lds_widget_tall' : '')"
                         t-att-style="'--lds-accent:' + (widget.color || '#2563eb')">
                         <header t-if="widget.type !== 'trendline' &amp;&amp; widget.type !== 'chips' &amp;&amp; widget.type !== 'sechead' &amp;&amp; widget.type !== 'story'" class="o_lds_widget_header">
                             <div>

@@ -677,4 +677,10 @@ class LinkederpDashboardOpsMgmt(models.Model):
                       "losing money, amber is barely profitable. ")
                     + customer_note + project_scope_note + usd_note),
             ]
+        # 💰 Salary coverage per delivery person (Akshay-approved 2026-07-05;
+        # engine lives with the People dashboard). Skips gracefully when no
+        # wages are loaded — e.g. prod until the wage load happens.
+        coverage_widget = self._people_salary_coverage_widget()
+        if coverage_widget:
+            widgets.append(coverage_widget)
         return widgets

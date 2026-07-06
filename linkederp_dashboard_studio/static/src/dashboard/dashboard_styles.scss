@@ -1684,6 +1684,29 @@
     }
 
     // Aurika People Dashboard additions -------------------------------
+    // Teal hero variant (opt-in via widget.hero = "teal"): the People
+    // dashboard's dark cards; the Finance blue hero is untouched.
+    .o_lds_widget_hero.o_lds_hero_teal {
+        border-color: #0b4f57;
+        background: linear-gradient(130deg, #06333a 0%, #0b4f57 55%, #0f6b74 100%);
+
+        .o_lds_widget_header h2 {
+            color: #d7ecee;
+        }
+
+        .o_lds_widget_header span {
+            color: #9fc9cd;
+        }
+
+        .o_lds_kpi_caption {
+            color: #bfdcdf;
+        }
+
+        .o_lds_trend_line {
+            stroke: #8fd0d6;
+        }
+    }
+
     .o_lds_kpi_split {
         display: flex;
         width: 100%;
