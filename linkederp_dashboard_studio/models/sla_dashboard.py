@@ -661,14 +661,12 @@ class LinkederpDashboardSla(models.Model):
             caption = _("monthly allowance not set on the SO ⚠")
         color = ("#dc2626" if pct >= 95 else
                  "#d97706" if pct >= 75 else "#059669")
+        # ONE short line under the title (Akshay r16); CR hours live in
+        # the Monthly SLA Hours chart, not on this card.
         widget = self._sla_kpi(
             "sla_hours_mtd", _("SLA Hours Used (fiscal mth)"),
             round(values["mtd_sla"], 2), "number", caption, color,
-            _("Support (SR) hours logged this fiscal month against the "
-              "monthly allowance%(all)s. CR hours this month: %(cr)s.") % {
-                "all": (_(" of %s h") % self._ops_short_hours(allowance)
-                        if allowance else _(" (not set on the SO)")),
-                "cr": self._ops_short_hours(values["mtd_cr"])},
+            _("SR hours used this fiscal month."),
             domain=[("id", "in", values["mtd_line_ids"])], span=3)
         widget["model"] = "account.analytic.line"
         widget["value_text"] = _("%s h") % used
