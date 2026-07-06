@@ -643,38 +643,45 @@ class LinkederpDashboardSla(models.Model):
         return {"tickets": tickets, "hours": hours,
                 "line": " ".join(line)}
 
-    def _sla_hours_gauge(self, values):
+    def _sla_hours_tile(self, values):
         """ONE tile for both 'hours used' and 'of the monthly allowance'
-        (Akshay r14 merged the old KPI + gauge pair): the ring shows the
-        allowance %, the caption the hours; clicking opens the month's
-        ticket-level timesheet popup first, a row then opens that
-        ticket's entries."""
+        (merged in r14; re-styled in r15): the HOURS are the big number,
+        the allowance sits underneath as a slim scale with a pin at the
+        usage % (green to 75, amber to 95, red beyond). Clicking opens
+        the month's ticket-level timesheet popup first."""
         allowance = values["allowance"]
         pct = values["pct_used"]
         used = self._ops_short_hours(values["mtd_sla"])
         if allowance:
-            caption = _("%(used)s h used · %(left)s h left") % {
-                "used": used,
+            caption = _("of %(all)s h allowance · %(left)s h left") % {
+                "all": self._ops_short_hours(allowance),
                 "left": self._ops_short_hours(
                     max(allowance - values["mtd_sla"], 0.0))}
         else:
-            caption = _("%s h used · no allowance ⚠") % used
+            caption = _("monthly allowance not set on the SO ⚠")
         color = ("#dc2626" if pct >= 95 else
                  "#d97706" if pct >= 75 else "#059669")
-        widget = self._sla_gauge(
+        widget = self._sla_kpi(
             "sla_hours_mtd", _("SLA Hours Used (fiscal mth)"),
-            round(min(pct, 100.0), 1), caption, color,
+            round(values["mtd_sla"], 2), "number", caption, color,
             _("Support (SR) hours logged this fiscal month against the "
-              "monthly allowance%(all)s. CR hours this month: %(cr)s. "
-              "Fixed-price work is excluded. Click for the month's "
-              "ticket-level timesheet.") % {
+              "monthly allowance%(all)s. CR hours this month: %(cr)s.") % {
                 "all": (_(" of %s h") % self._ops_short_hours(allowance)
                         if allowance else _(" (not set on the SO)")),
                 "cr": self._ops_short_hours(values["mtd_cr"])},
-            span=3)
+            domain=[("id", "in", values["mtd_line_ids"])], span=3)
         widget["model"] = "account.analytic.line"
-        widget["domain"] = self._json_safe(
-            [("id", "in", values["mtd_line_ids"])])
+        widget["value_text"] = _("%s h") % used
+        if allowance:
+            widget["scale"] = {
+                "pos": round(min(pct, 100.0), 1),
+                "label": _("%s%% of the monthly allowance used")
+                % round(pct, 1),
+                # SLA usage bands (75 / 95), not the generic scale's.
+                "style": ("background: linear-gradient(90deg, #34d399 0%, "
+                          "#34d399 75%, #fbbf24 75%, #fbbf24 95%, "
+                          "#f87171 95%, #f87171 100%);"),
+            }
         widget["modal_table"] = self._sla_timesheet_matrix(
             "sla_hours_mtd_ts",
             _("Time Sheet — %s") % values["fiscal_month_name"],
@@ -753,7 +760,7 @@ class LinkederpDashboardSla(models.Model):
                 "#7c3aed",
                 _("Tickets currently being worked on."),
                 domain=[("id", "in", open_ids)]),
-            self._sla_hours_gauge(values),
+            self._sla_hours_tile(values),
             self._sla_gauge(
                 "sla_tenure", _("Tenure Elapsed"),
                 round(values["tenure_pct"], 1),

@@ -11,7 +11,7 @@ per bucket via security groups; once a user may see a dashboard, its numbers
 are computed with elevated rights so every viewer sees the same figures.
 Drill-down record lists still respect the viewer's own access rights.
     """,
-    "version": "19.0.1.12.0",
+    "version": "19.0.1.12.1",
     "category": "Productivity/Dashboards",
     "author": "LinkedERP",
     "website": "https://linkederp.com",

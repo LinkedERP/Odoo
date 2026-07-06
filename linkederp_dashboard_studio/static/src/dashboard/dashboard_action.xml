@@ -340,7 +340,10 @@
                                     </t>
                                 </span>
                                 <span t-if="widget.scale" class="o_lds_scale">
-                                    <span class="o_lds_scale_track">
+                                    <!-- scale.style overrides the generic
+                                         band gradient (SLA allowance uses
+                                         75/95 bands); absent = unchanged. -->
+                                    <span class="o_lds_scale_track" t-att-style="widget.scale.style || ''">
                                         <span class="o_lds_scale_pin" t-att-style="'left:' + widget.scale.pos + '%;'"/>
                                     </span>
                                     <small t-esc="widget.scale.label"/>
