@@ -715,22 +715,30 @@ class LinkederpDashboardPeople(models.Model):
                 person_by_uid[p["pid"][1]] = p
         factors = data.get("_factors") or {}
 
-        def ops_hours(key):
+        def priced_hours(key):
+            """Hours of the people the chart will SHOW: ops-tagged users
+            whose person has a wage loaded. Unpriced colleagues' hours
+            must not qualify a month the priced rows barely worked in."""
             per_user = billable["monthly_user"].get(key) or {}
-            return sum(slot["hours"] for uid_val, slot in per_user.items()
-                       if uid_val in primary)
+            total = 0.0
+            for uid_val, slot in per_user.items():
+                person = person_by_uid.get(uid_val)
+                if uid_val in primary and person \
+                        and (person.get("wage") or 0.0) > 0:
+                    total += slot["hours"]
+            return total
 
-        # Latest month with a REAL delivery volume (≥ 100 ops hours — a
-        # few stray entries in an otherwise empty month must not become
-        # "the" coverage month); else the fullest month of the window.
+        # Latest month with a REAL priced-delivery volume (≥ 100 h — a few
+        # stray entries in an otherwise empty month must not become "the"
+        # coverage month); else the fullest month of the window.
         month_key = None
         for key in list(reversed(billable["keys"]))[:4]:
-            if ops_hours(key) >= 100.0:
+            if priced_hours(key) >= 100.0:
                 month_key = key
                 break
         if month_key is None:
-            month_key = max(billable["keys"], key=ops_hours)
-            if ops_hours(month_key) <= 0:
+            month_key = max(billable["keys"], key=priced_hours)
+            if priced_hours(month_key) <= 0:
                 return None
         rows = []
         per_user = billable["monthly_user"].get(month_key, {})
