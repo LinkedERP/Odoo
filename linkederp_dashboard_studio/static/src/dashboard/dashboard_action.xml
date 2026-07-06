@@ -608,10 +608,14 @@
                         </t>
 
                         <t t-elif="widget.type === 'gauge'">
+                            <!-- Popup-first like KPIs: the merged SLA-hours
+                                 gauge opens the month's timesheet summary;
+                                 gauges without a popup keep opening their
+                                 records (or nothing when model is empty). -->
                             <button
                                 class="o_lds_gauge"
                                 type="button"
-                                t-on-click="() => openRecords(widget.model, widget.domain)">
+                                t-on-click="() => onKpiClick(widget)">
                                 <span class="o_lds_gauge_ring" t-att-style="gaugeStyle(widget)">
                                     <span>
                                         <strong t-esc="formatWidgetValue(widget)"/>
@@ -689,8 +693,8 @@
                         <t t-elif="widget.type === 'columns2'">
                             <div class="o_lds_c2">
                                 <div class="o_lds_c2_legend">
-                                    <span><i style="background:#b03030"></i><t t-esc="widget.label_a"/></span>
-                                    <span><i style="background:#2e7d2e"></i><t t-esc="widget.label_b"/></span>
+                                    <span><i t-att-style="columns2LegendStyle(widget, 'a')"></i><t t-esc="widget.label_a"/></span>
+                                    <span><i t-att-style="columns2LegendStyle(widget, 'b')"></i><t t-esc="widget.label_b"/></span>
                                 </div>
                                 <div class="o_lds_c2_plot">
                                     <t t-foreach="widget.points" t-as="point" t-key="point.label">
@@ -700,14 +704,14 @@
                                                     class="o_lds_c2_bar"
                                                     type="button"
                                                     t-att-style="columns2Style(widget, point, 'a')"
-                                                    t-on-click="() => openRecords(widget.model, point.domain)">
+                                                    t-on-click="() => onColumns2Click(widget, point, 'a')">
                                                     <strong t-esc="point.a"/>
                                                 </button>
                                                 <button
                                                     class="o_lds_c2_bar"
                                                     type="button"
                                                     t-att-style="columns2Style(widget, point, 'b')"
-                                                    t-on-click="() => openRecords(widget.model, point.domain_b)">
+                                                    t-on-click="() => onColumns2Click(widget, point, 'b')">
                                                     <strong t-esc="point.b"/>
                                                 </button>
                                             </div>
@@ -729,8 +733,8 @@
                                         <button
                                             class="o_lds_c2_group o_lds_combo_group"
                                             type="button"
-                                            t-att-title="'Open the time entries of ' + point.label"
-                                            t-on-click="() => openRecords(widget.model, point.domain)">
+                                            t-att-title="'Open ' + point.label"
+                                            t-on-click="() => onComboClick(widget, point)">
                                             <span class="o_lds_c2_bars">
                                                 <span class="o_lds_combo_bar" t-att-style="comboBarStyle(widget, point)" t-att-title="widget.label_bar + ': ' + point.bar"/>
                                             </span>

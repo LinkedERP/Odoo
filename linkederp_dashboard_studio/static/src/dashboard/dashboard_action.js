@@ -106,7 +106,10 @@ export class LinkedERPDashboardAction extends Component {
             "onLadderClick",
             "onBarClick",
             "onMatrixRowClick",
+            "onColumns2Click",
+            "onComboClick",
             "columns2Style",
+            "columns2LegendStyle",
             "comboBarStyle",
             "comboLinePoints",
             "comboMarkers",
@@ -232,6 +235,29 @@ export class LinkedERPDashboardAction extends Component {
     onColumnClick(widget, point) {
         // A bar with its OWN popup wins (SLA monthly bars open that
         // month's timesheet); then the widget-level popup; then records.
+        const modal = point.modal_table || widget.modal_table;
+        if (modal) {
+            this.state.modal = modal;
+            return;
+        }
+        this.openRecords(widget.model, point.domain);
+    }
+
+    onColumns2Click(widget, point, key) {
+        // Same popup-first rule for grouped columns (SLA monthly SR/CR
+        // bars share one month popup); the fallback keeps each bar's
+        // own record list (a vs b).
+        const modal = point.modal_table || widget.modal_table;
+        if (modal) {
+            this.state.modal = modal;
+            return;
+        }
+        this.openRecords(widget.model, key === "b" ? point.domain_b : point.domain);
+    }
+
+    onComboClick(widget, point) {
+        // Popup-first for combo weeks (SLA weekly hours summary);
+        // combos without popups keep opening their records directly.
         const modal = point.modal_table || widget.modal_table;
         if (modal) {
             this.state.modal = modal;
@@ -461,8 +487,19 @@ export class LinkedERPDashboardAction extends Component {
     columns2Style(widget, point, key) {
         const value = Number(point[key] || 0);
         const height = value ? Math.max(4, (value / this.columns2Max(widget)) * 100) : 2;
-        const color = key === "a" ? "#b03030" : "#2e7d2e";
+        // Optional per-widget colors (SLA monthly SR/CR uses blue/gold);
+        // the historical red/green stays the default everywhere else.
+        const color = key === "a"
+            ? (widget.color_a || "#b03030")
+            : (widget.color_b || "#2e7d2e");
         return `height: ${height}%; background: ${color};`;
+    }
+
+    columns2LegendStyle(widget, key) {
+        const color = key === "a"
+            ? (widget.color_a || "#b03030")
+            : (widget.color_b || "#2e7d2e");
+        return `background: ${color};`;
     }
 
     comboMax(widget) {
