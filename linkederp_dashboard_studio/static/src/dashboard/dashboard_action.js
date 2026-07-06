@@ -18,6 +18,11 @@ const SELECTED_SALES_TEAMS_KEY = "linkederp_dashboard_studio.sales_teams";
 const SELECTED_SLA_CUSTOMER_KEY = "linkederp_dashboard_studio.sla_customer";
 const SELECTED_SLA_MONTH_KEY = "linkederp_dashboard_studio.sla_month";
 const SELECTED_SLA_WEEK_KEY = "linkederp_dashboard_studio.sla_week";
+const SELECTED_FIN_COMPANY_KEY = "linkederp_dashboard_studio.fin_company";
+const SELECTED_FIN_BASIS_KEY = "linkederp_dashboard_studio.fin_basis";
+const SELECTED_FIN_MONTH_KEY = "linkederp_dashboard_studio.fin_month";
+const SELECTED_PEOPLE_COMPANY_KEY = "linkederp_dashboard_studio.people_company";
+const SELECTED_PEOPLE_PERIOD_KEY = "linkederp_dashboard_studio.people_period";
 
 export class LinkedERPDashboardAction extends Component {
     setup() {
@@ -43,6 +48,8 @@ export class LinkedERPDashboardAction extends Component {
             mgmtFilters: { enabled: false },
             salesFilters: { enabled: false },
             slaFilters: { enabled: false },
+            finFilters: { enabled: false },
+            peopleFilters: { enabled: false },
             modal: false,
             filters: this.defaultFilters(),
             tooltip: { visible: false, x: 0, y: 0, title: "", detail: null },
@@ -85,7 +92,24 @@ export class LinkedERPDashboardAction extends Component {
             "onSlaWeekChange",
             "isSlaWeekSelected",
             "onSlaExportPdf",
+            "onFinCompanyChange",
+            "isFinCompanySelected",
+            "onFinBasisChange",
+            "isFinBasisSelected",
+            "onFinMonthChange",
+            "isFinMonthSelected",
+            "onPeopleCompanyChange",
+            "isPeopleCompanySelected",
+            "onPeoplePeriodChange",
+            "isPeoplePeriodSelected",
+            "onInsightClick",
+            "onLadderClick",
+            "onBarClick",
+            "onMatrixRowClick",
+            "onColumns2Click",
+            "onComboClick",
             "columns2Style",
+            "columns2LegendStyle",
             "comboBarStyle",
             "comboLinePoints",
             "comboMarkers",
@@ -160,6 +184,11 @@ export class LinkedERPDashboardAction extends Component {
             slaCustomer: window.localStorage.getItem(SELECTED_SLA_CUSTOMER_KEY) || "",
             slaMonth: window.localStorage.getItem(SELECTED_SLA_MONTH_KEY) || "",
             slaWeek: window.localStorage.getItem(SELECTED_SLA_WEEK_KEY) || "",
+            finCompany: window.localStorage.getItem(SELECTED_FIN_COMPANY_KEY) || "",
+            finBasis: window.localStorage.getItem(SELECTED_FIN_BASIS_KEY) || "",
+            finMonth: window.localStorage.getItem(SELECTED_FIN_MONTH_KEY) || "",
+            peopleCompany: window.localStorage.getItem(SELECTED_PEOPLE_COMPANY_KEY) || "",
+            peoplePeriod: window.localStorage.getItem(SELECTED_PEOPLE_PERIOD_KEY) || "",
         };
     }
 
@@ -206,6 +235,29 @@ export class LinkedERPDashboardAction extends Component {
     onColumnClick(widget, point) {
         // A bar with its OWN popup wins (SLA monthly bars open that
         // month's timesheet); then the widget-level popup; then records.
+        const modal = point.modal_table || widget.modal_table;
+        if (modal) {
+            this.state.modal = modal;
+            return;
+        }
+        this.openRecords(widget.model, point.domain);
+    }
+
+    onColumns2Click(widget, point, key) {
+        // Same popup-first rule for grouped columns (SLA monthly SR/CR
+        // bars share one month popup); the fallback keeps each bar's
+        // own record list (a vs b).
+        const modal = point.modal_table || widget.modal_table;
+        if (modal) {
+            this.state.modal = modal;
+            return;
+        }
+        this.openRecords(widget.model, key === "b" ? point.domain_b : point.domain);
+    }
+
+    onComboClick(widget, point) {
+        // Popup-first for combo weeks (SLA weekly hours summary);
+        // combos without popups keep opening their records directly.
         const modal = point.modal_table || widget.modal_table;
         if (modal) {
             this.state.modal = modal;
@@ -324,6 +376,91 @@ export class LinkedERPDashboardAction extends Component {
         return `${this.state.filters.slaWeek || ""}` === `${value}`;
     }
 
+    async onFinCompanyChange(ev) {
+        this.state.filters.finCompany = ev.target.value || "";
+        window.localStorage.setItem(SELECTED_FIN_COMPANY_KEY, this.state.filters.finCompany);
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    isFinCompanySelected(value) {
+        return `${this.state.filters.finCompany || ""}` === `${value}`;
+    }
+
+    async onFinBasisChange(ev) {
+        this.state.filters.finBasis = ev.target.value || "";
+        window.localStorage.setItem(SELECTED_FIN_BASIS_KEY, this.state.filters.finBasis);
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    isFinBasisSelected(value) {
+        return `${this.state.filters.finBasis || "cal"}` === `${value}`;
+    }
+
+    async onFinMonthChange(ev) {
+        this.state.filters.finMonth = ev.target.value || "";
+        window.localStorage.setItem(SELECTED_FIN_MONTH_KEY, this.state.filters.finMonth);
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    isFinMonthSelected(value) {
+        return `${this.state.filters.finMonth || ""}` === `${value}`;
+    }
+
+    async onPeopleCompanyChange(ev) {
+        this.state.filters.peopleCompany = ev.target.value || "";
+        window.localStorage.setItem(SELECTED_PEOPLE_COMPANY_KEY, this.state.filters.peopleCompany);
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    isPeopleCompanySelected(value) {
+        return `${this.state.filters.peopleCompany || ""}` === `${value}`;
+    }
+
+    async onPeoplePeriodChange(ev) {
+        this.state.filters.peoplePeriod = ev.target.value || "";
+        window.localStorage.setItem(SELECTED_PEOPLE_PERIOD_KEY, this.state.filters.peoplePeriod);
+        await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    isPeoplePeriodSelected(value) {
+        return `${this.state.filters.peoplePeriod || "12m"}` === `${value}`;
+    }
+
+    onInsightClick(widget, item) {
+        if (item.modal_table) {
+            this.state.modal = item.modal_table;
+            return;
+        }
+        if (item.model) {
+            this.openRecords(item.model, item.domain);
+        }
+    }
+
+    onLadderClick(widget, row) {
+        if (row.modal_table) {
+            this.state.modal = row.modal_table;
+            return;
+        }
+        this.openRecords(widget.model, widget.domain);
+    }
+
+    onBarClick(widget, point) {
+        const modal = point.modal_table || widget.modal_table;
+        if (modal) {
+            this.state.modal = modal;
+            return;
+        }
+        this.openRecords(widget.model, point.domain);
+    }
+
+    onMatrixRowClick(widget, row) {
+        if (row.modal_table) {
+            this.state.modal = row.modal_table;
+            return;
+        }
+        this.openRecords(row.model || widget.model, row.domain);
+    }
+
     async onSlaExportPdf() {
         const action = await this.orm.call(
             "linkederp.dashboard",
@@ -350,8 +487,19 @@ export class LinkedERPDashboardAction extends Component {
     columns2Style(widget, point, key) {
         const value = Number(point[key] || 0);
         const height = value ? Math.max(4, (value / this.columns2Max(widget)) * 100) : 2;
-        const color = key === "a" ? "#b03030" : "#2e7d2e";
+        // Optional per-widget colors (SLA monthly SR/CR uses blue/gold);
+        // the historical red/green stays the default everywhere else.
+        const color = key === "a"
+            ? (widget.color_a || "#b03030")
+            : (widget.color_b || "#2e7d2e");
         return `height: ${height}%; background: ${color};`;
+    }
+
+    columns2LegendStyle(widget, key) {
+        const color = key === "a"
+            ? (widget.color_a || "#b03030")
+            : (widget.color_b || "#2e7d2e");
+        return `background: ${color};`;
     }
 
     comboMax(widget) {
@@ -447,6 +595,11 @@ export class LinkedERPDashboardAction extends Component {
                         sla_customer_id: this.state.filters.slaCustomer || false,
                         sla_month: this.state.filters.slaMonth || false,
                         sla_week: this.state.filters.slaWeek || false,
+                        fin_company_id: this.state.filters.finCompany || false,
+                        fin_basis: this.state.filters.finBasis || false,
+                        fin_month: this.state.filters.finMonth || false,
+                        people_company_id: this.state.filters.peopleCompany || false,
+                        people_period: this.state.filters.peoplePeriod || false,
                     },
                 }
             );
@@ -461,6 +614,24 @@ export class LinkedERPDashboardAction extends Component {
             this.state.mgmtFilters = payload.mgmt_filters || { enabled: false };
             this.state.salesFilters = payload.sales_filters || { enabled: false };
             this.state.slaFilters = payload.sla_filters || { enabled: false };
+            this.state.finFilters = payload.fin_filters || { enabled: false };
+            this.state.peopleFilters = payload.people_filters || { enabled: false };
+            if (this.state.peopleFilters.enabled) {
+                this.state.filters.peopleCompany = String(this.state.peopleFilters.company || "");
+                this.state.filters.peoplePeriod = String(this.state.peopleFilters.period || "12m");
+                window.localStorage.setItem(SELECTED_PEOPLE_COMPANY_KEY, this.state.filters.peopleCompany);
+                window.localStorage.setItem(SELECTED_PEOPLE_PERIOD_KEY, this.state.filters.peoplePeriod);
+            }
+            if (this.state.finFilters.enabled) {
+                // Server echoes the VALIDATED values: write them back so
+                // stale localStorage self-heals (sales/sla pattern).
+                this.state.filters.finCompany = String(this.state.finFilters.company || "");
+                this.state.filters.finBasis = String(this.state.finFilters.basis || "cal");
+                this.state.filters.finMonth = String(this.state.finFilters.month || "");
+                window.localStorage.setItem(SELECTED_FIN_COMPANY_KEY, this.state.filters.finCompany);
+                window.localStorage.setItem(SELECTED_FIN_BASIS_KEY, this.state.filters.finBasis);
+                window.localStorage.setItem(SELECTED_FIN_MONTH_KEY, this.state.filters.finMonth);
+            }
             if (this.state.slaFilters.enabled) {
                 this.state.filters.slaCustomer = String(this.state.slaFilters.customer || "");
                 this.state.filters.slaMonth = String(this.state.slaFilters.month || "");
@@ -523,6 +694,11 @@ export class LinkedERPDashboardAction extends Component {
         window.localStorage.removeItem(SELECTED_SLA_CUSTOMER_KEY);
         window.localStorage.removeItem(SELECTED_SLA_MONTH_KEY);
         window.localStorage.removeItem(SELECTED_SLA_WEEK_KEY);
+        window.localStorage.removeItem(SELECTED_FIN_COMPANY_KEY);
+        window.localStorage.removeItem(SELECTED_FIN_BASIS_KEY);
+        window.localStorage.removeItem(SELECTED_FIN_MONTH_KEY);
+        window.localStorage.removeItem(SELECTED_PEOPLE_COMPANY_KEY);
+        window.localStorage.removeItem(SELECTED_PEOPLE_PERIOD_KEY);
         this.state.filters = this.defaultFilters();
         await this.applyFilters();
     }

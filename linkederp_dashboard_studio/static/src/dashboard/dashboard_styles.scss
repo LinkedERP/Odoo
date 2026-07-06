@@ -1358,6 +1358,413 @@
         padding: 0 4px;
     }
 
+    // Aurika Finance Dashboard additions ------------------------------
+    .o_lds_kpi_value_row {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+    }
+
+    .o_lds_kpi.o_lds_kpi_spark_mode .o_lds_kpi_value_row {
+        grid-column: 1;
+        grid-row: 1;
+        align-self: end;
+    }
+
+    .o_lds_delta {
+        padding: 1px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .o_lds_delta_up {
+        background: #ecfdf5;
+        color: #047857;
+    }
+
+    .o_lds_delta_down {
+        background: #fef2f2;
+        color: #b91c1c;
+    }
+
+    .o_lds_scale {
+        display: block;
+        width: 100%;
+        margin-top: 10px;
+
+        small {
+            display: block;
+            margin-top: 6px;
+            color: #64748b;
+            font-size: 10.5px;
+        }
+    }
+
+    .o_lds_scale_track {
+        position: relative;
+        display: block;
+        height: 6px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #34d399 0%, #34d399 40%, #fbbf24 40%, #fbbf24 60%, #f87171 60%, #f87171 100%);
+    }
+
+    .o_lds_scale_pin {
+        position: absolute;
+        top: -3px;
+        width: 12px;
+        height: 12px;
+        border: 2px solid #0f172a;
+        border-radius: 50%;
+        background: #ffffff;
+        transform: translateX(-6px);
+    }
+
+    .o_lds_widget_hero {
+        border-color: #17497e;
+        background: linear-gradient(130deg, #0f2f52 0%, #17497e 55%, #1e5b96 100%);
+
+        .o_lds_widget_header h2 {
+            color: #dce9f7;
+        }
+
+        .o_lds_widget_header span {
+            color: #a9c4e2;
+        }
+
+        .o_lds_widget_header .btn {
+            color: #a9c4e2;
+        }
+
+        .o_lds_kpi {
+            border-top-color: rgba(255, 255, 255, 0.35);
+        }
+
+        .o_lds_kpi_value {
+            color: #ffffff;
+        }
+
+        .o_lds_kpi_caption {
+            color: #c3d7ee;
+        }
+
+        .o_lds_trend_line {
+            stroke: #9ecbf5;
+        }
+
+        .o_lds_kpi_spark .o_lds_trend_labels {
+            color: #a9c4e2;
+        }
+
+        .o_lds_delta_up {
+            background: rgba(74, 222, 128, 0.18);
+            color: #7ef0ac;
+        }
+
+        .o_lds_delta_down {
+            background: rgba(248, 113, 113, 0.2);
+            color: #ffa4a4;
+        }
+
+        .o_lds_scale small {
+            color: #c3d7ee;
+        }
+
+        .o_lds_scale_pin {
+            border-color: #0f2f52;
+        }
+    }
+
+    .o_lds_widget_sechead {
+        grid-column: span 12;
+        min-height: 0;
+        padding: 6px 2px 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .o_lds_sechead {
+        color: #1e5b96;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .o_lds_widget_insights {
+        grid-column: span 12;
+        min-height: 0;
+        padding: 14px 18px;
+    }
+
+    .o_lds_insights {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .o_lds_ins {
+        display: grid;
+        gap: 3px;
+        padding: 10px 12px;
+        border: 1px solid #e2e8f0;
+        border-left: 5px solid #1e5b96;
+        border-radius: 10px;
+        background: #f8fafc;
+        text-align: left;
+        cursor: pointer;
+
+        &:hover {
+            background: #eef4fa;
+        }
+    }
+
+    .o_lds_ins_bad {
+        border-left-color: #dc2626;
+    }
+
+    .o_lds_ins_warn {
+        border-left-color: #d97706;
+    }
+
+    .o_lds_ins_good {
+        border-left-color: #059669;
+    }
+
+    .o_lds_ins_title {
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 800;
+
+        i {
+            margin-right: 6px;
+            color: #475569;
+        }
+    }
+
+    .o_lds_ins_text {
+        color: #64748b;
+        font-size: 12px;
+    }
+
+    .o_lds_ins_empty {
+        color: #64748b;
+        font-size: 12.5px;
+    }
+
+    .o_lds_widget_ladder {
+        min-height: 230px;
+    }
+
+    .o_lds_ladder {
+        display: grid;
+    }
+
+    .o_lds_ladder_row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 116px 72px;
+        align-items: baseline;
+        gap: 8px;
+        width: 100%;
+        padding: 7px 10px;
+        border: 0;
+        border-bottom: 1px solid #eef2f7;
+        background: transparent;
+        color: #334155;
+        font-size: 13px;
+        text-align: left;
+        cursor: pointer;
+
+        &:hover {
+            background: #f6f9fc;
+        }
+    }
+
+    .o_lds_ladder_bold {
+        color: #0f172a;
+        font-weight: 700;
+    }
+
+    .o_lds_ladder_hi {
+        border-bottom: 0;
+        border-radius: 8px;
+        background: #e8f0f9;
+        color: #0f172a;
+        font-weight: 800;
+
+        &:hover {
+            background: #dbe8f6;
+        }
+    }
+
+    .o_lds_ladder_value {
+        color: #0f172a;
+        font-weight: 700;
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .o_lds_ladder_neg {
+        color: #b03030;
+    }
+
+    .o_lds_ladder_pct {
+        color: #64748b;
+        font-size: 12px;
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .o_lds_ladder_dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        margin-right: 5px;
+        border-radius: 50%;
+    }
+
+    // Opt-in "tall" charts (finance): fill the card instead of leaving
+    // blank space when a row neighbor (e.g. the P&L ladder) is taller.
+    .o_lds_widget_tall {
+        .o_lds_column_axis {
+            height: 300px;
+        }
+
+        .o_lds_column_item {
+            grid-template-rows: 300px 36px;
+        }
+
+        .o_lds_column_plot {
+            min-height: 340px;
+            background-size: 100% 75px;
+        }
+
+        .o_lds_c2_plot,
+        .o_lds_combo_plot {
+            height: 300px;
+        }
+
+        .o_lds_c2_bars {
+            height: 274px;
+        }
+    }
+
+    .o_lds_widget_tall.o_lds_widget_bar {
+        display: flex;
+        flex-direction: column;
+
+        .o_lds_widget_header {
+            flex: 0 0 auto;
+        }
+
+        .o_lds_bars {
+            flex: 1 1 auto;
+            align-content: space-evenly;
+            gap: 14px;
+        }
+
+        .o_lds_bar_track,
+        .o_lds_bar_fill {
+            height: 14px;
+        }
+    }
+
+    .o_lds_ladder_dot_good {
+        background: #2e7d2e;
+    }
+
+    .o_lds_ladder_dot_warn {
+        background: #c98a1b;
+    }
+
+    .o_lds_ladder_dot_bad {
+        background: #b03030;
+    }
+
+    // Aurika People Dashboard additions -------------------------------
+    .o_lds_kpi_split {
+        display: flex;
+        width: 100%;
+        height: 7px;
+        margin-top: 9px;
+        border-radius: 999px;
+        overflow: hidden;
+        gap: 2px;
+
+        span {
+            display: block;
+            height: 100%;
+        }
+    }
+
+    .o_lds_widget_hero .o_lds_kpi_split {
+        margin-bottom: 2px;
+    }
+
+    .o_lds_widget_story {
+        grid-column: span 12;
+        min-height: 0;
+        padding: 15px 18px;
+        background: linear-gradient(180deg, #ffffff, #f5faf9);
+        border-color: #d5e6e5;
+    }
+
+    .o_lds_story_head {
+        margin-bottom: 11px;
+    }
+
+    .o_lds_story_title {
+        display: block;
+        color: #0f172a;
+        font-size: 15px;
+        font-weight: 700;
+    }
+
+    .o_lds_story_sub {
+        display: block;
+        margin-top: 2px;
+        color: #64748b;
+        font-size: 12px;
+    }
+
+    .o_lds_story {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px 22px;
+    }
+
+    .o_lds_story_item {
+        display: grid;
+        grid-template-columns: 11px minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+        font-size: 13px;
+        color: #64748b;
+
+        b {
+            color: #0f172a;
+        }
+    }
+
+    .o_lds_story_dot {
+        width: 10px;
+        height: 10px;
+        margin-top: 4px;
+        border-radius: 50%;
+    }
+
+    .o_lds_story_good { background: #0f7a52; }
+    .o_lds_story_watch { background: #b45309; }
+    .o_lds_story_concern { background: #c0392f; }
+
+    .o_lds_story_empty {
+        grid-column: 1 / -1;
+        color: #64748b;
+        font-size: 12.5px;
+    }
+
     .o_lds_tooltip {
         position: fixed;
         z-index: 1080;
@@ -1509,6 +1916,18 @@
         }
 
         .o_lds_stack_legend {
+            grid-template-columns: 1fr;
+        }
+
+        .o_lds_insights {
+            grid-template-columns: 1fr;
+        }
+
+        .o_lds_ladder_row {
+            grid-template-columns: minmax(0, 1fr) 96px 60px;
+        }
+
+        .o_lds_story {
             grid-template-columns: 1fr;
         }
     }

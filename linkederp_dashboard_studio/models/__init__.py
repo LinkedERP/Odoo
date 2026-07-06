@@ -7,3 +7,5 @@ from . import ops_mgmt_dashboard
 from . import sales_dashboard
 from . import sale_order_sla
 from . import sla_dashboard
+from . import finance_dashboard
+from . import hr_dashboard

@@ -111,6 +111,63 @@
                         <i class="fa fa-file-pdf-o"/> PDF
                     </button>
                     <select
+                        t-if="state.finFilters.enabled &amp;&amp; state.finFilters.companies.length"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onFinCompanyChange">
+                        <option value="">All companies (group)</option>
+                        <t t-foreach="state.finFilters.companies" t-as="option" t-key="option.id">
+                            <option
+                                t-att-value="option.id"
+                                t-att-selected="isFinCompanySelected(option.id)"
+                                t-esc="option.name"/>
+                        </t>
+                    </select>
+                    <select
+                        t-if="state.finFilters.enabled"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onFinBasisChange">
+                        <t t-foreach="state.finFilters.bases" t-as="option" t-key="option.value">
+                            <option
+                                t-att-value="option.value"
+                                t-att-selected="isFinBasisSelected(option.value)"
+                                t-esc="option.label"/>
+                        </t>
+                    </select>
+                    <select
+                        t-if="state.finFilters.enabled &amp;&amp; state.finFilters.months.length"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onFinMonthChange">
+                        <t t-foreach="state.finFilters.months" t-as="option" t-key="option.value">
+                            <option
+                                t-att-value="option.value"
+                                t-att-selected="isFinMonthSelected(option.value)"
+                                t-esc="option.label"/>
+                        </t>
+                    </select>
+                    <select
+                        t-if="state.peopleFilters.enabled &amp;&amp; state.peopleFilters.companies.length"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onPeopleCompanyChange">
+                        <option value="">All companies (group)</option>
+                        <t t-foreach="state.peopleFilters.companies" t-as="option" t-key="option.id">
+                            <option
+                                t-att-value="option.id"
+                                t-att-selected="isPeopleCompanySelected(option.id)"
+                                t-esc="option.name"/>
+                        </t>
+                    </select>
+                    <select
+                        t-if="state.peopleFilters.enabled"
+                        class="form-select o_lds_filter_select"
+                        t-on-change="onPeoplePeriodChange">
+                        <t t-foreach="state.peopleFilters.periods" t-as="option" t-key="option.value">
+                            <option
+                                t-att-value="option.value"
+                                t-att-selected="isPeoplePeriodSelected(option.value)"
+                                t-esc="option.label"/>
+                        </t>
+                    </select>
+                    <select
                         t-if="state.crmFilters.enabled"
                         class="form-select o_lds_filter_select"
                         t-on-change="(ev) => setFilter('campaignId', ev.target.value)">
@@ -191,8 +248,8 @@
                                 t-esc="option.label"/>
                         </t>
                     </select>
-                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled &amp;&amp; !state.slaFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom"/>
-                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled &amp;&amp; !state.slaFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo"/>
+                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled &amp;&amp; !state.slaFilters.enabled &amp;&amp; !state.finFilters.enabled &amp;&amp; !state.peopleFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom"/>
+                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled &amp;&amp; !state.slaFilters.enabled &amp;&amp; !state.finFilters.enabled &amp;&amp; !state.peopleFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo"/>
                     <button class="btn btn-primary" type="button" t-on-click="applyFilters" title="Apply filters">
                         <i class="fa fa-filter"/>
                     </button>
@@ -236,9 +293,9 @@
             <div t-else="" class="o_lds_grid">
                 <t t-foreach="state.widgets" t-as="widget" t-key="widget.id">
                     <section
-                        t-att-class="'o_lds_widget o_lds_widget_' + widget.type + (widget.span ? ' o_lds_span_' + widget.span : '')"
+                        t-att-class="'o_lds_widget o_lds_widget_' + widget.type + (widget.span ? ' o_lds_span_' + widget.span : '') + (widget.hero ? ' o_lds_widget_hero' : '') + (widget.tall ? ' o_lds_widget_tall' : '')"
                         t-att-style="'--lds-accent:' + (widget.color || '#2563eb')">
-                        <header t-if="widget.type !== 'trendline' &amp;&amp; widget.type !== 'chips'" class="o_lds_widget_header">
+                        <header t-if="widget.type !== 'trendline' &amp;&amp; widget.type !== 'chips' &amp;&amp; widget.type !== 'sechead' &amp;&amp; widget.type !== 'story'" class="o_lds_widget_header">
                             <div>
                                 <h2 t-esc="widget.name"/>
                                 <span t-if="widget.help" t-esc="widget.help"/>
@@ -269,8 +326,28 @@
                                 t-att-class="'o_lds_kpi' + (widget.points.length ? ' o_lds_kpi_spark_mode' : '')"
                                 type="button"
                                 t-on-click="() => onKpiClick(widget)">
-                                <span class="o_lds_kpi_value" t-esc="formatWidgetValue(widget)"/>
+                                <span class="o_lds_kpi_value_row">
+                                    <span class="o_lds_kpi_value" t-esc="widget.value_text || formatWidgetValue(widget)"/>
+                                    <span
+                                        t-if="widget.delta"
+                                        t-att-class="'o_lds_delta o_lds_delta_' + widget.delta.dir"
+                                        t-esc="widget.delta.text"/>
+                                </span>
                                 <span class="o_lds_kpi_caption" t-esc="widget.measure"/>
+                                <span t-if="widget.split" class="o_lds_kpi_split">
+                                    <t t-foreach="widget.split" t-as="seg" t-key="seg_index">
+                                        <span t-if="seg.pct" t-att-style="'width:' + seg.pct + '%; background:' + seg.color + ';'" t-att-title="seg.label + ': ' + seg.pct + '%'"/>
+                                    </t>
+                                </span>
+                                <span t-if="widget.scale" class="o_lds_scale">
+                                    <!-- scale.style overrides the generic
+                                         band gradient (SLA allowance uses
+                                         75/95 bands); absent = unchanged. -->
+                                    <span class="o_lds_scale_track" t-att-style="widget.scale.style || ''">
+                                        <span class="o_lds_scale_pin" t-att-style="'left:' + widget.scale.pos + '%;'"/>
+                                    </span>
+                                    <small t-esc="widget.scale.label"/>
+                                </span>
                                 <div t-if="widget.points.length" class="o_lds_kpi_spark">
                                     <div class="o_lds_trend_plot" t-att-title="sparkTitle(widget)">
                                         <svg class="o_lds_trend_svg" viewBox="0 0 300 100" preserveAspectRatio="none" role="img">
@@ -427,7 +504,7 @@
                                     <button
                                         class="o_lds_bar_row"
                                         type="button"
-                                        t-on-click="() => openRecords(widget.model, point.domain)">
+                                        t-on-click="() => onBarClick(widget, point)">
                                         <span class="o_lds_bar_label" t-esc="point.label"/>
                                         <span class="o_lds_bar_track">
                                             <span class="o_lds_bar_fill" t-att-style="barStyle(widget, point)"/>
@@ -496,7 +573,7 @@
                                             t-on-mouseleave="hideDetail">
                                             <span class="o_lds_column_bar_wrap">
                                                 <span class="o_lds_column_bar" t-att-style="columnStyle(widget, point, point_index)">
-                                                    <strong t-esc="formatPointValue(widget, point.value)"/>
+                                                    <strong t-esc="point.display || formatPointValue(widget, point.value)"/>
                                                 </span>
                                             </span>
                                             <span class="o_lds_column_label" t-esc="point.label"/>
@@ -534,10 +611,14 @@
                         </t>
 
                         <t t-elif="widget.type === 'gauge'">
+                            <!-- Popup-first like KPIs: the merged SLA-hours
+                                 gauge opens the month's timesheet summary;
+                                 gauges without a popup keep opening their
+                                 records (or nothing when model is empty). -->
                             <button
                                 class="o_lds_gauge"
                                 type="button"
-                                t-on-click="() => openRecords(widget.model, widget.domain)">
+                                t-on-click="() => onKpiClick(widget)">
                                 <span class="o_lds_gauge_ring" t-att-style="gaugeStyle(widget)">
                                     <span>
                                         <strong t-esc="formatWidgetValue(widget)"/>
@@ -597,7 +678,7 @@
                                     class="o_lds_pie"
                                     type="button"
                                     t-att-style="pieStyle(widget)"
-                                    t-on-click="() => openRecords(widget.model, widget.domain)">
+                                    t-on-click="() => onKpiClick(widget)">
                                     <span t-esc="formatWidgetValue(widget)"/>
                                 </button>
                                 <div class="o_lds_legend">
@@ -615,8 +696,8 @@
                         <t t-elif="widget.type === 'columns2'">
                             <div class="o_lds_c2">
                                 <div class="o_lds_c2_legend">
-                                    <span><i style="background:#b03030"></i><t t-esc="widget.label_a"/></span>
-                                    <span><i style="background:#2e7d2e"></i><t t-esc="widget.label_b"/></span>
+                                    <span><i t-att-style="columns2LegendStyle(widget, 'a')"></i><t t-esc="widget.label_a"/></span>
+                                    <span><i t-att-style="columns2LegendStyle(widget, 'b')"></i><t t-esc="widget.label_b"/></span>
                                 </div>
                                 <div class="o_lds_c2_plot">
                                     <t t-foreach="widget.points" t-as="point" t-key="point.label">
@@ -626,14 +707,14 @@
                                                     class="o_lds_c2_bar"
                                                     type="button"
                                                     t-att-style="columns2Style(widget, point, 'a')"
-                                                    t-on-click="() => openRecords(widget.model, point.domain)">
+                                                    t-on-click="() => onColumns2Click(widget, point, 'a')">
                                                     <strong t-esc="point.a"/>
                                                 </button>
                                                 <button
                                                     class="o_lds_c2_bar"
                                                     type="button"
                                                     t-att-style="columns2Style(widget, point, 'b')"
-                                                    t-on-click="() => openRecords(widget.model, point.domain_b)">
+                                                    t-on-click="() => onColumns2Click(widget, point, 'b')">
                                                     <strong t-esc="point.b"/>
                                                 </button>
                                             </div>
@@ -655,8 +736,8 @@
                                         <button
                                             class="o_lds_c2_group o_lds_combo_group"
                                             type="button"
-                                            t-att-title="'Open the time entries of ' + point.label"
-                                            t-on-click="() => openRecords(widget.model, point.domain)">
+                                            t-att-title="'Open ' + point.label"
+                                            t-on-click="() => onComboClick(widget, point)">
                                             <span class="o_lds_c2_bars">
                                                 <span class="o_lds_combo_bar" t-att-style="comboBarStyle(widget, point)" t-att-title="widget.label_bar + ': ' + point.bar"/>
                                             </span>
@@ -683,6 +764,64 @@
 
                         <t t-elif="widget.type === 'matrix'">
                             <t t-call="linkederp_dashboard_studio.MatrixTable"/>
+                        </t>
+
+                        <t t-elif="widget.type === 'insights'">
+                            <div class="o_lds_insights">
+                                <t t-foreach="widget.items" t-as="item" t-key="item_index">
+                                    <button
+                                        type="button"
+                                        t-att-class="'o_lds_ins o_lds_ins_' + item.sev"
+                                        t-on-click="() => onInsightClick(widget, item)">
+                                        <span class="o_lds_ins_title">
+                                            <i t-att-class="'fa ' + item.icon"/>
+                                            <t t-esc="item.title"/>
+                                        </span>
+                                        <span class="o_lds_ins_text" t-esc="item.text"/>
+                                    </button>
+                                </t>
+                                <div t-if="!widget.items.length" class="o_lds_ins_empty">
+                                    Nothing needs your attention this week.
+                                </div>
+                            </div>
+                        </t>
+
+                        <t t-elif="widget.type === 'ladder'">
+                            <div class="o_lds_ladder">
+                                <t t-foreach="widget.rows" t-as="row" t-key="row.label">
+                                    <button
+                                        type="button"
+                                        t-att-class="'o_lds_ladder_row' + (row.kind ? ' o_lds_ladder_' + row.kind : '')"
+                                        t-on-click="() => onLadderClick(widget, row)">
+                                        <span class="o_lds_ladder_label" t-esc="row.label"/>
+                                        <span t-att-class="'o_lds_ladder_value' + (row.neg ? ' o_lds_ladder_neg' : '')" t-esc="row.value"/>
+                                        <span class="o_lds_ladder_pct">
+                                            <i t-if="row.tone" t-att-class="'o_lds_ladder_dot o_lds_ladder_dot_' + row.tone"/>
+                                            <t t-esc="row.pct"/>
+                                        </span>
+                                    </button>
+                                </t>
+                            </div>
+                        </t>
+
+                        <t t-elif="widget.type === 'sechead'">
+                            <div class="o_lds_sechead" t-esc="widget.name"/>
+                        </t>
+
+                        <t t-elif="widget.type === 'story'">
+                            <div class="o_lds_story_head">
+                                <span class="o_lds_story_title">📖 <t t-esc="widget.name"/></span>
+                                <span t-if="widget.help" class="o_lds_story_sub" t-esc="widget.help"/>
+                            </div>
+                            <div class="o_lds_story">
+                                <t t-foreach="widget.items" t-as="item" t-key="item_index">
+                                    <div class="o_lds_story_item">
+                                        <span t-att-class="'o_lds_story_dot o_lds_story_' + item.tone"/>
+                                        <div><b t-esc="item.headline"/> <span t-esc="item.text"/></div>
+                                    </div>
+                                </t>
+                                <div t-if="!widget.items.length" class="o_lds_story_empty">Nothing stands out this period.</div>
+                            </div>
                         </t>
 
                         <t t-elif="widget.type === 'table'">
@@ -775,7 +914,7 @@
                 </thead>
                 <tbody>
                     <t t-foreach="widget.rows" t-as="row" t-key="row.label">
-                        <tr t-on-click="() => openRecords(widget.model, row.domain)">
+                        <tr t-on-click="() => onMatrixRowClick(widget, row)">
                             <td class="text-start">
                                 <span t-esc="row.label"/>
                                 <small t-if="row.sub" class="o_lds_row_sub" t-esc="row.sub"/>

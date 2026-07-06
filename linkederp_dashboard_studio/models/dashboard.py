@@ -42,6 +42,8 @@ DEFAULT_BUCKET_BY_NAME = {
     "Aurika Ops Dashboard": "management",
     "Ops Management": "management",
     "Weekly Support & SLA Dashboard": "ops",
+    "Aurika Finance Dashboard": "management",
+    "Aurika People Dashboard": "management",
 }
 
 
@@ -194,6 +196,18 @@ class LinkederpDashboard(models.Model):
                     date_to=date_to,
                     filters=filters,
                 )
+            elif dashboard._is_finance_dashboard():
+                widgets = dashboard._finance_dashboard_widgets(
+                    date_from=date_from,
+                    date_to=date_to,
+                    filters=filters,
+                )
+            elif dashboard._is_people_dashboard():
+                widgets = dashboard._people_dashboard_widgets(
+                    date_from=date_from,
+                    date_to=date_to,
+                    filters=filters,
+                )
 
         bucket_labels = dict(DASHBOARD_BUCKETS)
         return {
@@ -243,6 +257,12 @@ class LinkederpDashboard(models.Model):
             else {"enabled": False},
             "sla_filters": dashboard._sla_filter_options(filters)
             if dashboard and dashboard._is_sla_dashboard()
+            else {"enabled": False},
+            "fin_filters": dashboard._fin_filter_options(filters)
+            if dashboard and dashboard._is_finance_dashboard()
+            else {"enabled": False},
+            "people_filters": dashboard._people_filter_options(filters)
+            if dashboard and dashboard._is_people_dashboard()
             else {"enabled": False},
         }
 
@@ -1064,7 +1084,10 @@ class LinkederpDashboard(models.Model):
                 [False, "graph"],
             ],
             "domain": parsed_domain,
-            "context": {"active_test": False} if model_name == "crm.lead" else {},
+            # crm.lead hides lost leads and hr.employee hides departed staff
+            # by default; drill-downs of those (e.g. leavers) must show them.
+            "context": {"active_test": False}
+            if model_name in ("crm.lead", "hr.employee") else {},
             "target": "current",
         }
 

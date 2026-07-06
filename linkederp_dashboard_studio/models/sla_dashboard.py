@@ -30,6 +30,11 @@ INVOICE_DUE_DAYS = 30
 # neither the UoM nor qty_delivered_method (always "timesheet" on this DB)
 # can tell them apart — the product code is the convention that does.
 SLA_TIME_PRODUCT = re.compile(r"^[A-Z]{2}SPT", re.IGNORECASE)
+# Hours worked against a FIXED-PRICE / MILESTONE sale line are covered by
+# the fixed fee — they must not count as SLA/CR hours ANYWHERE on this
+# report (Akshay r14, 2026-07-06). Lines with no sale line, or on ××SPT
+# (T&M) lines, do count.
+SLA_FIXED_PRODUCT = re.compile(r"^[A-Z]{2}SP[FM]", re.IGNORECASE)
 
 
 class LinkederpDashboardSla(models.Model):
@@ -288,9 +293,16 @@ class LinkederpDashboardSla(models.Model):
         Line = self.env["account.analytic.line"]
         if "helpdesk_ticket_id" in Line._fields and tickets:
             bucket_by_id = {t["id"]: t["bucket"] for t in tickets}
+            has_so_line = "so_line" in Line._fields
             for line in Line.search(
                     [("helpdesk_ticket_id", "in", [t["id"] for t in tickets]),
                      ("timesheet_invoice_type", "!=", "non_billable")]):
+                # Hours on a fixed-price/milestone sale line are already
+                # paid for by the fixed fee — excluded from every hours
+                # figure on this report (Akshay r14).
+                if has_so_line and line.so_line and SLA_FIXED_PRODUCT.match(
+                        line.so_line.product_id.name or ""):
+                    continue
                 lines.append({
                     "id": line.id,
                     "date": line.date,
@@ -388,22 +400,29 @@ class LinkederpDashboardSla(models.Model):
         weeks = []
         for monday in mondays:
             sunday = monday + timedelta(days=6)
+            week_lines = [l for l in lines if monday <= l["date"] <= sunday]
             weeks.append({
                 "monday": monday,
                 "label": _("W %s") % monday.strftime("%d %b"),
-                "created": [t for t in tickets
-                            if t["created"] and monday <= t["created"] <= sunday],
+                # Cancelled tickets never count as "created" (Akshay r14 —
+                # same rule as the contract-to-date tile).
+                "created": [t for t in tickets if not t["cancelled"]
+                            and t["created"] and monday <= t["created"] <= sunday],
                 "closed": [t for t in tickets if t["solved"]
                            and t["closed"] and monday <= t["closed"] <= sunday],
-                "sla_hours": sum(l["hours"] for l in lines
-                                 if l["bucket"] == "SLA" and monday <= l["date"] <= sunday),
-                "cr_hours": sum(l["hours"] for l in lines
-                                if l["bucket"] == "CR" and monday <= l["date"] <= sunday),
-                "line_ids": [l["id"] for l in lines
-                             if monday <= l["date"] <= sunday],
+                "sla_hours": sum(l["hours"] for l in week_lines
+                                 if l["bucket"] == "SLA"),
+                "cr_hours": sum(l["hours"] for l in week_lines
+                                if l["bucket"] == "CR"),
+                "line_ids": [l["id"] for l in week_lines],
+                # Ticket-level rows for the week's summary popup (r14).
+                "timesheet": self._sla_timesheet_rows(week_lines, tickets),
             })
 
+        # Cancelled tickets do not count as created (Akshay r14) — they
+        # already counted neither as closed nor as open.
         created_ctd = [t for t in tickets if c_start and t["created"]
+                       and not t["cancelled"]
                        and c_start <= t["created"] <= anchor]
         closed_ctd = [t for t in tickets if c_start and t["solved"]
                       and t["closed"] and c_start <= t["closed"] <= anchor]
@@ -443,6 +462,12 @@ class LinkederpDashboardSla(models.Model):
                     "cr_hours": sum(l["hours"] for l in month_lines
                                     if l["bucket"] == "CR"),
                     "line_ids": [l["id"] for l in month_lines],
+                    # Split ids: the SR and CR bars fall back to their own
+                    # record lists when a bar has no popup (r14).
+                    "sla_line_ids": [l["id"] for l in month_lines
+                                     if l["bucket"] == "SLA"],
+                    "cr_line_ids": [l["id"] for l in month_lines
+                                    if l["bucket"] == "CR"],
                     # Ticket-level rows for the bar's timesheet popup.
                     "timesheet": self._sla_timesheet_rows(
                         month_lines, tickets),
@@ -618,17 +643,47 @@ class LinkederpDashboardSla(models.Model):
         return {"tickets": tickets, "hours": hours,
                 "line": " ".join(line)}
 
-    def _sla_hours_kpi(self, values):
-        """The SLA-hours card drills into the TIMESHEET LINES behind the
-        number (who spent what, on which ticket) — Akshay's tracking use."""
+    def _sla_hours_tile(self, values):
+        """ONE tile for both 'hours used' and 'of the monthly allowance'
+        (merged in r14; re-styled in r15): the HOURS are the big number,
+        the allowance sits underneath as a slim scale with a pin at the
+        usage % (green to 75, amber to 95, red beyond). Clicking opens
+        the month's ticket-level timesheet popup first."""
+        allowance = values["allowance"]
+        pct = values["pct_used"]
+        used = self._ops_short_hours(values["mtd_sla"])
+        if allowance:
+            caption = _("of %(all)s h allowance · %(left)s h left") % {
+                "all": self._ops_short_hours(allowance),
+                "left": self._ops_short_hours(
+                    max(allowance - values["mtd_sla"], 0.0))}
+        else:
+            caption = _("monthly allowance not set on the SO ⚠")
+        color = ("#dc2626" if pct >= 95 else
+                 "#d97706" if pct >= 75 else "#059669")
+        # ONE short line under the title (Akshay r16); CR hours live in
+        # the Monthly SLA Hours chart, not on this card.
         widget = self._sla_kpi(
             "sla_hours_mtd", _("SLA Hours Used (fiscal mth)"),
-            round(values["mtd_sla"], 2), "number",
-            _("CR hours used: %s") % self._ops_short_hours(values["mtd_cr"]),
-            "#1e5b96",
-            _("Support hours used this month."),
-            domain=[("id", "in", values["mtd_line_ids"])])
+            round(values["mtd_sla"], 2), "number", caption, color,
+            _("SR hours used this fiscal month."),
+            domain=[("id", "in", values["mtd_line_ids"])], span=3)
         widget["model"] = "account.analytic.line"
+        widget["value_text"] = _("%s h") % used
+        if allowance:
+            widget["scale"] = {
+                "pos": round(min(pct, 100.0), 1),
+                "label": _("%s%% of the monthly allowance used")
+                % round(pct, 1),
+                # SLA usage bands (75 / 95), not the generic scale's.
+                "style": ("background: linear-gradient(90deg, #34d399 0%, "
+                          "#34d399 75%, #fbbf24 75%, #fbbf24 95%, "
+                          "#f87171 95%, #f87171 100%);"),
+            }
+        widget["modal_table"] = self._sla_timesheet_matrix(
+            "sla_hours_mtd_ts",
+            _("Time Sheet — %s") % values["fiscal_month_name"],
+            values["timesheet"], values["mtd_line_ids"])
         return widget
 
     def _sla_delta_caption(self, weeks, key):
@@ -652,7 +707,6 @@ class LinkederpDashboardSla(models.Model):
         values = self._sla_report_values(
             customer_id, month=options["month"], week=options["week"])
         weeks = values["weeks"]
-        allowance = values["allowance"]
 
         chips = {
             "id": "sla_header", "name": _("Context"), "type": "chips",
@@ -677,14 +731,6 @@ class LinkederpDashboardSla(models.Model):
         }
 
         open_ids = [t["id"] for t in values["open_now"]]
-        pct = values["pct_used"]
-        gauge_color = ("#dc2626" if pct >= 95 else
-                       "#d97706" if pct >= 75 else "#059669")
-        allowance_caption = (
-            _("%(rem)s h remaining of %(all)s") % {
-                "rem": self._ops_short_hours(max(allowance - values["mtd_sla"], 0.0)),
-                "all": self._ops_short_hours(allowance)}
-            if allowance else _("allowance not set on the SO ⚠"))
 
         widgets = [
             chips,
@@ -712,17 +758,13 @@ class LinkederpDashboardSla(models.Model):
                 "#7c3aed",
                 _("Tickets currently being worked on."),
                 domain=[("id", "in", open_ids)]),
-            self._sla_hours_kpi(values),
-            self._sla_gauge(
-                "sla_monthly_pct", _("Monthly SLA hrs used"),
-                round(min(pct, 100.0), 1), allowance_caption, gauge_color,
-                ""),
+            self._sla_hours_tile(values),
             self._sla_gauge(
                 "sla_tenure", _("Tenure Elapsed"),
                 round(values["tenure_pct"], 1),
                 _("⌛ expires %s") % self._ops_date_text(values["contract_end"]),
                 "#1e5b96",
-                _("How much of the contract period has passed.")),
+                _("How much of the contract period has passed."), span=3),
             self._sla_weekly_tickets(weeks),
             self._sla_weekly_hours(weeks),
             self._sla_open_table(values),
@@ -758,12 +800,17 @@ class LinkederpDashboardSla(models.Model):
         }
 
     def _sla_weekly_hours(self, weeks):
+        # Clicking a week opens its ticket-level SUMMARY first (Akshay
+        # r14); each popup row then opens that ticket's time entries.
         points = [{
             "label": week["label"],
             "line": round(week["sla_hours"], 2),
             "bar": round(week["cr_hours"], 2),
-            # Clicking a week opens the time entries behind its hours.
             "domain": self._json_safe([("id", "in", week["line_ids"])]),
+            "modal_table": self._sla_timesheet_matrix(
+                "sla_wk_ts_%s" % week["monday"].strftime("%Y_%m_%d"),
+                _("Time Sheet — week of %s") % week["monday"].strftime("%d %b"),
+                week["timesheet"], week["line_ids"]),
         } for week in weeks]
         all_ids = sorted({lid for week in weeks for lid in week["line_ids"]})
         return {
@@ -818,25 +865,26 @@ class LinkederpDashboardSla(models.Model):
         return widget
 
     def _sla_billed_column(self, values):
-        """Monthly SLA Hours = LOGGED timesheet hours per fiscal month
-        (SLA bucket drives the bars; the popup shows SLA + CR and links to
-        the month's time entries)."""
+        """Monthly SLA Hours = LOGGED timesheet hours per fiscal month,
+        as TWO bars per month — SR (SLA bucket) and CR (Akshay r14).
+        Clicking either bar opens the month's ticket-level timesheet."""
         points = []
         for month in values["months"]:
+            # Both bars share the month's timesheet popup (r12 pattern);
+            # the split domains are the no-popup fallbacks.
+            month_modal = self._sla_timesheet_matrix(
+                "sla_ts_%04d_%02d" % month["key"],
+                _("Time Sheet — %s") % month["label"],
+                month["timesheet"], month.get("line_ids", []))
             points.append({
                 "label": month["label"],
-                "value": round(month["sla_hours"], 1),
-                # Uniform color, no over-target highlight (Akshay r9).
-                "color": "#1e5b96",
+                "a": round(month["sla_hours"], 1),
+                "b": round(month["cr_hours"], 1),
                 "domain": self._json_safe(
-                    [("id", "in", month.get("line_ids", []))]),
-                "detail": None,
-                # Clicking THIS bar opens the month's full ticket-level
-                # timesheet (Akshay r12).
-                "modal_table": self._sla_timesheet_matrix(
-                    "sla_ts_%04d_%02d" % month["key"],
-                    _("Time Sheet — %s") % month["label"],
-                    month["timesheet"], month.get("line_ids", [])),
+                    [("id", "in", month.get("sla_line_ids", []))]),
+                "domain_b": self._json_safe(
+                    [("id", "in", month.get("cr_line_ids", []))]),
+                "modal_table": month_modal,
             })
         allowance = values["allowance"]
         rows = []
@@ -875,15 +923,21 @@ class LinkederpDashboardSla(models.Model):
             "modal_table": modal,
             "id": "sla_billed_monthly",
             "name": _("Monthly SLA Hours"),
-            "type": "column", "model": "account.analytic.line",
+            "type": "columns2", "model": "account.analytic.line",
             "mode": "computed", "measure": _("Hours"),
             "groupby": _("Fiscal month"), "color": "#1e5b96",
-            "help": "",
-            "value": float(sum(p["value"] for p in points)),
+            "help": _("Two bars per fiscal month: SR (support) and CR "
+                      "hours logged on tickets. Fixed-price work is "
+                      "excluded. Click a bar for the month's ticket-level "
+                      "timesheet."),
+            "value": float(sum(p["a"] for p in points)),
             "format": "number", "domain": [], "points": points,
             "rows": [], "columns": [], "span": 5, "error": False,
-            # No allowance target line on the chart (Akshay r9).
-            "target": 0.0,
+            "label_a": _("SR hours"), "label_b": _("CR hours"),
+            # Chart colors match the weekly hours chart (SR blue, CR
+            # gold); the columns2 default red/green stays for the other
+            # widgets that don't set these.
+            "color_a": "#1e5b96", "color_b": "#b8860b",
         }
 
     def _sla_invoice_table(self, values):

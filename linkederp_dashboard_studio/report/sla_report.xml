@@ -38,17 +38,17 @@
 
                     <table style="width:100%; margin-bottom:12px;">
                         <tr>
-                            <td style="width:16%; border:1px solid #e5e7eb; padding:7px; text-align:center;">
+                            <td style="width:18%; border:1px solid #e5e7eb; padding:7px; text-align:center;">
                                 <div style="color:#64748b; font-size:9px;">TOTAL TICKETS CREATED</div>
                                 <div style="font-size:19px; font-weight:bold;" t-esc="len(v.get('created_ctd', []))"/>
                                 <div style="color:#64748b; font-size:9px;">since contract start</div>
                             </td>
-                            <td style="width:16%; border:1px solid #e5e7eb; padding:7px; text-align:center;">
+                            <td style="width:18%; border:1px solid #e5e7eb; padding:7px; text-align:center;">
                                 <div style="color:#64748b; font-size:9px;">TOTAL TICKETS CLOSED</div>
                                 <div style="font-size:19px; font-weight:bold;" t-esc="len(v.get('closed_ctd', []))"/>
                                 <div style="color:#64748b; font-size:9px;">since contract start</div>
                             </td>
-                            <td style="width:16%; border:1px solid #e5e7eb; padding:7px; text-align:center;">
+                            <td style="width:18%; border:1px solid #e5e7eb; padding:7px; text-align:center;">
                                 <div style="color:#64748b; font-size:9px;">TICKETS OPEN</div>
                                 <div style="font-size:19px; font-weight:bold;" t-esc="len(v.get('open_now', []))"/>
                                 <div style="color:#64748b; font-size:9px;">
@@ -56,23 +56,19 @@
                                     <t t-esc="len(v.get('on_hold', []))"/> On Hold
                                 </div>
                             </td>
-                            <td style="width:16%; border:1px solid #e5e7eb; padding:7px; text-align:center;">
+                            <td style="width:26%; border:1px solid #e5e7eb; padding:7px; text-align:center;">
                                 <div style="color:#64748b; font-size:9px;">SLA HOURS USED (FISCAL MTH)</div>
-                                <div style="font-size:19px; font-weight:bold;" t-esc="short_hours(v.get('mtd_sla', 0.0))"/>
-                                <div style="color:#64748b; font-size:9px;">CR hours: <t t-esc="short_hours(v.get('mtd_cr', 0.0))"/></div>
-                            </td>
-                            <td style="width:18%; border:1px solid #e5e7eb; padding:7px; text-align:center;">
-                                <div style="color:#64748b; font-size:9px;">MONTHLY SLA HRS USED</div>
                                 <div style="font-size:19px; font-weight:bold;">
-                                    <t t-if="v.get('allowance')"><t t-esc="round(v.get('pct_used', 0.0))"/>%</t>
-                                    <t t-else="">—</t>
+                                    <t t-esc="short_hours(v.get('mtd_sla', 0.0))"/>
+                                    <span t-if="v.get('allowance')" style="font-size:11px; color:#64748b;"> / <t t-esc="short_hours(v.get('allowance'))"/> h</span>
                                 </div>
                                 <div style="color:#64748b; font-size:9px;">
-                                    <t t-if="v.get('allowance')">of <t t-esc="short_hours(v.get('allowance'))"/> h allowance</t>
-                                    <t t-else="">allowance not set</t>
+                                    <t t-if="v.get('allowance')"><t t-esc="round(v.get('pct_used', 0.0))"/>% of allowance · </t>
+                                    <t t-else="">allowance not set · </t>
+                                    CR hours: <t t-esc="short_hours(v.get('mtd_cr', 0.0))"/>
                                 </div>
                             </td>
-                            <td style="width:18%; border:1px solid #e5e7eb; padding:7px; text-align:center;">
+                            <td style="width:20%; border:1px solid #e5e7eb; padding:7px; text-align:center;">
                                 <div style="color:#64748b; font-size:9px;">TENURE ELAPSED</div>
                                 <div style="font-size:19px; font-weight:bold;"><t t-esc="round(v.get('tenure_pct', 0.0))"/>%</div>
                                 <div style="color:#64748b; font-size:9px;">expires <t t-esc="date_text(v.get('contract_end'))"/></div>
@@ -150,18 +146,28 @@
                     <table style="width:100%;">
                         <tr>
                             <td style="width:42%; vertical-align:top; border:1px solid #e5e7eb; padding:8px;">
-                                <div style="font-weight:bold; color:#1e5b96; margin-bottom:5px;">Monthly SLA Hours</div>
-                                <t t-set="scale" t-value="max([m['sla_hours'] for m in v.get('months', [])] + [1.0])"/>
+                                <div style="font-weight:bold; color:#1e5b96; margin-bottom:2px;">Monthly SLA Hours</div>
+                                <div style="font-size:9px; color:#475569; margin-bottom:3px;">
+                                    <span style="color:#1e5b96; font-weight:bold;">■</span> SR hours &#160;
+                                    <span style="color:#b8860b; font-weight:bold;">■</span> CR hours
+                                </div>
+                                <t t-set="scale" t-value="max([m['sla_hours'] for m in v.get('months', [])] + [m['cr_hours'] for m in v.get('months', [])] + [1.0])"/>
                                 <table style="width:100%; font-size:10px;">
                                     <t t-foreach="v.get('months', [])" t-as="month">
                                         <tr>
                                             <td style="width:52px; padding:2px 4px;" t-esc="month['label']"/>
                                             <td style="padding:2px 4px;">
-                                                <div style="background:#eef2f7; height:9px; width:100%;">
-                                                    <div t-att-style="'height:9px; background:#1e5b96; width:{}%;'.format(min(100.0, month['sla_hours'] / scale * 100.0))"/>
+                                                <div style="background:#eef2f7; height:7px; width:100%;">
+                                                    <div t-att-style="'height:7px; background:#1e5b96; width:{}%;'.format(min(100.0, month['sla_hours'] / scale * 100.0))"/>
+                                                </div>
+                                                <div style="background:#eef2f7; height:5px; width:100%; margin-top:1px;">
+                                                    <div t-att-style="'height:5px; background:#b8860b; width:{}%;'.format(min(100.0, month['cr_hours'] / scale * 100.0))"/>
                                                 </div>
                                             </td>
-                                            <td style="width:40px; text-align:right; padding:2px 4px; font-weight:bold;" t-esc="short_hours(month['sla_hours'])"/>
+                                            <td style="width:58px; text-align:right; padding:2px 4px; white-space:nowrap;">
+                                                <span style="font-weight:bold;" t-esc="short_hours(month['sla_hours'])"/>
+                                                <span style="color:#b8860b;"> · <t t-esc="short_hours(month['cr_hours'])"/></span>
+                                            </td>
                                         </tr>
                                     </t>
                                 </table>
