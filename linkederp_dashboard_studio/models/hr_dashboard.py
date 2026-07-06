@@ -714,15 +714,24 @@ class LinkederpDashboardPeople(models.Model):
             if p["pid"][0] == "u":
                 person_by_uid[p["pid"][1]] = p
         factors = data.get("_factors") or {}
+
+        def ops_hours(key):
+            per_user = billable["monthly_user"].get(key) or {}
+            return sum(slot["hours"] for uid_val, slot in per_user.items()
+                       if uid_val in primary)
+
+        # Latest month with a REAL delivery volume (≥ 100 ops hours — a
+        # few stray entries in an otherwise empty month must not become
+        # "the" coverage month); else the fullest month of the window.
         month_key = None
         for key in list(reversed(billable["keys"]))[:4]:
-            per_user = billable["monthly_user"].get(key) or {}
-            if any(uid_val in primary and per_user[uid_val]["hours"] > 0
-                   for uid_val in per_user):
+            if ops_hours(key) >= 100.0:
                 month_key = key
                 break
         if month_key is None:
-            return None
+            month_key = max(billable["keys"], key=ops_hours)
+            if ops_hours(month_key) <= 0:
+                return None
         rows = []
         per_user = billable["monthly_user"].get(month_key, {})
         for uid_val in primary:
