@@ -974,10 +974,14 @@ class LinkederpDashboardOps(models.Model):
         rows = []
         domain = []
         if lead_uids and "project.project" in self.env:
+            # Nature = Internal/Support projects are delivery-irrelevant
+            # here (Akshay 2026-07-06 — Support-nature projects with an
+            # active stage were slipping past the STAGE exclusion). Reuses
+            # the Aurika Ops rule so the two dashboards always agree.
             domain = [
                 ("user_id", "in", lead_uids),
                 ("stage_id.name", "not in", OPS_EXCLUDED_STAGES),
-            ]
+            ] + self._mgmt_nature_domain()
             projects = self.env["project.project"].search(domain, order="name")
 
             today = fields.Date.context_today(self)
