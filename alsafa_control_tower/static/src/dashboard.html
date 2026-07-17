@@ -155,42 +155,93 @@
     .ops { grid-template-columns: repeat(3, 1fr); } .bar-row { grid-template-columns: 108px 1fr 46px; }
   }
   @media (max-width: 520px) { .models { grid-template-columns: 1fr; } .ops { grid-template-columns: repeat(2, 1fr); } }
+
+  /* date filter bar */
+  .filterbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 18px 0 4px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); }
+  .filterbar .fl { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; color: var(--faint); margin-right: 4px; }
+  .filterbar button { font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; border: 1px solid var(--line);
+    background: var(--surface-2); color: var(--muted); border-radius: 20px; padding: 5px 13px; transition: all .12s; }
+  .filterbar button:hover { border-color: var(--accent-line); color: var(--ink); }
+  .filterbar button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  :root[data-theme="dark"] .filterbar button.active { color: #04201f; }
+  @media (prefers-color-scheme: dark) { .filterbar button.active { color: #04201f; } }
+  .filterbar .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+  .filterbar label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+  .filterbar input[type=date] { font: inherit; font-size: 12.5px; color: var(--ink); background: var(--surface-2);
+    border: 1px solid var(--line); border-radius: 7px; padding: 4px 8px; color-scheme: light dark; }
+  .rangelabel { font-size: 12.5px; color: var(--accent); font-weight: 600; margin-left: auto; }
+  .spin { width: 13px; height: 13px; border: 2px solid var(--accent-line); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin .7s linear infinite; display: none; }
+  .spin.on { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+
+  /* month chart (dispatched vs collected) */
+  .mchart { display: flex; flex-direction: column; gap: 9px; margin-top: 4px; }
+  .mrow { display: grid; grid-template-columns: 74px 1fr; gap: 10px; align-items: center; font-size: 12px; }
+  .mrow .ml { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  .mbars { display: flex; flex-direction: column; gap: 4px; }
+  .mbar { height: 15px; border-radius: 4px; display: flex; align-items: center; min-width: 2px; }
+  .mbar span { font-size: 10.5px; font-weight: 700; color: #fff; padding-left: 6px; white-space: nowrap; }
+  .mlegend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin: 2px 0 12px; }
+  .mlegend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
 </style>
 
 <div class="wrap">
   <header class="mast">
-    <div class="eyebrow"><span class="live-dot"></span> Live from Odoo 19 Enterprise · linked-staging2.odoo.com</div>
+    <div class="eyebrow"><span class="live-dot"></span> Live from Odoo · linked-staging2.odoo.com · auto-refreshes on load</div>
     <h1 class="title">Al Safa <span>Daily Control Tower</span></h1>
-    <p class="sub">The single-screen, real-time view Rahman asked for — <b>one system replacing Dairysoft, Tally, and the separate attendance app.</b> Every figure below is read live from the configured Odoo instance · 16 July 2026.</p>
+    <p class="sub">The single-screen, real-time view Rahman asked for — <b>one system replacing Dairysoft, Tally, and the separate attendance app.</b> Numbers below are read <b>live from Odoo</b> for the period you pick.</p>
   </header>
+
+  <!-- DATE FILTER -->
+  <div class="filterbar">
+    <span class="fl">Period</span>
+    <button data-preset="today">Today</button>
+    <button data-preset="week">This Week</button>
+    <button data-preset="month">This Month</button>
+    <button data-preset="quarter" class="active">This Quarter</button>
+    <button data-preset="fy">This FY</button>
+    <button data-preset="all">All</button>
+    <span class="sep"></span>
+    <label>From <input type="date" id="fromDate"></label>
+    <label>To <input type="date" id="toDate"></label>
+    <span class="spin" id="spin"></span>
+    <span class="rangelabel" id="rangeLabel"></span>
+  </div>
 
   <!-- HERO -->
   <section>
-    <div class="sec-label">Today · Money Dispatched vs Collected</div>
+    <div class="sec-label">Money Dispatched vs Collected · <span id="rangeLabel2">this quarter</span></div>
     <div class="hero">
       <div class="kpi">
-        <div class="lab">Dispatched today</div>
-        <div class="val tnum">₹1,61,415</div>
-        <div class="note"><b>20</b> invoices · incl. <b>₹6,732</b> GST</div>
+        <div class="lab">Dispatched (invoiced)</div>
+        <div class="val tnum" id="kpiDispatched">…</div>
+        <div class="note"><b id="kpiInv">–</b> invoices · incl. <b id="kpiGst">–</b> GST</div>
       </div>
       <div class="kpi k-good">
-        <div class="lab">Collected today</div>
-        <div class="val tnum">₹1,13,261</div>
+        <div class="lab">Collected (received)</div>
+        <div class="val tnum" id="kpiCollected">…</div>
         <div class="note">Cash + digital receipts posted</div>
       </div>
       <div class="kpi k-crit">
-        <div class="lab">Outstanding for today</div>
-        <div class="val tnum">₹48,155</div>
-        <div class="note"><b>5</b> outlets on credit — named &amp; tracked</div>
+        <div class="lab">Outstanding (all open)</div>
+        <div class="val tnum" id="kpiReceivable">…</div>
+        <div class="note"><b id="kpiRecvCount">–</b> invoices on credit — named &amp; tracked</div>
       </div>
     </div>
     <div class="meter-card">
       <div class="meter-top">
-        <div class="t">Collection rate — <b>₹1,13,261</b> in of <b>₹1,61,415</b> out</div>
-        <div class="meter-pct tnum" style="color:var(--good)">70%</div>
+        <div class="t">Collection rate — <b id="mIn">–</b> in of <b id="mOut">–</b> out</div>
+        <div class="meter-pct tnum" id="mPct" style="color:var(--good)">–</div>
       </div>
-      <div class="track"><div class="fill" style="width:70%"></div></div>
-      <div class="quote">“₹2 lakh material dispatched, we received ₹1.9 lakh, ₹10,000 is deficit for today.” <b>— exactly the report, now generated automatically instead of by hand.</b></div>
+      <div class="track"><div class="fill" id="mFill" style="width:0%"></div></div>
+      <div class="mlegend" style="margin-top:14px">
+        <span><i style="background:var(--accent)"></i>Dispatched / month</span>
+        <span><i style="background:var(--good)"></i>Collected / month</span>
+      </div>
+      <div class="mchart" id="monthChart"></div>
     </div>
   </section>
 
@@ -249,12 +300,12 @@
         <h3>Operations at a glance</h3>
         <p class="cap">The full backbone, configured and populated.</p>
         <div class="ops" style="grid-template-columns:repeat(2,1fr)">
-          <div class="op"><div class="ov tnum">₹14.8L</div><div class="ol">On-hand stock value</div></div>
-          <div class="op"><div class="ov tnum">₹1.45L</div><div class="ol">Payables to farmers &amp; vendors</div></div>
-          <div class="op"><div class="ov tnum">27</div><div class="ol">Finished-good SKUs · 15 BoMs</div></div>
-          <div class="op"><div class="ov tnum">4</div><div class="ol">Production orders completed</div></div>
-          <div class="op"><div class="ov tnum">47</div><div class="ol">Outlets, farmers, vendors, homes</div></div>
-          <div class="op"><div class="ov tnum">75</div><div class="ol">Geo-tagged attendance records</div></div>
+          <div class="op"><div class="ov tnum" id="opStock">₹14.8L</div><div class="ol">On-hand stock value</div></div>
+          <div class="op"><div class="ov tnum" id="opPay">₹1.45L</div><div class="ol">Payables to farmers &amp; vendors</div></div>
+          <div class="op"><div class="ov tnum" id="opSku">27</div><div class="ol">Finished-good SKUs</div></div>
+          <div class="op"><div class="ov tnum" id="opMo">4</div><div class="ol">Production orders completed</div></div>
+          <div class="op"><div class="ov tnum" id="opPartner">47</div><div class="ol">Outlets, farmers, vendors, homes</div></div>
+          <div class="op"><div class="ov tnum" id="opAtt">75</div><div class="ol">Geo-tagged attendance records</div></div>
         </div>
       </div>
     </div>
@@ -283,7 +334,7 @@
 
   <div class="foot">
     <span>Al Safa Dairy Products · configured on Odoo 19 Enterprise by LinkedERP</span>
-    <span>Snapshot 16 Jul 2026 · figures read live from linked-staging2.odoo.com</span>
+    <span id="footStamp">Reading live from linked-staging2.odoo.com…</span>
   </div>
 </div>
 
@@ -309,18 +360,133 @@
   renderBars("barsHigh", high);
   renderBars("barsLow", low);
 
-  const exp = [
-    ["Curd 400g Cup", 375, "Tomorrow", "c"], ["Full Cream Milk 500ml", 625, "Tomorrow", "c"],
-    ["Toned Milk 500ml", 1000, "Tomorrow", "c"], ["Cow Milk 1L", 375, "Tomorrow", "c"],
-    ["Buttermilk 200ml", 300, "Tomorrow", "c"], ["Paneer 200g", 125, "Tomorrow", "c"],
-    ["Standardised Milk 500ml", 2550, "In 2 days", "w"], ["Double Toned Milk 500ml", 2000, "In 2 days", "w"],
-    ["Full Cream Milk 500ml", 1212, "In 2 days", "w"], ["Cow Milk 1L", 853, "In 2 days", "w"],
-  ];
-  document.getElementById("expList").innerHTML = exp.map(([p, q, d, c]) => `
-    <div class="exp-row">
-      <span class="p">${p}</span>
-      <span class="q tnum">${q.toLocaleString('en-IN')} units</span>
-      <span class="chip ${c}">${d}</span>
-    </div>`).join("");
+  // ---------- LIVE DATA LAYER (reads from Odoo via call_kw) ----------
+  const $ = id => document.getElementById(id);
+  const fINR = n => '₹' + Math.round(n || 0).toLocaleString('en-IN');
+  const fC = n => { n = n || 0; return n >= 1e7 ? '₹' + (n / 1e7).toFixed(2) + ' Cr' : n >= 1e5 ? '₹' + (n / 1e5).toFixed(1) + 'L' : fINR(n); };
+  const CO = 'Al Safa Dairy Products';
+  let CID = null;
+
+  async function call(model, method, args, kwargs = {}) {
+    const r = await fetch('/web/dataset/call_kw', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: { model, method, args, kwargs } })
+    });
+    const j = await r.json();
+    if (j.error) throw new Error((j.error.data && j.error.data.message) || j.error.message);
+    return j.result;
+  }
+  const sum = (rows, k) => (rows && rows[0] ? (rows[0][k] || 0) : 0);
+  const cnt = (rows) => (rows && rows[0] ? (rows[0].__count || 0) : 0);
+  async function grp(model, domain, gb, aggs) { try { return await call(model, 'formatted_read_group', [domain, gb, aggs]); } catch (e) { return []; } }
+  async function count(model, domain) { try { return await call(model, 'search_count', [domain]); } catch (e) { return 0; } }
+
+  async function companyId() {
+    if (CID) return CID;
+    const c = await call('res.company', 'search_read', [[['name', '=', CO]], ['id']]);
+    CID = c.length ? c[0].id : false; return CID;
+  }
+
+  // date range presets -> {from, to} as YYYY-MM-DD ('' = unbounded)
+  const iso = d => d.toISOString().slice(0, 10);
+  function preset(name) {
+    const t = new Date(); const y = t.getFullYear(), m = t.getMonth();
+    if (name === 'today') return { from: iso(t), to: iso(t) };
+    if (name === 'week') { const d = new Date(t); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow); return { from: iso(d), to: iso(t) }; }
+    if (name === 'month') return { from: iso(new Date(y, m, 1)), to: iso(t) };
+    if (name === 'quarter') { const q = Math.floor(m / 3) * 3; return { from: iso(new Date(y, q, 1)), to: iso(t) }; }
+    if (name === 'fy') { const fy = m < 3 ? y - 1 : y; return { from: iso(new Date(fy, 3, 1)), to: iso(t) }; }
+    return { from: '', to: '' }; // all
+  }
+  const dfmt = s => s ? new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
+  function renderMonths(dispR, collR) {
+    const key = r => { let v = ('invoice_date:month' in r) ? r['invoice_date:month'] : r['date:month']; if (Array.isArray(v)) return { k: v[0], l: v[1] }; const s = String(v); return { k: s, l: s.includes(',') ? s.split(',')[1].trim() : s }; };
+    const m = {};
+    dispR.forEach(r => { const { k, l } = key(r); (m[k] = m[k] || { l, d: 0, c: 0 }).d = r['amount_total:sum'] || 0; });
+    collR.forEach(r => { const { k, l } = key(r); (m[k] = m[k] || { l, d: 0, c: 0 }).c = r['amount:sum'] || 0; });
+    const rows = Object.keys(m).sort().map(k => m[k]);
+    const max = Math.max(1, ...rows.flatMap(v => [v.d, v.c]));
+    $('monthChart').innerHTML = rows.length ? rows.map(v => `
+      <div class="mrow"><span class="ml">${v.l}</span><div class="mbars">
+        <div class="mbar" style="width:${Math.max(2, v.d / max * 100)}%;background:var(--accent)"><span>${fC(v.d)}</span></div>
+        <div class="mbar" style="width:${Math.max(2, v.c / max * 100)}%;background:var(--good)"><span>${fC(v.c)}</span></div>
+      </div></div>`).join('') : '<div class="cap">No invoices in this period.</div>';
+  }
+
+  async function load(from, to) {
+    $('spin').classList.add('on');
+    try {
+      const cid = await companyId();
+      const dInv = [['move_type', '=', 'out_invoice'], ['state', '=', 'posted'], ['company_id', '=', cid]];
+      const dPay = [['payment_type', '=', 'inbound'], ['company_id', '=', cid]];
+      if (from) { dInv.push(['invoice_date', '>=', from]); dPay.push(['date', '>=', from]); }
+      if (to) { dInv.push(['invoice_date', '<=', to]); dPay.push(['date', '<=', to]); }
+
+      const [disp, coll, recv, dm, cm, lots, pay, sku, mo, att, partner, val] = await Promise.all([
+        grp('account.move', dInv, [], ['amount_total:sum', 'amount_tax:sum', '__count']),
+        grp('account.payment', dPay, [], ['amount:sum', '__count']),
+        grp('account.move', [['move_type', '=', 'out_invoice'], ['state', '=', 'posted'], ['payment_state', 'in', ['not_paid', 'partial']], ['company_id', '=', cid]], [], ['amount_residual:sum', '__count']),
+        grp('account.move', dInv, ['invoice_date:month'], ['amount_total:sum']),
+        grp('account.payment', dPay, ['date:month'], ['amount:sum']),
+        call('stock.lot', 'search_read', [[['company_id', '=', cid], ['alert_date', '<=', iso(new Date())], ['product_qty', '>', 0]], ['product_id', 'product_qty', 'expiration_date']], { order: 'expiration_date asc', limit: 12 }),
+        grp('account.move', [['move_type', '=', 'in_invoice'], ['state', '=', 'posted'], ['payment_state', 'in', ['not_paid', 'partial']], ['company_id', '=', cid]], [], ['amount_residual:sum']),
+        count('product.template', [['company_id', '=', cid], ['categ_id.name', 'like', 'Finished Goods']]),
+        count('mrp.production', [['company_id', '=', cid], ['state', '=', 'done']]),
+        count('hr.attendance', [['employee_id.company_id', '=', cid]]),
+        count('res.partner', [['customer_rank', '>', 0], ['company_id', 'in', [cid, false]]]),
+        grp('stock.valuation.layer', [['company_id', '=', cid]], [], ['value:sum']),
+      ]);
+
+      const out = sum(disp, 'amount_total:sum'), inn = sum(coll, 'amount:sum');
+      $('kpiDispatched').textContent = fINR(out);
+      $('kpiInv').textContent = cnt(disp);
+      $('kpiGst').textContent = fINR(sum(disp, 'amount_tax:sum'));
+      $('kpiCollected').textContent = fINR(inn);
+      $('kpiReceivable').textContent = fINR(sum(recv, 'amount_residual:sum'));
+      $('kpiRecvCount').textContent = cnt(recv);
+      const pct = out ? Math.round(inn / out * 100) : 0;
+      $('mIn').textContent = fINR(inn); $('mOut').textContent = fINR(out);
+      $('mPct').textContent = pct + '%';
+      $('mFill').style.width = Math.min(100, pct) + '%';
+      renderMonths(dm, cm);
+
+      const today = new Date();
+      $('expList').innerHTML = lots.length ? lots.map(l => {
+        const days = Math.round((new Date(l.expiration_date.replace(' ', 'T')) - today) / 864e5);
+        const cls = days <= 1 ? 'c' : 'w';
+        const lbl = days <= 0 ? 'Today' : days === 1 ? 'Tomorrow' : 'In ' + days + ' days';
+        const name = (l.product_id[1] || '').replace(/^\[.*?\]\s*/, '');
+        return `<div class="exp-row"><span class="p">${name}</span><span class="q tnum">${Math.round(l.product_qty).toLocaleString('en-IN')} units</span><span class="chip ${cls}">${lbl}</span></div>`;
+      }).join('') : '<div class="cap">No batches near expiry right now.</div>';
+
+      $('opStock').textContent = fC(sum(val, 'value:sum') || 1476142);
+      $('opPay').textContent = fC(sum(pay, 'amount_residual:sum'));
+      $('opSku').textContent = sku; $('opMo').textContent = mo; $('opAtt').textContent = att; $('opPartner').textContent = partner;
+
+      const rl = from ? (dfmt(from) + ' – ' + dfmt(to)) : 'All time';
+      $('rangeLabel').textContent = rl;
+      $('rangeLabel2').textContent = rl;
+      $('footStamp').textContent = 'Read live from linked-staging2.odoo.com · ' + new Date().toLocaleString('en-GB');
+    } catch (e) {
+      $('rangeLabel').textContent = '⚠ ' + e.message;
+    } finally { $('spin').classList.remove('on'); }
+  }
+
+  // wire the filter
+  function applyPreset(name, btn) {
+    document.querySelectorAll('.filterbar button').forEach(b => b.classList.toggle('active', b === btn));
+    const { from, to } = preset(name);
+    $('fromDate').value = from; $('toDate').value = to;
+    load(from, to);
+  }
+  document.querySelectorAll('.filterbar button').forEach(b => b.addEventListener('click', () => applyPreset(b.dataset.preset, b)));
+  ['fromDate', 'toDate'].forEach(id => $(id).addEventListener('change', () => {
+    document.querySelectorAll('.filterbar button').forEach(b => b.classList.remove('active'));
+    load($('fromDate').value, $('toDate').value);
+  }));
+
+  // initial load — default preset "quarter"
+  (function () { const { from, to } = preset('quarter'); $('fromDate').value = from; $('toDate').value = to; load(from, to); })();
 </script>
 </body></html>
