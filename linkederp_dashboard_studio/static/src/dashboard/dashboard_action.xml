@@ -170,7 +170,7 @@
                     <select
                         t-if="state.crmFilters.enabled"
                         class="form-select o_lds_filter_select"
-                        t-on-change="(ev) => setFilter('campaignId', ev.target.value)">
+                        t-on-change="(ev) => onCrmFilterChange('campaignId', ev)">
                         <option value="">All campaigns</option>
                         <t t-foreach="state.crmFilters.campaigns" t-as="option" t-key="option.id">
                             <option
@@ -182,7 +182,7 @@
                     <select
                         t-if="state.crmFilters.enabled"
                         class="form-select o_lds_filter_select"
-                        t-on-change="(ev) => setFilter('userId', ev.target.value)">
+                        t-on-change="(ev) => onCrmFilterChange('userId', ev)">
                         <option value="">All salespeople</option>
                         <t t-foreach="state.crmFilters.salespeople" t-as="option" t-key="option.id">
                             <option
@@ -194,7 +194,7 @@
                     <select
                         t-if="state.crmFilters.enabled"
                         class="form-select o_lds_filter_select"
-                        t-on-change="(ev) => setFilter('teamId', ev.target.value)">
+                        t-on-change="(ev) => onCrmFilterChange('teamId', ev)">
                         <option value="">All teams</option>
                         <t t-foreach="state.crmFilters.teams" t-as="option" t-key="option.id">
                             <option
@@ -206,7 +206,7 @@
                     <select
                         t-if="state.crmFilters.enabled"
                         class="form-select o_lds_filter_select"
-                        t-on-change="(ev) => setFilter('stageId', ev.target.value)">
+                        t-on-change="(ev) => onCrmFilterChange('stageId', ev)">
                         <option value="">All stages</option>
                         <t t-foreach="state.crmFilters.stages" t-as="option" t-key="option.id">
                             <option
@@ -248,11 +248,10 @@
                                 t-esc="option.label"/>
                         </t>
                     </select>
-                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled &amp;&amp; !state.slaFilters.enabled &amp;&amp; !state.finFilters.enabled &amp;&amp; !state.peopleFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom"/>
-                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled &amp;&amp; !state.slaFilters.enabled &amp;&amp; !state.finFilters.enabled &amp;&amp; !state.peopleFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo"/>
-                    <button class="btn btn-primary" type="button" t-on-click="applyFilters" title="Apply filters">
-                        <i class="fa fa-filter"/>
-                    </button>
+                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled &amp;&amp; !state.slaFilters.enabled &amp;&amp; !state.finFilters.enabled &amp;&amp; !state.peopleFilters.enabled" class="form-control" type="date" t-model="state.filters.dateFrom" t-on-change="applyFilters"/>
+                    <input t-if="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled &amp;&amp; !state.slaFilters.enabled &amp;&amp; !state.finFilters.enabled &amp;&amp; !state.peopleFilters.enabled" class="form-control" type="date" t-model="state.filters.dateTo" t-on-change="applyFilters"/>
+                    <!-- The Filter button is gone (2026-07-14): every filter
+                         family applies itself on change now. Reset stays. -->
                     <button class="btn btn-outline-secondary" type="button" t-on-click="resetFilters" title="Reset filters">
                         <i class="fa fa-refresh"/>
                     </button>
@@ -293,11 +292,23 @@
             <div t-else="" class="o_lds_grid">
                 <t t-foreach="state.widgets" t-as="widget" t-key="widget.id">
                     <section
-                        t-att-class="'o_lds_widget o_lds_widget_' + widget.type + (widget.span ? ' o_lds_span_' + widget.span : '') + (widget.hero ? ' o_lds_widget_hero' : '') + (widget.tall ? ' o_lds_widget_tall' : '')"
+                        t-att-class="'o_lds_widget o_lds_widget_' + widget.type + (widget.span ? ' o_lds_span_' + widget.span : '') + (widget.hero ? ' o_lds_widget_hero' + (widget.hero === 'teal' ? ' o_lds_hero_teal' : '') : '') + (widget.tall ? ' o_lds_widget_tall' : '')"
                         t-att-style="'--lds-accent:' + (widget.color || '#2563eb')">
                         <header t-if="widget.type !== 'trendline' &amp;&amp; widget.type !== 'chips' &amp;&amp; widget.type !== 'sechead' &amp;&amp; widget.type !== 'story'" class="o_lds_widget_header">
                             <div>
-                                <h2 t-esc="widget.name"/>
+                                <h2>
+                                    <t t-esc="widget.name"/>
+                                    <!-- ⓘ definition tooltip: only when the
+                                         widget ships an `info` text (Nighthawk
+                                         round 2026-07-14); other dashboards
+                                         are untouched. -->
+                                    <i
+                                        t-if="widget.info"
+                                        class="fa fa-info-circle o_lds_info"
+                                        t-att-title="widget.info"
+                                        role="img"
+                                        aria-label="What this KPI means"/>
+                                </h2>
                                 <span t-if="widget.help" t-esc="widget.help"/>
                             </div>
                             <div class="o_lds_widget_header_aside">
@@ -631,10 +642,14 @@
                         <t t-elif="widget.type === 'funnel'">
                             <div class="o_lds_funnel">
                                 <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                    <!-- Popup-first like columns: Worked /
+                                         Qualified / Lost stages open their
+                                         breakdown popup, other stages fall
+                                         back to the record list. -->
                                     <button
                                         class="o_lds_funnel_row"
                                         type="button"
-                                        t-on-click="() => openRecords(widget.model, point.domain)">
+                                        t-on-click="() => onColumnClick(widget, point)">
                                         <span class="o_lds_funnel_label" t-esc="point.label"/>
                                         <span class="o_lds_funnel_track">
                                             <span class="o_lds_funnel_fill" t-att-style="funnelStyle(widget, point)">
@@ -894,7 +909,34 @@
                     </header>
                     <div class="o_lds_modal_body">
                         <t t-set="widget" t-value="state.modal"/>
-                        <t t-call="linkederp_dashboard_studio.MatrixTable"/>
+                        <!-- Popups with `points` render as a bar chart (the
+                             4-week contact/meetings trends); table popups
+                             keep the MatrixTable. Same methods, same CSS. -->
+                        <div t-if="widget.points and widget.points.length" class="o_lds_columns">
+                            <div class="o_lds_column_axis">
+                                <t t-foreach="columnGridLines(widget)" t-as="line" t-key="line_index">
+                                    <span t-esc="formatPointValue(widget, line)"/>
+                                </t>
+                            </div>
+                            <div class="o_lds_column_plot">
+                                <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                    <button
+                                        class="o_lds_column_item"
+                                        type="button"
+                                        t-on-click="() => onColumnClick(widget, point)">
+                                        <span class="o_lds_column_bar_wrap">
+                                            <span class="o_lds_column_bar" t-att-style="columnStyle(widget, point, point_index)">
+                                                <strong t-esc="formatPointValue(widget, point.value)"/>
+                                            </span>
+                                        </span>
+                                        <span class="o_lds_column_label" t-esc="point.label"/>
+                                    </button>
+                                </t>
+                            </div>
+                        </div>
+                        <t t-else="">
+                            <t t-call="linkederp_dashboard_studio.MatrixTable"/>
+                        </t>
                     </div>
                 </div>
             </div>

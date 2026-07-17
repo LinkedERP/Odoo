@@ -141,6 +141,20 @@
             letter-spacing: 0;
         }
 
+        // ⓘ definition tooltip (widgets that ship an `info` text).
+        .o_lds_info {
+            margin-left: 6px;
+            font-size: 12px;
+            font-weight: 400;
+            color: #94a3b8;
+            cursor: help;
+            vertical-align: 1px;
+
+            &:hover {
+                color: #475569;
+            }
+        }
+
         span {
             display: block;
             margin-top: 4px;
@@ -1684,6 +1698,29 @@
     }
 
     // Aurika People Dashboard additions -------------------------------
+    // Teal hero variant (opt-in via widget.hero = "teal"): the People
+    // dashboard's dark cards; the Finance blue hero is untouched.
+    .o_lds_widget_hero.o_lds_hero_teal {
+        border-color: #0b4f57;
+        background: linear-gradient(130deg, #06333a 0%, #0b4f57 55%, #0f6b74 100%);
+
+        .o_lds_widget_header h2 {
+            color: #d7ecee;
+        }
+
+        .o_lds_widget_header span {
+            color: #9fc9cd;
+        }
+
+        .o_lds_kpi_caption {
+            color: #bfdcdf;
+        }
+
+        .o_lds_trend_line {
+            stroke: #8fd0d6;
+        }
+    }
+
     .o_lds_kpi_split {
         display: flex;
         width: 100%;

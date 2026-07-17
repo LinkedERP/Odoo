@@ -28,6 +28,14 @@ MANAGER_GROUP_XMLID = "linkederp_dashboard_studio.group_dashboard_studio_manager
 AI_DASHBOARD_NAME = "Nighthawk Review Dashboard"
 AI_DASHBOARD_LEGACY = "AI Generated Leads Performance"
 
+# x_studio_call_outcome selection values the Nighthawk engine reasons about.
+AI_QUALIFIED_OUTCOMES = ["Meeting Set", "Send more Info", "Call Later", "Future Interest"]
+AI_ALL_OUTCOMES = AI_QUALIFIED_OUTCOMES + [
+    "Contact Not a Fit", "Company Not a fit", "Unable to make Contact"]
+# Positive outcomes still in play but NOT yet a meeting (funnel stage r2:
+# keeps the funnel free of the Meetings double-count Akshay spotted).
+AI_FOLLOWUP_OUTCOMES = [o for o in AI_QUALIFIED_OUTCOMES if o != "Meeting Set"]
+
 DEFAULT_BUCKET_BY_NAME = {
     "Sales & CRM Dashboard": "sales",
     "Sales Performance Dashboard": "management",
@@ -548,6 +556,8 @@ class LinkederpDashboard(models.Model):
         groupby="",
         value_format="number",
         span=False,
+        info="",
+        modal_table=False,
     ):
         return {
             "id": widget_id,
@@ -559,6 +569,8 @@ class LinkederpDashboard(models.Model):
             "groupby": groupby,
             "color": color,
             "help": help_text,
+            "info": info,
+            "modal_table": modal_table,
             "value": float(value or 0),
             "format": value_format,
             "domain": self._json_safe(domain),
@@ -753,6 +765,131 @@ class LinkederpDashboard(models.Model):
             points.append(self._ai_point(label, self._ai_count(bucket_domain), bucket_domain))
         return points
 
+    def _ai_modal(self, name, color, groupby, rows, share_label, help_text=""):
+        """modal_table dict for the shared MatrixTable popup; rows drill."""
+        return {
+            "name": name,
+            "help": help_text,
+            "color": color,
+            "groupby": groupby,
+            "compact": True,
+            "columns": [
+                {"key": "count", "label": _("Leads"), "format": "integer"},
+                {"key": "share", "label": share_label, "format": "percent"},
+            ],
+            "rows": rows,
+        }
+
+    def _ai_modal_row(self, label, count, total, domain, seen_labels):
+        # MatrixTable t-keys off row.label: suffix duplicates (learning #13).
+        base = label or _("Undefined")
+        label = base
+        serial = 2
+        while label in seen_labels:
+            label = "%s (%s)" % (base, serial)
+            serial += 1
+        seen_labels.add(label)
+        return {
+            "label": label,
+            "count": count,
+            "share": self._ai_rate(count, total),
+            "model": "crm.lead",
+            "domain": self._json_safe(domain),
+        }
+
+    def _ai_outcome_breakdown_rows(self, base_domain, outcomes, total, include_other=False):
+        """One popup row per call-outcome value inside base_domain."""
+        rows = []
+        seen = set()
+        for outcome in outcomes:
+            domain = expression.AND([base_domain, [("x_studio_call_outcome", "=", outcome)]])
+            count = self._ai_count(domain)
+            rows.append(self._ai_modal_row(outcome, count, total, domain, seen))
+        if include_other:
+            other_domain = expression.AND(
+                [base_domain, [("x_studio_call_outcome", "not in", outcomes)]]
+            )
+            other = self._ai_count(other_domain)
+            if other:
+                rows.append(self._ai_modal_row(_("Other outcomes"), other, total, other_domain, seen))
+        rows.sort(key=lambda row: row["count"], reverse=True)
+        return rows
+
+    def _ai_lost_reason_rows(self, lost_domain, total):
+        """One popup row per lost reason (plus 'No reason set')."""
+        grouped = self._ai_lead_model().read_group(
+            lost_domain, ["lost_reason_id"], ["lost_reason_id"], lazy=False
+        )
+        data = []
+        for row in grouped:
+            value = row.get("lost_reason_id")
+            label = value[1] if value else _("No reason set")
+            data.append((label, row.get("__count", 0), row.get("__domain", lost_domain)))
+        data.sort(key=lambda item: item[1], reverse=True)
+        seen = set()
+        return [
+            self._ai_modal_row(label, count, total, domain, seen)
+            for label, count, domain in data
+        ]
+
+    def _ai_backlog_age_rows(self, not_called_domain, total):
+        """Ageing buckets (days since creation) over the un-called backlog."""
+        today = fields.Date.context_today(self)
+
+        def day_floor(days_ago):
+            return "%s 00:00:00" % fields.Date.to_string(today - timedelta(days=days_ago))
+
+        buckets = [
+            (_("Over 30 days"), [("create_date", "<", day_floor(30))]),
+            (_("16–30 days"), [("create_date", ">=", day_floor(30)),
+                               ("create_date", "<", day_floor(15))]),
+            (_("11–15 days"), [("create_date", ">=", day_floor(15)),
+                               ("create_date", "<", day_floor(10))]),
+            (_("6–10 days"), [("create_date", ">=", day_floor(10)),
+                              ("create_date", "<", day_floor(5))]),
+            (_("3–5 days"), [("create_date", ">=", day_floor(5)),
+                             ("create_date", "<", day_floor(2))]),
+            (_("0–2 days"), [("create_date", ">=", day_floor(2))]),
+        ]
+        rows = []
+        seen = set()
+        for label, extra in buckets:
+            domain = expression.AND([not_called_domain, extra])
+            rows.append(self._ai_modal_row(label, self._ai_count(domain), total, domain, seen))
+        rows.append(self._ai_modal_row(_("Total backlog"), total, total, not_called_domain, seen))
+        return rows
+
+    def _ai_trend_modal(self, name, color, base_domain, extra_domain, help_text):
+        """4-week popup bar chart: leads CREATED each ISO week matching
+        extra_domain. Fixed horizon (page date filter doesn't move it);
+        campaign/rep/team/stage filters flow in via base_domain.
+        ponytail: cohort-by-creation-week until outcome tracking (ON since
+        2026-07-14) accumulates enough history for true activity weeks."""
+        today = fields.Date.context_today(self)
+        monday = today - timedelta(days=today.weekday())
+        points = []
+        for back in range(3, -1, -1):
+            week_start = monday - timedelta(days=7 * back)
+            week_end = week_start + timedelta(days=6)
+            domains = [base_domain, [
+                ("create_date", ">=", "%s 00:00:00" % fields.Date.to_string(week_start)),
+                ("create_date", "<=", "%s 23:59:59" % fields.Date.to_string(week_end)),
+            ]]
+            if extra_domain:
+                domains.append(extra_domain)
+            domain = expression.AND(domains)
+            points.append(self._ai_point(
+                _("Wk %s") % ("%02d" % week_start.isocalendar()[1]),
+                self._ai_count(domain), domain))
+        return {
+            "name": name,
+            "help": help_text,
+            "color": color,
+            "model": "crm.lead",
+            "format": "integer",
+            "points": points,
+        }
+
     def _ai_generated_lead_widgets(self, date_from=False, date_to=False, filters=False):
         base_domain = self._ai_base_domain(date_from=date_from, date_to=date_to, filters=filters)
         generated = self._ai_count(base_domain)
@@ -805,11 +942,34 @@ class LinkederpDashboard(models.Model):
             date_from=date_from,
             date_to=date_to,
             filters=filters,
-            extra_domain=[
-                ("x_studio_call_outcome", "in", ["Meeting Set", "Send more Info", "Call Later", "Future Interest"])
-            ],
+            extra_domain=[("x_studio_call_outcome", "in", AI_QUALIFIED_OUTCOMES)],
         )
         qualified = self._ai_count(qualified_domain)
+
+        # Funnel stage r2 (2026-07-14): positive outcomes NOT yet at meeting
+        # stage — disjoint from the Meetings stage by construction, so the
+        # same lead can never show in both bars (Akshay's double-count spot).
+        follow_up_domain = self._ai_base_domain(
+            date_from=date_from,
+            date_to=date_to,
+            filters=filters,
+            extra_domain=[
+                ("x_studio_call_outcome", "in", AI_FOLLOWUP_OUTCOMES),
+                ("x_studio_meeting_date", "=", False),
+            ],
+        )
+        follow_up = self._ai_count(follow_up_domain)
+
+        # Actionable calling backlog: OPEN leads never worked. Deliberately
+        # narrower than not_called_domain (which also carries archived
+        # never-called leads and stays the Avg Backlog Age population).
+        not_worked_open_domain = self._ai_base_domain(
+            date_from=date_from,
+            date_to=date_to,
+            filters=filters,
+            extra_domain=[("active", "=", True), ("x_studio_call_outcome", "=", False)],
+        )
+        not_worked_open = self._ai_count(not_worked_open_domain)
 
         avg_backlog_age = self._ai_average_age_days(not_called_domain)
         contact_rate = self._ai_rate(worked, generated)
@@ -817,6 +977,67 @@ class LinkederpDashboard(models.Model):
         meeting_after_work_rate = self._ai_rate(meetings, worked)
         lost_rate = self._ai_rate(lost, generated)
         quality_rate = self._ai_rate(qualified, worked)
+
+        quality_modal = self._ai_modal(
+            _("Lead Quality Rate — by call outcome"),
+            "#2563eb",
+            _("Call Outcome"),
+            self._ai_outcome_breakdown_rows(qualified_domain, AI_QUALIFIED_OUTCOMES, qualified),
+            _("% of qualified"),
+            _("Positive worked outcomes; click a row for those leads."),
+        )
+        lost_modal = self._ai_modal(
+            _("Lost / Archived — by lost reason"),
+            "#dc2626",
+            _("Lost Reason"),
+            self._ai_lost_reason_rows(lost_domain, lost),
+            _("% of lost"),
+            _("Lost and archived AI leads; click a row for those leads."),
+        )
+        backlog_modal = self._ai_modal(
+            _("Backlog ageing — days since creation"),
+            "#f59e0b",
+            _("Age Bucket"),
+            self._ai_backlog_age_rows(not_called_domain, not_called),
+            _("% of backlog"),
+            _("AI leads with no call outcome yet; click a row for those leads."),
+        )
+        worked_modal = self._ai_modal(
+            _("Worked — by call outcome"),
+            "#0891b2",
+            _("Call Outcome"),
+            self._ai_outcome_breakdown_rows(worked_domain, AI_ALL_OUTCOMES, worked, include_other=True),
+            _("% of worked"),
+            _("Every worked AI lead by its recorded call outcome."),
+        )
+        follow_up_modal = self._ai_modal(
+            _("Follow-up in Progress — by call outcome"),
+            "#7c3aed",
+            _("Call Outcome"),
+            self._ai_outcome_breakdown_rows(follow_up_domain, AI_FOLLOWUP_OUTCOMES, follow_up),
+            _("% of follow-ups"),
+            _("Positive outcomes still being chased — no meeting yet."),
+        )
+        trend_base = self._ai_base_domain(filters=filters)
+        contact_trend_modal = self._ai_trend_modal(
+            _("Contact trend — last 4 weeks"),
+            "#0891b2",
+            trend_base,
+            [("x_studio_call_outcome", "!=", False)],
+            _("Leads from each week that have been called so far. The rep/"
+              "campaign filters above apply; the date range does not move "
+              "this view. Click a bar for those leads."),
+        )
+        meetings_trend_modal = self._ai_trend_modal(
+            _("Meetings trend — last 4 weeks"),
+            "#059669",
+            trend_base,
+            ["|", ("x_studio_call_outcome", "=", "Meeting Set"),
+             ("x_studio_meeting_date", "!=", False)],
+            _("Meetings from each week's leads. The rep/campaign filters "
+              "above apply; the date range does not move this view. Click "
+              "a bar for those leads."),
+        )
 
         return [
             self._ai_widget(
@@ -827,9 +1048,13 @@ class LinkederpDashboard(models.Model):
                 base_domain,
                 "#2563eb",
                 _("AI-sourced leads"),
-                _("All CRM leads where Source is AI Generated."),
                 value_format="integer",
                 span=3,
+                info=_(
+                    "Definition: every CRM lead whose Source is 'AI Generated', "
+                    "created in the selected date range. "
+                    "Calculation: simple count of those leads."
+                ),
             ),
             self._ai_widget(
                 "ai_open",
@@ -839,9 +1064,14 @@ class LinkederpDashboard(models.Model):
                 open_domain,
                 "#0f766e",
                 _("%s%% still active") % self._ai_rate(open_count, generated),
-                _("AI leads that are still active/open."),
                 value_format="integer",
                 span=3,
+                info=_(
+                    "Definition: generated AI leads that are still open (not "
+                    "lost or archived). "
+                    "Calculation: count of active AI leads; the caption shows "
+                    "active ÷ generated."
+                ),
             ),
             self._ai_widget(
                 "ai_worked",
@@ -851,9 +1081,16 @@ class LinkederpDashboard(models.Model):
                 worked_domain,
                 "#0891b2",
                 _("%s worked / contacted") % worked,
-                _("Share of AI leads with a call outcome captured."),
                 value_format="percent",
                 span=3,
+                info=_(
+                    "Definition: share of AI leads the team has actually "
+                    "worked. "
+                    "Calculation: leads with any Call Outcome marked ÷ all AI "
+                    "leads in range × 100. Click for the 4-week contact "
+                    "trend (respects the rep filter)."
+                ),
+                modal_table=contact_trend_modal,
             ),
             self._ai_widget(
                 "ai_meetings",
@@ -862,22 +1099,39 @@ class LinkederpDashboard(models.Model):
                 meetings,
                 meeting_domain,
                 "#059669",
-                _("%s%% of generated") % meeting_rate,
-                _("Meeting outcome or meeting date captured."),
+                _("%(gen)s%% of generated · %(worked)s%% once worked")
+                % {"gen": meeting_rate, "worked": meeting_after_work_rate},
                 value_format="integer",
                 span=3,
+                info=_(
+                    "Definition: leads where the call ended in 'Meeting Set' "
+                    "or a meeting date is filled. "
+                    "Calculation: count of such leads; '% of generated' = "
+                    "meetings ÷ all AI leads; '% once worked' = meetings ÷ "
+                    "worked leads (the old Meeting Conversion card, now "
+                    "merged here). Click for the 4-week meetings trend "
+                    "(respects the rep filter)."
+                ),
+                modal_table=meetings_trend_modal,
             ),
             self._ai_widget(
-                "ai_meeting_rate",
-                _("Meeting Conversion"),
-                "gauge",
-                meeting_after_work_rate,
-                meeting_domain,
-                "#22c55e",
-                _("%s%% once worked") % meeting_after_work_rate,
-                _("Meetings set as a percentage of worked AI leads."),
-                value_format="percent",
+                "ai_not_worked",
+                _("Not Yet Worked"),
+                "kpi",
+                not_worked_open,
+                not_worked_open_domain,
+                "#d97706",
+                _("%s%% of generated · open, no call outcome")
+                % self._ai_rate(not_worked_open, generated),
+                value_format="integer",
                 span=3,
+                info=_(
+                    "Definition: the calling backlog — open AI leads where "
+                    "Call Outcome is still empty. "
+                    "Calculation: count of active AI leads with no Call "
+                    "Outcome; archived never-called leads are excluded. "
+                    "Click to open the leads and start working them."
+                ),
             ),
             self._ai_widget(
                 "ai_quality_score",
@@ -887,9 +1141,16 @@ class LinkederpDashboard(models.Model):
                 qualified_domain,
                 "#2563eb",
                 _("%s positive worked outcomes") % qualified,
-                _("Worked leads that are meeting/follow-up/future-interest instead of unsuitable or unreachable."),
                 value_format="percent",
                 span=3,
+                info=_(
+                    "Definition: of the worked leads, the share with a "
+                    "positive outcome (Meeting Set, Send more Info, Call "
+                    "Later, Future Interest). "
+                    "Calculation: positive-outcome leads ÷ worked leads × "
+                    "100. Click the dial for the count by outcome."
+                ),
+                modal_table=quality_modal,
             ),
             self._ai_widget(
                 "ai_lost_rate",
@@ -899,9 +1160,15 @@ class LinkederpDashboard(models.Model):
                 lost_domain,
                 "#dc2626",
                 _("%s lost or archived") % lost,
-                _("Includes AI leads marked lost and archived/lost leads hidden by default in CRM."),
                 value_format="percent",
                 span=3,
+                info=_(
+                    "Definition: AI leads marked Lost, plus archived leads "
+                    "(hidden by default in CRM). "
+                    "Calculation: lost-or-archived ÷ all AI leads × 100. "
+                    "Click the dial for the count by lost reason."
+                ),
+                modal_table=lost_modal,
             ),
             self._ai_widget(
                 "ai_backlog_age",
@@ -911,9 +1178,16 @@ class LinkederpDashboard(models.Model):
                 not_called_domain,
                 "#f59e0b",
                 _("days not yet called"),
-                _("Average age of AI leads with no call outcome captured."),
                 value_format="days",
                 span=3,
+                info=_(
+                    "Definition: average age (days since creation) of AI "
+                    "leads with no call outcome yet. "
+                    "Calculation: mean of (today − created date) across that "
+                    "backlog. Click for the ageing buckets (0–2, 3–5, 6–10, "
+                    "11–15, 16–30, over 30 days)."
+                ),
+                modal_table=backlog_modal,
             ),
             self._ai_widget(
                 "ai_funnel",
@@ -923,17 +1197,36 @@ class LinkederpDashboard(models.Model):
                 base_domain,
                 "#2563eb",
                 _("Records"),
-                _("Generated -> worked -> meetings -> qualified, with lost visible as leakage."),
                 points=[
                     self._ai_point(_("Generated"), generated, base_domain),
-                    self._ai_point(_("Worked"), worked, worked_domain),
+                    dict(
+                        self._ai_point(_("Worked"), worked, worked_domain),
+                        modal_table=worked_modal,
+                    ),
+                    dict(
+                        self._ai_point(_("Follow-up in Progress"), follow_up, follow_up_domain),
+                        modal_table=follow_up_modal,
+                    ),
                     self._ai_point(_("Meetings"), meetings, meeting_domain),
-                    self._ai_point(_("Qualified Follow-up"), qualified, qualified_domain),
-                    self._ai_point(_("Lost / Archived"), lost, lost_domain),
+                    dict(
+                        self._ai_point(_("Lost / Archived"), lost, lost_domain),
+                        modal_table=lost_modal,
+                    ),
                 ],
                 groupby=_("Funnel Step"),
                 value_format="integer",
                 span=12,
+                info=_(
+                    "Definition: how AI leads move through the pipeline. "
+                    "Generated = all AI leads; Worked = call outcome marked; "
+                    "Follow-up in Progress = positive outcomes still being "
+                    "chased (Call Later, Send more Info, Future Interest) "
+                    "with NO meeting yet; Meetings = meeting set or meeting "
+                    "date; Lost / Archived = leakage. A lead appears in only "
+                    "ONE of Follow-up and Meetings — never both. Click "
+                    "Worked or Follow-up for the call-outcome breakdown, "
+                    "Lost for the lost-reason breakdown."
+                ),
             ),
             self._ai_widget(
                 "ai_call_outcomes",
@@ -943,11 +1236,17 @@ class LinkederpDashboard(models.Model):
                 worked_domain,
                 "#0891b2",
                 _("Records"),
-                _("Worked-lead outcomes grouped into execution buckets."),
                 points=self._ai_call_outcome_points(worked_domain),
                 groupby=_("Outcome Bucket"),
                 value_format="integer",
                 span=6,
+                info=_(
+                    "Definition: worked leads grouped by result — Meeting "
+                    "Set; In Progress (Call Later, Send more Info, Future "
+                    "Interest); Not Suitable (contact or company not a fit); "
+                    "Unreachable. Calculation: count of worked leads per "
+                    "bucket; click a bar for those leads."
+                ),
             ),
             self._ai_widget(
                 "ai_generated_by_week",
@@ -957,11 +1256,15 @@ class LinkederpDashboard(models.Model):
                 base_domain,
                 "#2563eb",
                 _("Records"),
-                _("Weekly AI lead generation trend by ISO week number."),
                 points=self._ai_week_points(base_domain, limit=12),
                 groupby=_("Created Week"),
                 value_format="integer",
                 span=6,
+                info=_(
+                    "Definition: new AI leads per ISO calendar week (by "
+                    "created date). Calculation: count of leads created in "
+                    "each week; last 12 weeks with data are shown."
+                ),
             ),
             self._ai_widget(
                 "ai_campaign_conversion",
@@ -971,11 +1274,16 @@ class LinkederpDashboard(models.Model):
                 base_domain,
                 "#059669",
                 _("Leads / Meetings"),
-                _("Generated leads compared with meetings set by campaign."),
                 rows=self._ai_campaign_conversion_rows(base_domain, limit=12),
                 groupby=_("Campaign"),
                 value_format="integer",
                 span=6,
+                info=_(
+                    "Definition: per campaign, generated AI leads compared "
+                    "with meetings set from them. Calculation: meetings = "
+                    "leads with 'Meeting Set' outcome or a meeting date; "
+                    "conversion = meetings ÷ generated per campaign."
+                ),
             ),
             self._ai_widget(
                 "ai_salesperson_matrix",
@@ -985,7 +1293,14 @@ class LinkederpDashboard(models.Model):
                 base_domain,
                 "#0f766e",
                 _("Records"),
-                _("Owner-level generation, work, meeting, loss, and ageing performance."),
+                info=_(
+                    "Definition: per lead owner — Generated (all AI leads), "
+                    "Worked (call outcome marked), Open (still active), "
+                    "Meetings Set (+% of generated), Lost, and Ageing = "
+                    "average days the owner's un-called leads have waited. "
+                    "Calculation: counts within the selected date range and "
+                    "filters; click a row for that person's leads."
+                ),
                 rows=self._ai_matrix_rows(base_domain, "user_id", limit=15),
                 columns=[
                     {"key": "generated", "label": _("Generated"), "format": "integer"},

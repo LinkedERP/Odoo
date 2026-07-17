@@ -115,7 +115,7 @@ export class LinkedERPDashboardAction extends Component {
             "comboMarkers",
             "applyFilters",
             "resetFilters",
-            "setFilter",
+            "onCrmFilterChange",
             "onWeekChange",
             "isWeekSelected",
             "onOpsTeamChange",
@@ -710,8 +710,11 @@ export class LinkedERPDashboardAction extends Component {
         this.state.filters.stageId = "";
     }
 
-    setFilter(key, value) {
-        this.state.filters[key] = value;
+    async onCrmFilterChange(key, ev) {
+        // Nighthawk filters apply themselves on change (2026-07-14) —
+        // no Filter button anymore, same behavior as every other family.
+        this.state.filters[key] = ev.target.value || "";
+        await this.load(this.state.dashboard && this.state.dashboard.id);
     }
 
     async onWeekChange(ev) {
