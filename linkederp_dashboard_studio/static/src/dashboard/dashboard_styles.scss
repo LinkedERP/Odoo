@@ -141,6 +141,20 @@
             letter-spacing: 0;
         }
 
+        // ⓘ definition tooltip (widgets that ship an `info` text).
+        .o_lds_info {
+            margin-left: 6px;
+            font-size: 12px;
+            font-weight: 400;
+            color: #94a3b8;
+            cursor: help;
+            vertical-align: 1px;
+
+            &:hover {
+                color: #475569;
+            }
+        }
+
         span {
             display: block;
             margin-top: 4px;
