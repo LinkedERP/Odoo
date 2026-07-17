@@ -32,6 +32,10 @@ AI_DASHBOARD_LEGACY = "AI Generated Leads Performance"
 AI_QUALIFIED_OUTCOMES = ["Meeting Set", "Send more Info", "Call Later", "Future Interest"]
 AI_ALL_OUTCOMES = AI_QUALIFIED_OUTCOMES + [
     "Contact Not a Fit", "Company Not a fit", "Unable to make Contact"]
+# Positive outcomes still in play but NOT yet a meeting (funnel stage r2:
+# keeps the funnel free of the Meetings double-count Akshay spotted).
+AI_FOLLOWUP_OUTCOMES = [o for o in AI_QUALIFIED_OUTCOMES if o != "Meeting Set"]
+AI_REP_TREND_WEEKS = 6
 
 DEFAULT_BUCKET_BY_NAME = {
     "Sales & CRM Dashboard": "sales",
@@ -840,9 +844,13 @@ class LinkederpDashboard(models.Model):
             (_("Over 30 days"), [("create_date", "<", day_floor(30))]),
             (_("16–30 days"), [("create_date", ">=", day_floor(30)),
                                ("create_date", "<", day_floor(15))]),
-            (_("8–15 days"), [("create_date", ">=", day_floor(15)),
-                              ("create_date", "<", day_floor(7))]),
-            (_("0–7 days"), [("create_date", ">=", day_floor(7))]),
+            (_("11–15 days"), [("create_date", ">=", day_floor(15)),
+                               ("create_date", "<", day_floor(10))]),
+            (_("6–10 days"), [("create_date", ">=", day_floor(10)),
+                              ("create_date", "<", day_floor(5))]),
+            (_("3–5 days"), [("create_date", ">=", day_floor(5)),
+                             ("create_date", "<", day_floor(2))]),
+            (_("0–2 days"), [("create_date", ">=", day_floor(2))]),
         ]
         rows = []
         seen = set()
@@ -851,6 +859,92 @@ class LinkederpDashboard(models.Model):
             rows.append(self._ai_modal_row(label, self._ai_count(domain), total, domain, seen))
         rows.append(self._ai_modal_row(_("Total backlog"), total, total, not_called_domain, seen))
         return rows
+
+    def _ai_rep_week_matrices(self, filters=False):
+        """(contact_rows, meeting_rows, columns_contact, columns_meetings).
+
+        Weekly COHORTS per rep: each week column = AI leads CREATED that
+        ISO week; contact cell = "worked so far / assigned" (text), meetings
+        cell = meetings from that cohort. Own 6-week horizon — deliberately
+        independent of the dashboard date filter (campaign/rep/team/stage
+        filters still apply)."""
+        filters = dict(filters or {})
+        base = self._ai_base_domain(filters=filters)
+        today = fields.Date.context_today(self)
+        monday = today - timedelta(days=today.weekday())
+        weeks = [monday - timedelta(days=7 * i) for i in range(AI_REP_TREND_WEEKS - 1, -1, -1)]
+        horizon = expression.AND(
+            [base, [("create_date", ">=", "%s 00:00:00" % fields.Date.to_string(weeks[0]))]]
+        )
+
+        def week_slice(domain, week_start):
+            week_end = week_start + timedelta(days=6)
+            return expression.AND([domain, [
+                ("create_date", ">=", "%s 00:00:00" % fields.Date.to_string(week_start)),
+                ("create_date", "<=", "%s 23:59:59" % fields.Date.to_string(week_end)),
+            ]])
+
+        meeting_extra = ["|", ("x_studio_call_outcome", "=", "Meeting Set"),
+                         ("x_studio_meeting_date", "!=", False)]
+
+        def build_rows(label, domain):
+            assigned_total = self._ai_count(domain)
+            contact = {
+                "label": label, "model": "crm.lead",
+                "domain": self._json_safe(domain),
+                "assigned": assigned_total, "tones": {},
+            }
+            meet = {
+                "label": label, "model": "crm.lead",
+                "domain": self._json_safe(expression.AND([domain, meeting_extra])),
+                "meetings": 0, "tones": {},
+            }
+            for index, week_start in enumerate(weeks):
+                key = "w%d" % index
+                sliced = week_slice(domain, week_start)
+                assigned = self._ai_count(sliced)
+                if assigned:
+                    worked = self._ai_count(
+                        expression.AND([sliced, [("x_studio_call_outcome", "!=", False)]])
+                    )
+                    contact[key] = "%d/%d" % (worked, assigned)
+                    share = worked / assigned
+                    contact["tones"][key] = (
+                        "good" if share >= 0.8 else "warn" if share >= 0.4 else "bad")
+                else:
+                    contact[key] = "—"
+                meetings = self._ai_count(expression.AND([sliced, meeting_extra]))
+                meet[key] = meetings
+                meet["meetings"] += meetings
+                if meetings:
+                    meet["tones"][key] = "good"
+            return contact, meet
+
+        contact_rows, meeting_rows = [], []
+        groups = self._ai_group_points(horizon, "user_id", limit=10)
+        for group in groups:
+            contact, meet = build_rows(group["label"], group["domain"])
+            contact_rows.append(contact)
+            meeting_rows.append(meet)
+        contact_rows.sort(key=lambda row: row["assigned"], reverse=True)
+        meeting_rows.sort(key=lambda row: row["meetings"], reverse=True)
+        total_contact, total_meet = build_rows(_("All reps"), horizon)
+        contact_rows.append(total_contact)
+        meeting_rows.append(total_meet)
+
+        week_cols = [
+            {"key": "w%d" % index, "label": _("Wk %s") % ("%02d" % ws.isocalendar()[1])}
+            for index, ws in enumerate(weeks)
+        ]
+        columns_contact = (
+            [{"key": "assigned", "label": _("New (6 wks)"), "format": "integer"}]
+            + [dict(col, format="text") for col in week_cols]
+        )
+        columns_meetings = (
+            [{"key": "meetings", "label": _("Meetings (6 wks)"), "format": "integer"}]
+            + [dict(col, format="integer") for col in week_cols]
+        )
+        return contact_rows, meeting_rows, columns_contact, columns_meetings
 
     def _ai_generated_lead_widgets(self, date_from=False, date_to=False, filters=False):
         base_domain = self._ai_base_domain(date_from=date_from, date_to=date_to, filters=filters)
@@ -908,6 +1002,20 @@ class LinkederpDashboard(models.Model):
         )
         qualified = self._ai_count(qualified_domain)
 
+        # Funnel stage r2 (2026-07-14): positive outcomes NOT yet at meeting
+        # stage — disjoint from the Meetings stage by construction, so the
+        # same lead can never show in both bars (Akshay's double-count spot).
+        follow_up_domain = self._ai_base_domain(
+            date_from=date_from,
+            date_to=date_to,
+            filters=filters,
+            extra_domain=[
+                ("x_studio_call_outcome", "in", AI_FOLLOWUP_OUTCOMES),
+                ("x_studio_meeting_date", "=", False),
+            ],
+        )
+        follow_up = self._ai_count(follow_up_domain)
+
         # Actionable calling backlog: OPEN leads never worked. Deliberately
         # narrower than not_called_domain (which also carries archived
         # never-called leads and stays the Avg Backlog Age population).
@@ -957,6 +1065,17 @@ class LinkederpDashboard(models.Model):
             self._ai_outcome_breakdown_rows(worked_domain, AI_ALL_OUTCOMES, worked, include_other=True),
             _("% of worked"),
             _("Every worked AI lead by its recorded call outcome."),
+        )
+        follow_up_modal = self._ai_modal(
+            _("Follow-up in Progress — by call outcome"),
+            "#7c3aed",
+            _("Call Outcome"),
+            self._ai_outcome_breakdown_rows(follow_up_domain, AI_FOLLOWUP_OUTCOMES, follow_up),
+            _("% of follow-ups"),
+            _("Positive outcomes still being chased — no meeting yet."),
+        )
+        rep_contact_rows, rep_meeting_rows, rep_contact_cols, rep_meeting_cols = (
+            self._ai_rep_week_matrices(filters=filters)
         )
 
         return [
@@ -1100,8 +1219,8 @@ class LinkederpDashboard(models.Model):
                     "Definition: average age (days since creation) of AI "
                     "leads with no call outcome yet. "
                     "Calculation: mean of (today − created date) across that "
-                    "backlog. Click for the ageing buckets (0–7, 8–15, "
-                    "16–30, over 30 days)."
+                    "backlog. Click for the ageing buckets (0–2, 3–5, 6–10, "
+                    "11–15, 16–30, over 30 days)."
                 ),
                 modal_table=backlog_modal,
             ),
@@ -1119,11 +1238,11 @@ class LinkederpDashboard(models.Model):
                         self._ai_point(_("Worked"), worked, worked_domain),
                         modal_table=worked_modal,
                     ),
-                    self._ai_point(_("Meetings"), meetings, meeting_domain),
                     dict(
-                        self._ai_point(_("Qualified Follow-up"), qualified, qualified_domain),
-                        modal_table=quality_modal,
+                        self._ai_point(_("Follow-up in Progress"), follow_up, follow_up_domain),
+                        modal_table=follow_up_modal,
                     ),
+                    self._ai_point(_("Meetings"), meetings, meeting_domain),
                     dict(
                         self._ai_point(_("Lost / Archived"), lost, lost_domain),
                         modal_table=lost_modal,
@@ -1135,10 +1254,59 @@ class LinkederpDashboard(models.Model):
                 info=_(
                     "Definition: how AI leads move through the pipeline. "
                     "Generated = all AI leads; Worked = call outcome marked; "
-                    "Meetings = meeting set or meeting date; Qualified "
-                    "Follow-up = positive outcomes; Lost / Archived = "
-                    "leakage. Click Worked or Qualified for the call-outcome "
-                    "breakdown, Lost for the lost-reason breakdown."
+                    "Follow-up in Progress = positive outcomes still being "
+                    "chased (Call Later, Send more Info, Future Interest) "
+                    "with NO meeting yet; Meetings = meeting set or meeting "
+                    "date; Lost / Archived = leakage. A lead appears in only "
+                    "ONE of Follow-up and Meetings — never both. Click "
+                    "Worked or Follow-up for the call-outcome breakdown, "
+                    "Lost for the lost-reason breakdown."
+                ),
+            ),
+            self._ai_widget(
+                "ai_rep_contacting",
+                _("Contacting New Leads — by Rep & Week"),
+                "matrix",
+                generated,
+                base_domain,
+                "#0891b2",
+                _("Records"),
+                rows=rep_contact_rows,
+                columns=rep_contact_cols,
+                groupby=_("Salesperson"),
+                span=6,
+                info=_(
+                    "Definition: is each rep working the fresh leads they "
+                    "receive? Each week column = AI leads CREATED that ISO "
+                    "week and owned by the rep; the cell shows worked-so-far "
+                    "/ assigned — e.g. 4/6 means 6 new leads landed that "
+                    "week and 4 have a call outcome by today. Green from "
+                    "80% coverage, amber from 40%, red below. Fixed 6-week "
+                    "window (the date filter above does not move it); "
+                    "campaign/rep/team filters still apply. Click a row for "
+                    "that rep's leads."
+                ),
+            ),
+            self._ai_widget(
+                "ai_rep_meetings",
+                _("Meetings Set — by Rep & Week"),
+                "matrix",
+                meetings,
+                meeting_domain,
+                "#059669",
+                _("Records"),
+                rows=rep_meeting_rows,
+                columns=rep_meeting_cols,
+                groupby=_("Salesperson"),
+                span=6,
+                info=_(
+                    "Definition: meetings each rep produced from each "
+                    "week's fresh leads. Each week column = AI leads "
+                    "CREATED that ISO week; the cell counts those that "
+                    "reached 'Meeting Set' or have a meeting date — credited "
+                    "to the lead's week, whenever the meeting was agreed. "
+                    "Fixed 6-week window; campaign/rep/team filters apply. "
+                    "Click a row for that rep's meeting leads."
                 ),
             ),
             self._ai_widget(
