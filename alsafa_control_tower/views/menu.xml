@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_control_tower" model="ir.actions.act_url">
+        <field name="name">Al Safa Control Tower</field>
+        <field name="url">/alsafa/control-tower</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_control_tower_root"
+              name="Control Tower"
+              action="action_control_tower"
+              sequence="5"/>
+</odoo>

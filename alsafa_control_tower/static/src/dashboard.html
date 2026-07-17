@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body>
+<title>Al Safa · Daily Control Tower</title>
+<style>
+  :root {
+    --bg: #eef2f1; --surface: #ffffff; --surface-2: #f6f9f8; --line: #dde5e3;
+    --ink: #13242b; --muted: #5c6f76; --faint: #8a9aa0;
+    --accent: #0c6e72; --accent-soft: #0c6e7215; --accent-line: #0c6e7240;
+    --good: #17845a; --good-soft: #17845a18; --warn: #b5760a; --warn-soft: #b5760a1a;
+    --crit: #bd3f38; --crit-soft: #bd3f381a;
+    --shadow: 0 1px 2px #13242b0a, 0 8px 24px #13242b08;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c1517; --surface: #122023; --surface-2: #0f1b1e; --line: #22383c;
+      --ink: #e9f1ef; --muted: #94a8ad; --faint: #6b8085;
+      --accent: #3ab9b0; --accent-soft: #3ab9b018; --accent-line: #3ab9b038;
+      --good: #35b483; --good-soft: #35b48316; --warn: #d9971f; --warn-soft: #d9971f18;
+      --crit: #e0605a; --crit-soft: #e0605a18;
+      --shadow: 0 1px 2px #0006, 0 10px 30px #0004;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #eef2f1; --surface: #ffffff; --surface-2: #f6f9f8; --line: #dde5e3;
+    --ink: #13242b; --muted: #5c6f76; --faint: #8a9aa0;
+    --accent: #0c6e72; --accent-soft: #0c6e7215; --accent-line: #0c6e7240;
+    --good: #17845a; --good-soft: #17845a18; --warn: #b5760a; --warn-soft: #b5760a1a;
+    --crit: #bd3f38; --crit-soft: #bd3f381a; --shadow: 0 1px 2px #13242b0a, 0 8px 24px #13242b08;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0c1517; --surface: #122023; --surface-2: #0f1b1e; --line: #22383c;
+    --ink: #e9f1ef; --muted: #94a8ad; --faint: #6b8085;
+    --accent: #3ab9b0; --accent-soft: #3ab9b018; --accent-line: #3ab9b038;
+    --good: #35b483; --good-soft: #35b48316; --warn: #d9971f; --warn-soft: #d9971f18;
+    --crit: #e0605a; --crit-soft: #e0605a18; --shadow: 0 1px 2px #0006, 0 10px 30px #0004;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans);
+    line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: clamp(20px, 4vw, 48px) clamp(16px, 3vw, 32px) 64px; }
+  .tnum { font-variant-numeric: tabular-nums; }
+
+  /* Masthead */
+  .mast { border-bottom: 2px solid var(--ink); padding-bottom: 20px; margin-bottom: 28px; }
+  .eyebrow { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--accent);
+    font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--good);
+    box-shadow: 0 0 0 0 var(--good); animation: pulse 2.4s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 #17845a55; } 70% { box-shadow: 0 0 0 7px #17845a00; } 100% { box-shadow: 0 0 0 0 #17845a00; } }
+  @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+  h1.title { font-family: var(--serif); font-weight: 600; font-size: clamp(30px, 5.2vw, 50px);
+    line-height: 1.02; margin: 12px 0 8px; letter-spacing: -.01em; text-wrap: balance; }
+  h1.title span { color: var(--accent); font-style: italic; }
+  .sub { color: var(--muted); font-size: 15px; max-width: 60ch; }
+  .sub b { color: var(--ink); font-weight: 600; }
+
+  section { margin-top: 30px; }
+  .sec-label { font-size: 12px; letter-spacing: .13em; text-transform: uppercase; color: var(--faint);
+    font-weight: 700; margin: 0 0 14px; display: flex; align-items: baseline; gap: 10px; }
+  .sec-label::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+  /* Hero KPI band */
+  .hero { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px 22px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+  .kpi::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--accent); }
+  .kpi.k-good::before { background: var(--good); } .kpi.k-crit::before { background: var(--crit); }
+  .kpi .lab { font-size: 12.5px; color: var(--muted); font-weight: 600; letter-spacing: .01em; }
+  .kpi .val { font-family: var(--serif); font-weight: 600; font-size: clamp(26px, 3.6vw, 38px);
+    margin: 6px 0 2px; letter-spacing: -.015em; }
+  .kpi .note { font-size: 12.5px; color: var(--faint); }
+  .kpi .note b { color: var(--ink); }
+
+  .meter-card { margin-top: 16px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; padding: 18px 22px; box-shadow: var(--shadow); }
+  .meter-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .meter-top .t { font-size: 13.5px; color: var(--muted); }
+  .meter-top .t b { color: var(--ink); }
+  .meter-pct { font-family: var(--serif); font-size: 22px; font-weight: 600; }
+  .track { height: 12px; border-radius: 7px; background: var(--crit-soft); margin-top: 12px; overflow: hidden;
+    display: flex; }
+  .track .fill { background: linear-gradient(90deg, var(--good), var(--accent)); height: 100%; }
+  .quote { margin-top: 14px; font-size: 13.5px; color: var(--muted); border-left: 3px solid var(--accent-line);
+    padding-left: 12px; font-style: italic; }
+  .quote b { color: var(--ink); font-style: normal; }
+
+  /* Cards grid */
+  .grid { display: grid; gap: 16px; }
+  .cols-2 { grid-template-columns: 1.35fr 1fr; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px 22px; box-shadow: var(--shadow); }
+  .card h3 { margin: 0 0 4px; font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+  .card .cap { font-size: 12.5px; color: var(--muted); margin: 0 0 16px; }
+
+  /* Margin bar chart */
+  .bars { display: flex; flex-direction: column; gap: 7px; }
+  .bar-row { display: grid; grid-template-columns: 132px 1fr 52px; align-items: center; gap: 10px; font-size: 12.5px; }
+  .bar-row .nm { color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { height: 16px; background: var(--surface-2); border-radius: 5px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 5px; }
+  .bar-row .pc { text-align: right; font-weight: 700; color: var(--ink); }
+  .zone { font-size: 11.5px; color: var(--faint); margin: 10px 0 2px; letter-spacing: .04em; text-transform: uppercase; font-weight: 700; }
+
+  /* model tiles */
+  .models { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .mtile { background: var(--surface-2); border: 1px solid var(--line); border-radius: 11px; padding: 14px 15px; }
+  .mtile .mh { font-size: 12px; color: var(--muted); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .mtile .mv { font-family: var(--serif); font-size: 21px; font-weight: 600; margin-top: 5px; }
+  .mtile .mm { font-size: 11.5px; color: var(--faint); }
+  .tag { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+  /* expiry list */
+  .exp { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; }
+  .exp-row { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
+    padding: 9px 11px; background: var(--surface-2); border-radius: 9px; font-size: 13px; }
+  .exp-row .p { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .exp-row .q { color: var(--muted); font-size: 12px; }
+  .chip { font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 20px; letter-spacing: .02em; white-space: nowrap; }
+  .chip.c { background: var(--crit-soft); color: var(--crit); }
+  .chip.w { background: var(--warn-soft); color: var(--warn); }
+
+  /* ops strip */
+  .ops { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+  .op { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 15px 14px; box-shadow: var(--shadow); }
+  .op .ov { font-family: var(--serif); font-size: 25px; font-weight: 600; letter-spacing: -.02em; }
+  .op .ol { font-size: 11.5px; color: var(--muted); margin-top: 3px; line-height: 1.3; }
+
+  /* replaces footer */
+  .replace { margin-top: 30px; background: var(--ink); color: var(--bg); border-radius: 16px; padding: 26px clamp(20px,3vw,32px); }
+  :root[data-theme="dark"] .replace, .replace { color: #eef2f1; }
+  @media (prefers-color-scheme: dark) { .replace { background: #0a1214; border: 1px solid var(--line); } }
+  :root[data-theme="dark"] .replace { background: #0a1214; border: 1px solid var(--line); }
+  :root[data-theme="light"] .replace { background: #13242b; border: none; }
+  .replace .rl { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: #7fd8d0; font-weight: 700; }
+  .replace h2 { font-family: var(--serif); font-weight: 600; font-size: clamp(20px, 3vw, 27px); margin: 8px 0 18px; color: #fff; text-wrap: balance; }
+  .flow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
+  .old { background: #ffffff12; border: 1px solid #ffffff20; border-radius: 9px; padding: 9px 14px; font-size: 13px; }
+  .old s { color: #ff9d97; text-decoration-thickness: 2px; }
+  .arrow { color: #7fd8d0; font-size: 18px; }
+  .new { background: #3ab9b0; color: #04201f; border-radius: 9px; padding: 9px 16px; font-size: 13.5px; font-weight: 700; }
+  .reqs { display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap: 10px 20px; }
+  .req { display: flex; gap: 9px; align-items: flex-start; font-size: 13.5px; color: #d7e4e2; }
+  .req .ck { color: #3ab9b0; font-weight: 800; flex-shrink: 0; }
+  .req b { color: #fff; font-weight: 600; }
+
+  .foot { margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 12px;
+    color: var(--faint); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; } .cols-2 { grid-template-columns: 1fr; }
+    .ops { grid-template-columns: repeat(3, 1fr); } .bar-row { grid-template-columns: 108px 1fr 46px; }
+  }
+  @media (max-width: 520px) { .models { grid-template-columns: 1fr; } .ops { grid-template-columns: repeat(2, 1fr); } }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="eyebrow"><span class="live-dot"></span> Live from Odoo 19 Enterprise · linked-staging2.odoo.com</div>
+    <h1 class="title">Al Safa <span>Daily Control Tower</span></h1>
+    <p class="sub">The single-screen, real-time view Rahman asked for — <b>one system replacing Dairysoft, Tally, and the separate attendance app.</b> Every figure below is read live from the configured Odoo instance · 16 July 2026.</p>
+  </header>
+
+  <!-- HERO -->
+  <section>
+    <div class="sec-label">Today · Money Dispatched vs Collected</div>
+    <div class="hero">
+      <div class="kpi">
+        <div class="lab">Dispatched today</div>
+        <div class="val tnum">₹1,61,415</div>
+        <div class="note"><b>20</b> invoices · incl. <b>₹6,732</b> GST</div>
+      </div>
+      <div class="kpi k-good">
+        <div class="lab">Collected today</div>
+        <div class="val tnum">₹1,13,261</div>
+        <div class="note">Cash + digital receipts posted</div>
+      </div>
+      <div class="kpi k-crit">
+        <div class="lab">Outstanding for today</div>
+        <div class="val tnum">₹48,155</div>
+        <div class="note"><b>5</b> outlets on credit — named &amp; tracked</div>
+      </div>
+    </div>
+    <div class="meter-card">
+      <div class="meter-top">
+        <div class="t">Collection rate — <b>₹1,13,261</b> in of <b>₹1,61,415</b> out</div>
+        <div class="meter-pct tnum" style="color:var(--good)">70%</div>
+      </div>
+      <div class="track"><div class="fill" style="width:70%"></div></div>
+      <div class="quote">“₹2 lakh material dispatched, we received ₹1.9 lakh, ₹10,000 is deficit for today.” <b>— exactly the report, now generated automatically instead of by hand.</b></div>
+    </div>
+  </section>
+
+  <!-- MARGIN INSIGHT + MODELS -->
+  <section>
+    <div class="sec-label">The insight behind “no profit, no loss”</div>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Margin by SKU — rolled up from actual recipes (BoM)</h3>
+        <p class="cap">Your volume milk runs thin; value-added lines are where the money is. Odoo computes this from each product's bill of materials — impossible in Dairysoft today.</p>
+        <div class="zone" style="color:var(--good)">◆ High margin — push the mix</div>
+        <div class="bars" id="barsHigh"></div>
+        <div class="zone" style="color:var(--crit); margin-top:14px">◆ Thin margin — your daily volume drivers</div>
+        <div class="bars" id="barsLow"></div>
+      </div>
+      <div class="card">
+        <h3>One day, three delivery models — plus vans</h3>
+        <p class="cap">Every channel Rahman described, running in a single Sales pipeline.</p>
+        <div class="models">
+          <div class="mtile">
+            <div class="mh"><span class="tag" style="background:var(--accent)"></span>Subscription</div>
+            <div class="mv tnum">7 active</div>
+            <div class="mm">Daily home delivery · ₹702/mo recurring</div>
+          </div>
+          <div class="mtile">
+            <div class="mh"><span class="tag" style="background:var(--good)"></span>Advance / Indent</div>
+            <div class="mv tnum">15 orders</div>
+            <div class="mm">Order today, deliver tomorrow · ₹2.11L</div>
+          </div>
+          <div class="mtile">
+            <div class="mh"><span class="tag" style="background:var(--warn)"></span>Quick Commerce</div>
+            <div class="mv tnum">10 orders</div>
+            <div class="mm">Swiggy/Zepto-style · prepaid ₹2,923</div>
+          </div>
+          <div class="mtile">
+            <div class="mh"><span class="tag" style="background:var(--crit)"></span>Van Sales</div>
+            <div class="mv tnum">4 routes</div>
+            <div class="mm">Load-out, sell, return unsold · ₹73,232</div>
+          </div>
+        </div>
+        <p class="cap" style="margin:16px 0 0">B2C ≈ 80% · B2B ≈ 20%, matching Al Safa's real split. Each order geo-tagged to the delivery address.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- EXPIRY + OPS -->
+  <section>
+    <div class="sec-label">Perishables · FEFO &amp; expiry control</div>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Batches nearing expiry — auto-flagged</h3>
+        <p class="cap">FEFO removal is on: Odoo ships the soonest-expiring batch first, and flags what's about to turn. Near-expiry milk → convert to paneer / khoya, just like Rahman does today — but now the system prompts it.</p>
+        <div class="exp" id="expList"></div>
+      </div>
+      <div class="card">
+        <h3>Operations at a glance</h3>
+        <p class="cap">The full backbone, configured and populated.</p>
+        <div class="ops" style="grid-template-columns:repeat(2,1fr)">
+          <div class="op"><div class="ov tnum">₹14.8L</div><div class="ol">On-hand stock value</div></div>
+          <div class="op"><div class="ov tnum">₹1.45L</div><div class="ol">Payables to farmers &amp; vendors</div></div>
+          <div class="op"><div class="ov tnum">27</div><div class="ol">Finished-good SKUs · 15 BoMs</div></div>
+          <div class="op"><div class="ov tnum">4</div><div class="ol">Production orders completed</div></div>
+          <div class="op"><div class="ov tnum">47</div><div class="ol">Outlets, farmers, vendors, homes</div></div>
+          <div class="op"><div class="ov tnum">75</div><div class="ol">Geo-tagged attendance records</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- REPLACES -->
+  <section class="replace">
+    <div class="rl">Why switch</div>
+    <h2>Three disconnected tools become one connected system.</h2>
+    <div class="flow">
+      <div class="old"><s>Dairysoft</s> — operations</div>
+      <div class="old"><s>Tally</s> — finance</div>
+      <div class="old"><s>Separate app</s> — attendance</div>
+      <div class="arrow">→</div>
+      <div class="new">Odoo — everything, in real time</div>
+    </div>
+    <div class="reqs">
+      <div class="req"><span class="ck">✓</span><span><b>Attendance without staff logins</b> — kiosk with PIN + badge, GPS on every check-in</span></div>
+      <div class="req"><span class="ck">✓</span><span><b>Geo-tagged orders</b> — every delivery pinned to its location on a map</span></div>
+      <div class="req"><span class="ck">✓</span><span><b>Subscription management</b> — daily home delivery, billed weekly/monthly</span></div>
+      <div class="req"><span class="ck">✓</span><span><b>Daily reports, automatic</b> — dispatched vs collected, receivables, GST</span></div>
+      <div class="req"><span class="ck">✓</span><span><b>Shelf-life &amp; FEFO</b> — expiry alerts and first-expiry-first-out picking</span></div>
+      <div class="req"><span class="ck">✓</span><span><b>GST built in</b> — CGST/SGST invoices &amp; returns, no double entry into Tally</span></div>
+    </div>
+  </section>
+
+  <div class="foot">
+    <span>Al Safa Dairy Products · configured on Odoo 19 Enterprise by LinkedERP</span>
+    <span>Snapshot 16 Jul 2026 · figures read live from linked-staging2.odoo.com</span>
+  </div>
+</div>
+
+<script>
+  const high = [
+    ["Vanilla Ice Cream 1L", 78.5], ["Doodh Peda 250g", 59.4], ["Rose Milk 200ml", 57.8],
+    ["Khoya 250g", 56.5], ["Kesar Milk 200ml", 52.9], ["Badam Milk 200ml", 49.3],
+  ];
+  const low = [
+    ["Curd 400g Cup", 45.8], ["Full Cream Milk 500ml", 41.1], ["Cow Ghee 500ml", 37.0],
+    ["Standardised Milk 500ml", 35.9], ["Cow Milk 1L", 34.5], ["Toned Milk 500ml", 27.3],
+    ["Double Toned Milk 500ml", 19.3],
+  ];
+  const color = (p) => p >= 50 ? "var(--good)" : p >= 30 ? "var(--accent)" : "var(--crit)";
+  function renderBars(id, rows) {
+    document.getElementById(id).innerHTML = rows.map(([n, p]) => `
+      <div class="bar-row">
+        <span class="nm">${n}</span>
+        <span class="bar-track"><span class="bar-fill" style="width:${p}%;background:${color(p)}"></span></span>
+        <span class="pc tnum">${p}%</span>
+      </div>`).join("");
+  }
+  renderBars("barsHigh", high);
+  renderBars("barsLow", low);
+
+  const exp = [
+    ["Curd 400g Cup", 375, "Tomorrow", "c"], ["Full Cream Milk 500ml", 625, "Tomorrow", "c"],
+    ["Toned Milk 500ml", 1000, "Tomorrow", "c"], ["Cow Milk 1L", 375, "Tomorrow", "c"],
+    ["Buttermilk 200ml", 300, "Tomorrow", "c"], ["Paneer 200g", 125, "Tomorrow", "c"],
+    ["Standardised Milk 500ml", 2550, "In 2 days", "w"], ["Double Toned Milk 500ml", 2000, "In 2 days", "w"],
+    ["Full Cream Milk 500ml", 1212, "In 2 days", "w"], ["Cow Milk 1L", 853, "In 2 days", "w"],
+  ];
+  document.getElementById("expList").innerHTML = exp.map(([p, q, d, c]) => `
+    <div class="exp-row">
+      <span class="p">${p}</span>
+      <span class="q tnum">${q.toLocaleString('en-IN')} units</span>
+      <span class="chip ${c}">${d}</span>
+    </div>`).join("");
+</script>
+</body></html>
