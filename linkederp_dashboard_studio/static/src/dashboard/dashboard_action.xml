@@ -971,7 +971,10 @@
                                 <small t-if="row.sub" class="o_lds_row_sub" t-esc="row.sub"/>
                             </td>
                             <t t-foreach="widget.columns" t-as="column" t-key="column.key">
-                                <td t-att-class="matrixCellAlign(column) + matrixCellTone(row, column)" t-esc="matrixCellValue(row, column)"/>
+                                <td
+                                    t-att-class="matrixCellAlign(column) + matrixCellTone(row, column) + (row.cell_modals and row.cell_modals[column.key] ? ' o_lds_cell_pop' : '')"
+                                    t-on-click="(ev) => onMatrixCellClick(ev, widget, row, column)"
+                                    t-esc="matrixCellValue(row, column)"/>
                             </t>
                         </tr>
                     </t>

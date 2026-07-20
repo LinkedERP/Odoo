@@ -730,6 +730,13 @@
             min-width: 860px;
         }
 
+        // Cells that open their own popup (margin-trend graphs).
+        .o_lds_cell_pop {
+            cursor: pointer;
+            text-decoration: underline dotted;
+            text-underline-offset: 2px;
+        }
+
         thead th {
             position: sticky;
             top: 0;
