@@ -106,6 +106,7 @@ export class LinkedERPDashboardAction extends Component {
             "onLadderClick",
             "onBarClick",
             "onMatrixRowClick",
+            "onMatrixCellClick",
             "onColumns2Click",
             "onComboClick",
             "columns2Style",
@@ -458,6 +459,16 @@ export class LinkedERPDashboardAction extends Component {
             return;
         }
         this.openRecords(row.model || widget.model, row.domain);
+    }
+
+    onMatrixCellClick(ev, widget, row, column) {
+        // A cell with its OWN popup (e.g. the margin-trend graph) opens it and
+        // stops here; every other cell falls through to the row click.
+        const modal = row.cell_modals && row.cell_modals[column.key];
+        if (modal) {
+            ev.stopPropagation();
+            this.state.modal = modal;
+        }
     }
 
     async onSlaExportPdf() {

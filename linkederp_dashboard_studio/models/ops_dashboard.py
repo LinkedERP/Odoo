@@ -53,6 +53,9 @@ TREND_WEEKS = 8
 # Trend bars turn red below this billability/planning %.
 TREND_TARGET = 75.0
 
+# Project-margin WoW trend: weeks shown in the profitability popup.
+PROF_TREND_WEEKS = 6
+
 
 class LinkederpDashboardOps(models.Model):
     _inherit = "linkederp.dashboard"
@@ -968,6 +971,114 @@ class LinkederpDashboardOps(models.Model):
             "prof_inv": prof_inv,
         }
 
+    def _ops_week_end_dates(self, count):
+        """The last `count` ISO-week Sundays, ending with this week's."""
+        today = fields.Date.context_today(self)
+        this_sunday = today + timedelta(days=6 - today.weekday())
+        return [this_sunday - timedelta(days=7 * i) for i in range(count - 1, -1, -1)]
+
+    def _ops_project_cost_lines(self, project, display_ccy):
+        """[(date, cost in display_ccy)] per SO-linked timesheet, for rebuilding
+        accumulated cost as of any past date. Mirrors _ops_project_cost's
+        amount-then-hourly-fallback, decided once per project."""
+        company = project.company_id
+        today = fields.Date.context_today(self)
+        lines = self.env["account.analytic.line"].search_read(
+            self._ops_cost_domain(project),
+            ["date", "amount", "currency_id", "unit_amount", "employee_id"])
+        total_amount = sum(abs(line["amount"] or 0.0) for line in lines)
+        use_fallback = total_amount < 0.01 and any(line["unit_amount"] for line in lines)
+        rate = {}
+
+        def to_ccy(cur_id):
+            if cur_id not in rate:
+                src = self.env["res.currency"].browse(cur_id) if cur_id else company.currency_id
+                rate[cur_id] = src._convert(1.0, display_ccy, company, today)
+            return rate[cur_id]
+
+        out = []
+        for line in lines:
+            day = fields.Date.to_date(line["date"])
+            if not day:
+                continue
+            if use_fallback:
+                emp = line["employee_id"]
+                hourly = self.env["hr.employee"].browse(emp[0]).hourly_cost if emp else 0.0
+                amount = (line["unit_amount"] or 0.0) * hourly
+                cost = abs(company.currency_id._convert(amount, display_ccy, company, today))
+            else:
+                cur_id = line["currency_id"][0] if line["currency_id"] else False
+                cost = abs((line["amount"] or 0.0) * to_ccy(cur_id))
+            out.append((day, cost))
+        return out
+
+    def _ops_invoiced_as_of(self, order, display_ccy, company, as_of):
+        """Untaxed posted invoicing up to `as_of` (refunds netted). Historical
+        so the sent/paid gate is dropped — invoice_date + posted is the best
+        as-of proxy; cost accumulation is the dominant margin driver anyway."""
+        total = 0.0
+        for move in order.invoice_ids:
+            if move.state != "posted":
+                continue
+            inv_date = move.invoice_date or move.date
+            if not inv_date or inv_date > as_of:
+                continue
+            sign = 1 if move.move_type == "out_invoice" else (-1 if move.move_type == "out_refund" else 0)
+            if sign:
+                total += sign * move.currency_id._convert(
+                    move.amount_untaxed, display_ccy, company, as_of)
+        return total
+
+    def _ops_project_prof_trend(self, project, display_ccy, order, so_amount,
+                                cur_prof_so, cur_prof_inv):
+        """Per-week (label, %margin) series for both margins; the last point is
+        today's actual value, earlier points reconstructed from dated cost +
+        invoicing. so_amount held at current (SOs are stable once signed)."""
+        week_ends = self._ops_week_end_dates(PROF_TREND_WEEKS)
+        cost_lines = self._ops_project_cost_lines(project, display_ccy)
+        company = project.company_id
+        so_series, inv_series = [], []
+        for week_end in week_ends[:-1]:
+            cost = sum(cost for day, cost in cost_lines if day <= week_end)
+            prof_so = (so_amount - cost) / so_amount * 100 if so_amount else None
+            invoiced = self._ops_invoiced_as_of(order, display_ccy, company, week_end) if order else 0.0
+            prof_inv = (invoiced - cost) / invoiced * 100 if invoiced else None
+            label = _("Wk %s") % ("%02d" % week_end.isocalendar()[1])
+            so_series.append((label, prof_so))
+            inv_series.append((label, prof_inv))
+        current_label = _("Wk %s") % ("%02d" % week_ends[-1].isocalendar()[1])
+        so_series.append((current_label, cur_prof_so))
+        inv_series.append((current_label, cur_prof_inv))
+        return so_series, inv_series
+
+    def _ops_wow_text(self, series):
+        """' ▼2.3' / ' ▲1.1' / '' — this week's margin vs last week (points)."""
+        if len(series) < 2:
+            return ""
+        current, previous = series[-1][1], series[-2][1]
+        if current is None or previous is None:
+            return ""
+        delta = current - previous
+        if abs(delta) < 0.05:
+            return " ▬0"
+        return " %s%s" % ("▼" if delta < 0 else "▲", self._ops_short_hours(abs(delta)))
+
+    def _ops_prof_modal(self, name, project_id, series):
+        """Column-chart popup of a margin's weekly series (None weeks dropped)."""
+        points = [
+            {"label": label, "value": round(value, 1),
+             "domain": self._json_safe([("id", "=", project_id)])}
+            for label, value in series if value is not None
+        ]
+        return {
+            "name": name,
+            "help": _("Week-by-week margin %. Bars start at 0 — read the numbers."),
+            "color": "#1d4ed8",
+            "model": "project.project",
+            "format": "percent",
+            "points": points,
+        }
+
     def _ops_project_widget(self, sub_team):
         lead_uids = self._ops_lead_user_ids(sub_team)
         lead_names = sorted({emp.user_id.name for emp in self._ops_lead_employees(sub_team) if emp.user_id})
@@ -994,6 +1105,8 @@ class LinkederpDashboardOps(models.Model):
                 so_amount, invoiced = fin["so_amount"], fin["invoiced"]
                 cost, actual_hours = fin["cost"], fin["actual_hours"]
                 prof_so, prof_inv = fin["prof_so"], fin["prof_inv"]
+                so_series, inv_series = self._ops_project_prof_trend(
+                    project, display_ccy, order, so_amount, prof_so, prof_inv)
                 rows.append({
                     "label": project.name,
                     "domain": self._json_safe([("id", "=", project.id)]),
@@ -1005,11 +1118,22 @@ class LinkederpDashboardOps(models.Model):
                     "so_amount": self._ops_money(so_amount, display_ccy) if order else "—",
                     "invoiced": self._ops_money(invoiced, display_ccy) if order else "—",
                     "cost": self._ops_money(cost, display_ccy),
-                    "prof_so": self._ops_pct_text(prof_so),
-                    "prof_inv": self._ops_pct_text(prof_inv),
+                    "prof_so": self._ops_pct_text(prof_so) + self._ops_wow_text(so_series),
+                    "prof_inv": self._ops_pct_text(prof_inv) + self._ops_wow_text(inv_series),
                     "tones": {
                         "prof_so": self._ops_margin_tone(prof_so),
                         "prof_inv": self._ops_margin_tone(prof_inv),
+                    },
+                    # Per-cell popups: only the two margin cells open a trend
+                    # graph; every other cell falls through to the row's
+                    # openRecords (unchanged).
+                    "cell_modals": {
+                        "prof_so": self._ops_prof_modal(
+                            _("%(name)s · %% Prof (SO) trend") % {"name": project.name},
+                            project.id, so_series),
+                        "prof_inv": self._ops_prof_modal(
+                            _("%(name)s · %% Prof (Inv) trend") % {"name": project.name},
+                            project.id, inv_series),
                     },
                 })
         managed_by = ", ".join(lead_names) if lead_names else _("no team lead mapped")
@@ -1023,7 +1147,9 @@ class LinkederpDashboardOps(models.Model):
             "groupby": _("Project"),
             "color": "#1d4ed8",
             "help": _("Managed by %(who)s · amounts in each project's company currency · "
-                      "excludes Done / On Hold / Cancelled") % {"who": managed_by},
+                      "excludes Done / On Hold / Cancelled · margin cells show the "
+                      "week-over-week change (▼ down / ▲ up) — click a margin for its "
+                      "weekly trend") % {"who": managed_by},
             "value": float(len(rows)),
             "format": "integer",
             "domain": self._json_safe(domain),
