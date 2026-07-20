@@ -116,6 +116,7 @@ export class LinkedERPDashboardAction extends Component {
             "applyFilters",
             "resetFilters",
             "onCrmFilterChange",
+            "onDatePresetChange",
             "onWeekChange",
             "isWeekSelected",
             "onOpsTeamChange",
@@ -162,12 +163,10 @@ export class LinkedERPDashboardAction extends Component {
     }
 
     defaultFilters() {
-        const today = new Date();
-        const start = new Date(today);
-        start.setDate(today.getDate() - 29);
         return {
-            dateFrom: this.dateToInput(start),
-            dateTo: this.dateToInput(today),
+            datePreset: "all",
+            dateFrom: "",
+            dateTo: "",
             campaignId: "",
             userId: "",
             teamId: "",
@@ -708,6 +707,28 @@ export class LinkedERPDashboardAction extends Component {
         this.state.filters.userId = "";
         this.state.filters.teamId = "";
         this.state.filters.stageId = "";
+    }
+
+    async onDatePresetChange(ev) {
+        const preset = ev.target.value;
+        this.state.filters.datePreset = preset;
+        const today = new Date();
+        if (preset === "all") {
+            this.state.filters.dateFrom = "";
+            this.state.filters.dateTo = "";
+        } else if (preset === "lastweek" || preset === "lastmonth") {
+            const start = new Date(today);
+            start.setDate(today.getDate() - (preset === "lastweek" ? 6 : 29));
+            this.state.filters.dateFrom = this.dateToInput(start);
+            this.state.filters.dateTo = this.dateToInput(today);
+        } else if (preset === "custom" && !this.state.filters.dateFrom) {
+            // Seed the pickers so they're not blank; the user then adjusts.
+            const start = new Date(today);
+            start.setDate(today.getDate() - 29);
+            this.state.filters.dateFrom = this.dateToInput(start);
+            this.state.filters.dateTo = this.dateToInput(today);
+        }
+        await this.load(this.state.dashboard && this.state.dashboard.id);
     }
 
     async onCrmFilterChange(key, ev) {
