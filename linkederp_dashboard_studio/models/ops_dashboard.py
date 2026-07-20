@@ -1129,9 +1129,11 @@ class LinkederpDashboardOps(models.Model):
                     # openRecords (unchanged).
                     "cell_modals": {
                         "prof_so": self._ops_prof_modal(
-                            _("%s · % Prof (SO) trend") % project.name, project.id, so_series),
+                            _("%(name)s · %% Prof (SO) trend") % {"name": project.name},
+                            project.id, so_series),
                         "prof_inv": self._ops_prof_modal(
-                            _("%s · % Prof (Inv) trend") % project.name, project.id, inv_series),
+                            _("%(name)s · %% Prof (Inv) trend") % {"name": project.name},
+                            project.id, inv_series),
                     },
                 })
         managed_by = ", ".join(lead_names) if lead_names else _("no team lead mapped")
