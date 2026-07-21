@@ -235,7 +235,8 @@ class LinkederpDashboardTier(models.Model):
 
     def _tier_kpi(self, wid, name, value, measure, info, span=3,
                   value_text=False, modal=False, model="", domain=None,
-                  value_format="integer", scale=False, color=TIER_COLOR):
+                  value_format="integer", scale=False, color=TIER_COLOR,
+                  chips=False, coin=False):
         return {
             "id": wid, "name": name, "type": "kpi", "model": model,
             "mode": "computed", "measure": measure, "groupby": "",
@@ -245,6 +246,9 @@ class LinkederpDashboardTier(models.Model):
             "points": [], "rows": [], "columns": [], "span": span,
             "error": False, "modal_table": modal,
             "value_text": value_text, "scale": scale,
+            # Mockup-v3 extras (guarded in the template; other dashboards
+            # simply never set them): pass/fail pills + the tier metal coin.
+            "chips": chips or [], "coin": coin,
         }
 
     def _tier_month_label(self, month):
@@ -317,10 +321,14 @@ class LinkederpDashboardTier(models.Model):
                 "model": "crm.lead" if c.get("lead_id") else "",
                 "domain": self._json_safe([("id", "=", c["lead_id"])]) if c.get("lead_id") else [],
             } for c in expiring]
+            # tierline series (mockup): actual solid to now, committed faded
+            # from now, forecast dashed from now; None = not drawn.
             point = {
                 "label": self._tier_month_label(month),
-                "bar": committed,
-                "line": with_pipe,
+                "actual": committed if month <= this_month else None,
+                "committed": committed if month >= this_month else None,
+                "forecast": with_pipe if month >= this_month else None,
+                "now": month == this_month,
             }
             if modal_rows:
                 point["modal_table"] = self._tier_modal(
@@ -375,15 +383,17 @@ class LinkederpDashboardTier(models.Model):
         q_users_cohorts = [c for c in won if c["month"] >= _month_start(q_start)]
         q_users = sum(c["users"] for c in q_users_cohorts)
 
-        # ---- widgets ----
+        # ---- widgets (mockup v3 layout, purpose-built widget types) ----
         usd_short = self._fin_usd_short
         widgets = []
+        # Hoisted translations (learning #12: no _() inside comprehensions).
+        missing_text = _("— missing")
+        dash_text_placeholder = _("—")
+        gold_user_gap = GOLD_USERS - trailing_now
+        gold_cons_gap = GOLD_CONSULTANTS - len(consultants)
+        silver_pos = round(SILVER_USERS / GOLD_USERS * 100)
 
-        users_scale_style = (
-            "background: linear-gradient(90deg, #cf4257 0%, #cf4257 {s}%, "
-            "#94a3b8 {s}%, #94a3b8 {g}%, #cf9f3b {g}%, #cf9f3b 100%);"
-        ).format(s=round(SILVER_USERS / GOLD_USERS * 100),
-                 g=100)
+        # Row 1 -- criteria scorecard (mockup cards: chips + banded scale).
         users_modal_rows = [{
             "label": c["label"], "company": c["company"], "users": c["users"],
             "since": self._tier_month_label(c["month"]),
@@ -397,7 +407,7 @@ class LinkederpDashboardTier(models.Model):
             key=lambda c: -c["users"])]
         widgets.append(self._tier_kpi(
             "tier_users", _("① New Users · trailing 12m"), trailing_now,
-            _("Silver needs %(s)s · Gold needs %(g)s") % {"s": SILVER_USERS, "g": GOLD_USERS},
+            "",
             _("Definition: user licences from won Odoo deals (plus LinkedERP's "
               "own internal licences), each counting for 12 months from its "
               "close month, then rolling off — Ferry's method, now live from "
@@ -412,16 +422,26 @@ class LinkederpDashboardTier(models.Model):
                  {"key": "until", "label": _("Rolls off"), "format": "text"}],
                 users_modal_rows),
             scale={"pos": round(min(trailing_now / GOLD_USERS, 1.0) * 100, 1),
-                   "label": _("Silver %(s)s · Gold %(g)s · today %(n)s")
-                   % {"s": SILVER_USERS, "g": GOLD_USERS, "n": trailing_now},
-                   "style": users_scale_style},
+                   "label": "",
+                   "style": ("background: linear-gradient(90deg, #8f9bab 0%, "
+                             "#8f9bab {s}%, #d8b45c {s}%, #cf9f3b 100%);"
+                             ).format(s=silver_pos),
+                   "marks": [{"pos": silver_pos, "label": _("Silver %s") % SILVER_USERS},
+                             {"pos": 100, "label": _("Gold %s") % GOLD_USERS,
+                              "right": True}]},
+            chips=[
+                {"text": _("Silver ✓") if users_silver else _("Silver ✗"),
+                 "tone": "ok" if users_silver else "no"},
+                {"text": _("Gold ✓") if users_gold
+                 else _("Gold — %s short") % gold_user_gap,
+                 "tone": "ok" if users_gold else "no"},
+            ],
         ))
 
-        certified_text = _("Certified")
+        certified_label = _("Certified")
         widgets.append(self._tier_kpi(
             "tier_consultants", _("② Certified Consultants"), len(consultants),
-            _("Silver needs %(s)s · Gold needs %(g)s")
-            % {"s": SILVER_CONSULTANTS, "g": GOLD_CONSULTANTS},
+            " · ".join(n.split()[0] for n in consultants),
             _("Definition: Odoo-certified consultants under LinkedERP's "
               "partner account. Calculation: the maintained list (Settings → "
               "Technical → System Parameters → %s). Click for the names.")
@@ -431,11 +451,20 @@ class LinkederpDashboardTier(models.Model):
             modal=self._tier_modal(
                 _("Certified consultants"), _("Maintained list."), _("Consultant"),
                 [{"key": "status", "label": _("Status"), "format": "text"}],
-                [{"label": name, "status": certified_text} for name in consultants]),
+                [{"label": name, "status": certified_label}
+                 for name in consultants]),
+            chips=[
+                {"text": _("Silver ✓ (need %s)") % SILVER_CONSULTANTS if cons_silver
+                 else _("Silver ✗ (need %s)") % SILVER_CONSULTANTS,
+                 "tone": "ok" if cons_silver else "no"},
+                {"text": _("Gold ✓") if cons_gold
+                 else _("Gold — %s short") % gold_cons_gap,
+                 "tone": "ok" if cons_gold else "no"},
+            ],
         ))
 
         retention_text = ("%s%%" % retention_rate) if retention_rate is not None \
-            else _("not tracked yet")
+            else _("— not tracked yet")
         retention_rows = []
         if has_renewal_field:
             for outcome, count in (("renewed", renewed), ("churned", churned),
@@ -445,16 +474,16 @@ class LinkederpDashboardTier(models.Model):
                     "model": "sale.order",
                     "domain": self._json_safe([("odoo_renewal_outcome", "=", outcome)]),
                 })
+        ret_tone = "wa" if retention_rate is None else \
+            ("ok" if ret_silver else "no")
         widgets.append(self._tier_kpi(
-            "tier_retention", _("③ Customer Retention"),
-            retention_rate or 0,
-            _("Silver ≥ %(s)s%% · Gold ≥ %(g)s%%")
-            % {"s": int(SILVER_RETENTION), "g": int(GOLD_RETENTION)},
+            "tier_retention", _("③ Customer Retention"), retention_rate or 0,
+            _("mark Renewal Outcome on renewal Sale Orders"),
             _("Definition: of the customers whose Odoo contract came up for "
               "renewal, the share that renewed. Calculation: Renewed ÷ "
-              "(Renewed + Churned) using the new 'Odoo Renewal Outcome' "
-              "field on renewal Sale Orders; Pending is excluded. Click for "
-              "the renewal orders."),
+              "(Renewed + Churned) using the 'Odoo Renewal Outcome' field on "
+              "renewal Sale Orders; Pending is excluded. Click for the "
+              "renewal orders."),
             value_text=retention_text,
             value_format="percent",
             modal=self._tier_modal(
@@ -463,23 +492,25 @@ class LinkederpDashboardTier(models.Model):
                 _("Outcome"),
                 [{"key": "orders", "label": _("Orders"), "format": "integer"}],
                 retention_rows),
+            chips=[
+                {"text": _("Silver ≥ %s%%") % int(SILVER_RETENTION), "tone": ret_tone},
+                {"text": _("Gold ≥ %s%%") % int(GOLD_RETENTION),
+                 "tone": "wa" if retention_rate is None else ("ok" if ret_gold else "no")},
+            ],
         ))
 
         criteria_rows = [
-            {"label": _("① Users (trailing 12m)"),
-             "now": str(trailing_now),
+            {"label": _("① Users (trailing 12m)"), "now": str(trailing_now),
              "silver": _("PASS") if users_silver else _("FAIL"),
-             "gold": _("PASS") if users_gold else _("−%s") % (GOLD_USERS - trailing_now),
+             "gold": _("PASS") if users_gold else _("−%s") % gold_user_gap,
              "tones": {"silver": "good" if users_silver else "bad",
                        "gold": "good" if users_gold else "bad"}},
-            {"label": _("② Consultants"),
-             "now": str(len(consultants)),
+            {"label": _("② Consultants"), "now": str(len(consultants)),
              "silver": _("PASS") if cons_silver else _("FAIL"),
-             "gold": _("PASS") if cons_gold else _("−%s") % (GOLD_CONSULTANTS - len(consultants)),
+             "gold": _("PASS") if cons_gold else _("−%s") % gold_cons_gap,
              "tones": {"silver": "good" if cons_silver else "bad",
                        "gold": "good" if cons_gold else "bad"}},
-            {"label": _("③ Retention"),
-             "now": retention_text,
+            {"label": _("③ Retention"), "now": retention_text,
              "silver": _("PASS") if (retention_rate is not None and ret_silver)
              else (_("no data") if retention_rate is None else _("FAIL")),
              "gold": _("PASS") if ret_gold
@@ -487,14 +518,38 @@ class LinkederpDashboardTier(models.Model):
              "tones": {"silver": "good" if (retention_rate is not None and ret_silver) else "warn",
                        "gold": "good" if ret_gold else "warn"}},
         ]
+        next_review = self._tier_next_reviews(today, 1)[0]
+        standing_chips = [
+            {"text": (_("Silver — SECURE today") if silver_ok
+                      else _("Silver — FAILING today")),
+             "tone": "ok" if silver_ok else "no"},
+        ]
+        gold_gaps = []
+        if not users_gold:
+            gold_gaps.append(_("users"))
+        if not cons_gold:
+            gold_gaps.append(_("consultants"))
+        if not ret_gold:
+            gold_gaps.append(_("retention"))
+        standing_chips.append(
+            {"text": _("Gold ✓") if gold_ok
+             else _("Gold — gaps: %s") % ", ".join(gold_gaps),
+             "tone": "ok" if gold_ok else "no"})
+        if silver_loss_month:
+            standing_chips.append(
+                {"text": _("Silver at risk by %s") % next(
+                    (r.strftime("%d %b %Y") for r in self._tier_next_reviews(today, 8)
+                     if r >= silver_loss_month), self._tier_month_label(silver_loss_month)),
+                 "tone": "wa"})
         widgets.append(self._tier_kpi(
             "tier_standing", _("Standing"), 1 if silver_ok else 0,
-            _("next review %s") % self._tier_next_reviews(today, 1)[0].strftime("%d %b %Y"),
+            _("next review · %s") % next_review.strftime("%d %b %Y"),
             _("Definition: current tier verdict across all three criteria "
               "(all must pass; reviews at each SA-quarter start on the "
               "trailing 12 months, one-quarter grace before a downgrade). "
               "Click for the criteria scorecard."),
-            value_text=standing,
+            value_text=_("Gold") if gold_ok else (_("Silver") if silver_ok else _("At risk")),
+            coin=_("Au") if gold_ok else _("Ag"),
             color="#2f9e6b" if silver_ok else "#cf4257",
             modal=self._tier_modal(
                 _("Tier criteria — scorecard"), _("All three must hold."),
@@ -503,185 +558,241 @@ class LinkederpDashboardTier(models.Model):
                  {"key": "silver", "label": _("Silver"), "format": "text"},
                  {"key": "gold", "label": _("Gold"), "format": "text"}],
                 criteria_rows),
+            chips=standing_chips,
         ))
 
-        # ---- insights strip ----
-        items = []
+        # Row 2 -- the alarm banner (worst alert only, mockup style).
+        banner = None
         if silver_loss_month:
-            review = next((r for r in self._tier_next_reviews(today, 8)
-                           if r >= silver_loss_month), silver_loss_month)
-            items.append({
-                "sev": "bad", "icon": "fa-warning",
-                "title": _("Silver at risk"),
-                "text": _("Without new closes the trailing count drops below "
-                          "%(floor)s in %(month)s — the %(review)s review is "
-                          "the deadline to refill it.")
-                % {"floor": SILVER_USERS,
+            loss_review = next((r for r in self._tier_next_reviews(today, 8)
+                                if r >= silver_loss_month), silver_loss_month)
+            at_loss = self._tier_trailing(actual_cohorts, silver_loss_month)
+            banner = {
+                "sev": "bad",
+                "text": _("Without new closes, trailing-12m users fall from "
+                          "%(now)s today to %(at)s by %(month)s — below the "
+                          "%(floor)s Silver floor. The %(review)s review is "
+                          "the deadline to keep Silver. Fill Expected User "
+                          "License on open Odoo deals to see the pipeline "
+                          "close this gap.")
+                % {"now": trailing_now, "at": at_loss,
                    "month": self._tier_month_label(silver_loss_month),
-                   "review": review.strftime("%d %b %Y")},
-            })
-        if not users_gold:
-            items.append({
-                "sev": "warn", "icon": "fa-trophy",
-                "title": _("Gold gap — users"),
-                "text": _("%(short)s more trailing users needed for Gold "
-                          "(%(now)s of %(g)s).")
-                % {"short": GOLD_USERS - trailing_now, "now": trailing_now,
-                   "g": GOLD_USERS},
-            })
-        if not cons_gold:
-            items.append({
-                "sev": "warn", "icon": "fa-graduation-cap",
-                "title": _("Gold gap — consultants"),
-                "text": _("%(short)s more certifications needed for Gold "
-                          "(%(have)s of %(need)s).")
-                % {"short": GOLD_CONSULTANTS - len(consultants),
-                   "have": len(consultants), "need": GOLD_CONSULTANTS},
-            })
-        if not pipeline_dated:
-            items.append({
-                "sev": "warn", "icon": "fa-crosshairs",
-                "title": _("Forecast is blind"),
+                   "floor": SILVER_USERS,
+                   "review": loss_review.strftime("%d %b %Y")},
+            }
+        elif not pipeline_dated:
+            banner = {
+                "sev": "warn",
                 "text": _("No open deal carries an Expected User License with "
-                          "an Expected Closing date — the forecast line has "
-                          "nothing to work with. Ask the reps to fill both."),
+                          "an Expected Closing date — the forecast line is "
+                          "blind. Ask the reps to fill both fields on every "
+                          "open Odoo deal."),
+            }
+        elif not users_gold:
+            banner = {
+                "sev": "warn",
+                "text": _("%(short)s more trailing users and %(cons)s more "
+                          "certifications needed for Gold (%(now)s of %(g)s "
+                          "users today).")
+                % {"short": gold_user_gap, "cons": max(gold_cons_gap, 0),
+                   "now": trailing_now, "g": GOLD_USERS},
+            }
+        if banner:
+            widgets.append({
+                "id": "tier_banner", "name": _("Tier alert"),
+                "type": "banner", "model": "", "mode": "computed",
+                "measure": "", "groupby": "", "color": TIER_COLOR,
+                "help": "", "info": _(
+                    "Definition: the most urgent tier alert, recomputed from "
+                    "the rules every time the page loads."),
+                "value": 1.0, "format": "integer", "domain": [],
+                "points": [], "rows": [], "columns": [], "span": 12,
+                "error": False, "sev": banner["sev"], "text": banner["text"],
             })
-        if pipeline_undated:
-            items.append({
-                "sev": "warn", "icon": "fa-calendar-times-o",
-                "title": _("%s forecast deals missing a close date") % len(pipeline_undated),
-                "text": _("They carry Expected User Licenses but no Expected "
-                          "Closing, so they cannot be placed on the timeline."),
-                "model": "crm.lead",
-                "domain": self._json_safe(
-                    [("id", "in", [c["lead_id"] for c in pipeline_undated])]),
-            })
-        if retention_rate is None:
-            items.append({
-                "sev": "warn", "icon": "fa-refresh",
-                "title": _("Retention not tracked yet"),
-                "text": _("Mark 'Odoo Renewal Outcome' (Renewed / Churned) on "
-                          "renewal Sale Orders to light up criterion ③."),
-            })
-        widgets.append({
-            "id": "tier_alerts", "name": _("Tier watchlist"),
-            "type": "insights", "model": "", "mode": "computed",
-            "measure": "", "groupby": "", "color": TIER_COLOR,
-            "help": "", "info": _(
-                "Definition: automatic alerts computed from the tier rules "
-                "every time the page loads — worst first."),
-            "value": float(len(items)), "format": "integer",
-            "domain": [], "points": [], "rows": [], "columns": [],
-            "span": 12, "error": False, "items": items,
-        })
 
-        # ---- trend combo ----
+        # Row 3 -- the hero trend (mockup line chart).
+        chart_max = max([GOLD_USERS] + [
+            v for p in trend_points
+            for v in (p.get("actual"), p.get("committed"), p.get("forecast"))
+            if v is not None])
         widgets.append({
-            "id": "tier_trend", "name": _("Trailing-12m users — 12 months back, 12 forward"),
-            "type": "combo", "model": "crm.lead", "mode": "computed",
+            "id": "tier_trend",
+            "name": _("Are we holding the tier? 12 months back, 12 forward"),
+            "type": "tierline", "model": "crm.lead", "mode": "computed",
             "measure": _("Users"), "groupby": _("Month"), "color": TIER_COLOR,
             "help": "", "info": _(
-                "Definition: the tier number over time. Bars = licences from "
-                "closed deals (past = actual, future = committed roll-off if "
-                "nothing new closes); line = bars plus pipeline deals with an "
-                "Expected User License, counted from the month after their "
-                "expected close. Silver floor %(s)s, Gold %(g)s. Click a "
-                "month for its cohort movements.")
+                "Definition: the tier number over time. Solid line = actual "
+                "trailing-12m users; faded = committed roll-off if nothing "
+                "new closes; dashed = with pipeline (Expected User License, "
+                "counted from the month after expected close). Threshold "
+                "lines mark Silver %(s)s and Gold %(g)s. Click a month for "
+                "its cohort movements.")
             % {"s": SILVER_USERS, "g": GOLD_USERS},
             "value": float(trailing_now), "format": "integer",
             "domain": [], "points": trend_points, "rows": [], "columns": [],
             "span": 12, "error": False,
-            "label_line": _("With pipeline"), "label_bar": _("Closed deals only"),
+            "gold": GOLD_USERS, "silver": SILVER_USERS,
+            "max_value": int(chart_max * 1.08) + 1,
+            "label_actual": _("Actual"),
+            "label_committed": _("Committed roll-off"),
+            "label_forecast": _("With pipeline"),
         })
 
-        # ---- company share donut + ARR/target KPIs ----
-        donut_points = []
-        for label in company_labels + [TIER_OTHER_COMPANY]:
+        # Row 4 -- company contribution: stacked bar + three company cards.
+        company_colors = {"Mrelate · India": "#7d4b78",
+                          "PT Istana · Indonesia": "#2f8f89",
+                          "LinkedERP · South Africa": "#4f6bb0",
+                          TIER_OTHER_COMPANY: "#64748b"}
+        stack_points = []
+        for label in [l for _t, l in TIER_COMPANY_TOKENS] + [TIER_OTHER_COMPANY]:
             cohorts = by_company.get(label) or []
-            users = sum(c["users"] for c in cohorts)
-            if not users:
+            seg_users = sum(c["users"] for c in cohorts)
+            if not seg_users:
                 continue
             lead_ids = [c["lead_id"] for c in cohorts if c.get("lead_id")]
-            donut_points.append({
-                "label": label, "value": users,
+            stack_points.append({
+                "label": label, "value": seg_users,
+                "pct": round(seg_users / trailing_now * 100) if trailing_now else 0,
+                "color": company_colors[label],
                 "domain": self._json_safe([("id", "in", lead_ids)]),
             })
         widgets.append({
-            "id": "tier_company_share", "name": _("Who's driving the tier — users by company"),
-            "type": "donut", "model": "crm.lead", "mode": "computed",
+            "id": "tier_company_stack",
+            "name": _("Who's driving the tier — by company"),
+            "type": "tierstack", "model": "crm.lead", "mode": "computed",
             "measure": _("trailing-12m users"), "groupby": _("Company"),
-            "color": TIER_COLOR,
-            "help": "", "info": _(
+            "color": TIER_COLOR, "help": "", "info": _(
                 "Definition: each entity's share of the current trailing-12m "
                 "user licences (LinkedERP internal licences count under "
-                "LinkedERP). Click a slice for those deals."),
-            "value": float(trailing_now), "format": "integer",
-            "domain": [], "points": donut_points, "rows": [], "columns": [],
-            "span": 4, "error": False,
+                "LinkedERP). Click a segment for those deals."),
+            "value": float(trailing_now), "format": "integer", "domain": [],
+            "points": stack_points, "rows": [], "columns": [],
+            "span": 12, "error": False,
         })
 
-        q_label = _("SA Q starting %s") % q_start.strftime("%b %Y")
+        for index, (_token, label) in enumerate(TIER_COMPANY_TOKENS):
+            cohorts = by_company.get(label) or []
+            co_users = sum(c["users"] for c in cohorts)
+            share = round(co_users / trailing_now * 100) if trailing_now else 0
+            arr = arr_by_company.get(label, 0.0)
+            arr_pct = round(arr / arr_target * 100) if arr_target else 0
+            company_rows = [{
+                "label": c["label"], "users": c["users"],
+                "arr": usd_short((c.get("revenue") or 0.0) * factors.get(
+                    c.get("company_id"), 1.0)) if c.get("lead_id") else dash_text_placeholder,
+                "model": "crm.lead" if c.get("lead_id") else "",
+                "domain": self._json_safe([("id", "=", c["lead_id"])]) if c.get("lead_id") else [],
+            } for c in sorted(cohorts, key=lambda c: -c["users"])]
+            widgets.append({
+                "id": "tier_co_%d" % index, "name": label,
+                "type": "tiercompany", "model": "crm.lead", "mode": "computed",
+                "measure": "", "groupby": "", "color": company_colors[label],
+                "help": "", "info": _(
+                    "Definition: this company's trailing-12m users and its "
+                    "Odoo ARR won this SA financial year (USD at today's "
+                    "stored rates) against the %(t)s target. Click for its "
+                    "customers.") % {"t": usd_short(arr_target)},
+                "value": float(co_users), "format": "integer", "domain": [],
+                "points": [], "rows": [], "columns": [], "span": 4,
+                "error": False,
+                "users": co_users, "share": share,
+                "arr_text": usd_short(arr),
+                "target_text": usd_short(arr_target),
+                "arr_pct": arr_pct,
+                "bar_pct": min(arr_pct, 100),
+                "tone": "ok" if arr_pct >= 100 else ("wa" if arr_pct >= 60 else "no"),
+                "modal_table": self._tier_modal(
+                    _("%s — customers & ARR") % label,
+                    _("Trailing-12m cohorts and this FY's won value."),
+                    _("Customer"),
+                    [{"key": "users", "label": _("Users"), "format": "integer"},
+                     {"key": "arr", "label": _("ARR (FY)"), "format": "text"}],
+                    company_rows),
+            })
+
+        # Row 5 -- sales targets (mockup: quarter users, group ARR, IN, ID+SA).
+        q_label = _("SA Q from %s") % q_start.strftime("%b %Y")
         widgets.append(self._tier_kpi(
-            "tier_q_users", _("New Users · this SA quarter"), q_users,
+            "tier_q_users", _("New Users · this quarter"), q_users,
             _("%(l)s · target %(t)s") % {"l": q_label, "t": q_target},
             _("Definition: user licences on Odoo deals WON inside the current "
               "SA-financial-year quarter (quarters start Feb / May / Aug / "
               "Nov). Target %(t)s new users per quarter (System Parameter "
               "%(p)s). Click for the quarter's deals.")
             % {"t": q_target, "p": PARAM_Q_TARGET},
-            span=4,
+            value_text=_("%(n)s / %(t)s") % {"n": q_users, "t": q_target},
             model="crm.lead",
             domain=[("id", "in", [c["lead_id"] for c in q_users_cohorts if c.get("lead_id")])],
             scale={"pos": round(min(q_users / q_target, 1.0) * 100, 1) if q_target else 0,
-                   "label": _("%(n)s of %(t)s this quarter") % {"n": q_users, "t": q_target}},
+                   "label": _("%(n)s of %(t)s this quarter") % {"n": q_users, "t": q_target},
+                   "marks": [{"pos": 100, "label": _("Target %s") % q_target,
+                              "right": True}]},
         ))
-
+        group_target = arr_target * len(TIER_COMPANY_TOKENS)
         widgets.append(self._tier_kpi(
             "tier_arr_group", _("Group Odoo ARR · SA FY"), arr_group,
-            _("target %(t)s · FY from %(f)s")
-            % {"t": usd_short(group_target), "f": fy_start.strftime("%b %Y")},
+            _("FY from %s") % fy_start.strftime("%b %Y"),
             _("Definition: value (expected revenue) of Odoo deals won since "
               "the SA financial year started (1 Feb), converted to USD at "
               "today's stored rates. Target = %(per)s per company × 3 "
               "(System Parameter %(p)s). Click for the FY's won deals.")
             % {"per": usd_short(arr_target), "p": PARAM_ARR_TARGET},
-            span=4,
-            value_text=usd_short(arr_group),
+            value_text=_("%(a)s / %(t)s")
+            % {"a": usd_short(arr_group), "t": usd_short(group_target)},
             model="crm.lead",
             domain=[("id", "in", [c["lead_id"] for c in won
                                   if c["month"] >= _month_start(fy_start)])],
             scale={"pos": round(min(arr_group / group_target, 1.0) * 100, 1) if group_target else 0,
-                   "label": _("%(a)s of %(t)s group target")
-                   % {"a": usd_short(arr_group), "t": usd_short(group_target)}},
+                   "label": _("%(p)s%% of the group target")
+                   % {"p": round(arr_group / group_target * 100) if group_target else 0},
+                   "marks": [{"pos": 100, "label": _("Target %s") % usd_short(group_target),
+                              "right": True}]},
+        ))
+        arr_in = arr_by_company.get("Mrelate · India", 0.0)
+        in_pct = round(arr_in / arr_target * 100) if arr_target else 0
+        widgets.append(self._tier_kpi(
+            "tier_arr_in", _("Mrelate · India ARR"), arr_in,
+            _("target %s") % usd_short(arr_target),
+            _("Definition: Mrelate's Odoo ARR won this SA FY (USD at today's "
+              "rates) against its %(t)s target. Click for the deals.")
+            % {"t": usd_short(arr_target)},
+            value_text=usd_short(arr_in),
+            model="crm.lead",
+            domain=[("id", "in", [c["lead_id"] for c in won
+                                  if c["company"] == "Mrelate · India"
+                                  and c["month"] >= _month_start(fy_start)])],
+            chips=[{"text": "%s%%" % in_pct,
+                    "tone": "ok" if in_pct >= 100 else ("wa" if in_pct >= 60 else "no")}],
+        ))
+        arr_id = arr_by_company.get("PT Istana · Indonesia", 0.0)
+        arr_za = arr_by_company.get("LinkedERP · South Africa", 0.0)
+        idza = arr_id + arr_za
+        idza_target = arr_target * 2
+        idza_pct = round(idza / idza_target * 100) if idza_target else 0
+        widgets.append(self._tier_kpi(
+            "tier_arr_idza", _("Indonesia + SA ARR"), idza,
+            _("PT Istana %(i)s · LinkedERP %(z)s")
+            % {"i": usd_short(arr_id), "z": usd_short(arr_za)},
+            _("Definition: PT Istana's and LinkedERP's combined Odoo ARR won "
+              "this SA FY against their %(t)s combined target. Click for the "
+              "deals.") % {"t": usd_short(idza_target)},
+            value_text=_("%(a)s / %(t)s")
+            % {"a": usd_short(idza), "t": usd_short(idza_target)},
+            model="crm.lead",
+            domain=[("id", "in", [c["lead_id"] for c in won
+                                  if c["company"] in ("PT Istana · Indonesia",
+                                                      "LinkedERP · South Africa")
+                                  and c["month"] >= _month_start(fy_start)])],
+            chips=[{"text": "%s%%" % idza_pct,
+                    "tone": "ok" if idza_pct >= 100 else ("wa" if idza_pct >= 60 else "no")}],
         ))
 
-        for index, label in enumerate(company_labels):
-            arr = arr_by_company.get(label, 0.0)
-            pct = round(arr / arr_target * 100, 1) if arr_target else 0
-            company_lead_ids = [c["lead_id"] for c in won
-                                if c["company"] == label
-                                and c["month"] >= _month_start(fy_start)]
-            widgets.append(self._tier_kpi(
-                "tier_arr_%d" % index, label, arr,
-                _("%(p)s%% of %(t)s target") % {"p": pct, "t": usd_short(arr_target)},
-                _("Definition: this company's Odoo ARR won this SA FY (USD at "
-                  "today's rates) against its %(t)s target. Click for the "
-                  "deals.") % {"t": usd_short(arr_target)},
-                span=4,
-                value_text=usd_short(arr),
-                model="crm.lead",
-                domain=[("id", "in", company_lead_ids)],
-                color="#2f9e6b" if pct >= 100 else ("#d18f22" if pct >= 60 else "#cf4257"),
-            ))
-
-        # ---- pipeline driver matrix ----
-        missing_text = _("— missing")
-        dash_text = _("—")
+        # Row 6 -- pipeline driver + roll-off cliff tables (mockup pair).
         pipe_rows = [{
             "label": c["label"],
             "users": c["users"],
             "close": c["deadline"].strftime("%b %Y") if c.get("deadline") else missing_text,
-            "counts": self._tier_month_label(c["month"]) if c.get("month") else dash_text,
+            "counts": self._tier_month_label(c["month"]) if c.get("month") else dash_text_placeholder,
             "model": "crm.lead",
             "domain": self._json_safe([("id", "=", c["lead_id"])]),
             "tones": {} if c.get("month") else {"close": "bad"},
@@ -707,7 +818,6 @@ class LinkederpDashboardTier(models.Model):
             "span": 6, "error": False, "compact": True,
         })
 
-        # ---- roll-off cliff matrix ----
         rolloff_rows = []
         for month in months:
             if month <= this_month or month > _month_add(this_month, 12):
@@ -745,39 +855,51 @@ class LinkederpDashboardTier(models.Model):
             "span": 6, "error": False, "compact": True,
         })
 
-        # ---- review checkpoints ----
-        review_rows = []
+        # Row 7 -- SA-quarter review checkpoint tiles (mockup q-boxes).
+        q_points = []
         for review in self._tier_next_reviews(today, 4):
             review_month = _month_start(review)
+            fy_q = SA_QUARTER_MONTHS.index(review.month) + 1
             projected = self._tier_trailing(actual_cohorts, _month_add(review_month, -1))
-            with_pipe = projected + self._tier_trailing(pipeline_dated, _month_add(review_month, -1))
-            verdict = (_("Gold ✓") if projected >= GOLD_USERS else
-                       _("Silver ✓") if projected >= SILVER_USERS else _("BELOW Silver"))
-            review_rows.append({
-                "label": review.strftime("%d %b %Y"),
-                "projected": projected,
-                "withpipe": with_pipe,
-                "verdict": verdict,
-                "tones": {"verdict": "good" if projected >= SILVER_USERS else "bad"},
+            with_pipe = projected + self._tier_trailing(
+                pipeline_dated, _month_add(review_month, -1))
+            below = projected < SILVER_USERS
+            if projected >= GOLD_USERS:
+                status = _("Gold ✓")
+            elif not below:
+                status = _("Silver ✓ · Gold −%s") % (GOLD_USERS - projected)
+            else:
+                status = _("Silver ✗ — below %s") % SILVER_USERS
+            q_points.append({
+                "label": _("%(d)s · Q%(q)s") % {"d": review.strftime("%d %b %Y"), "q": fy_q},
+                "value": projected,
+                "status": status,
+                "tone": "no" if below else "ok",
+                "alarm": below,
+                "modal_table": self._tier_modal(
+                    _("Review %s — projection") % review.strftime("%d %b %Y"),
+                    _("Trailing window ending the month before the review."),
+                    _("Basis"),
+                    [{"key": "users", "label": _("Users"), "format": "integer"}],
+                    [{"label": _("Committed only (nothing new closes)"),
+                      "users": projected},
+                     {"label": _("With pipeline forecast"), "users": with_pipe},
+                     {"label": _("Silver floor"), "users": SILVER_USERS},
+                     {"label": _("Gold bar"), "users": GOLD_USERS}]),
             })
         widgets.append({
-            "id": "tier_reviews", "name": _("Review checkpoints — SA quarters"),
-            "type": "matrix", "model": "", "mode": "computed",
-            "measure": "", "groupby": _("Review date"),
-            "color": TIER_COLOR, "help": "",
-            "info": _(
-                "Definition: the next four SA-quarter reviews (1 Feb / 1 May "
-                "/ 1 Aug / 1 Nov) with the trailing count projected to each "
-                "date — 'Projected' assumes nothing new closes; 'With "
-                "pipeline' adds forecast deals. One-quarter grace applies "
-                "before a downgrade takes effect."),
-            "value": float(len(review_rows)), "format": "integer",
-            "domain": [], "points": [], "rows": review_rows,
-            "columns": [
-                {"key": "projected", "label": _("Projected"), "format": "integer"},
-                {"key": "withpipe", "label": _("With pipeline"), "format": "integer"},
-                {"key": "verdict", "label": _("Verdict"), "format": "text"}],
-            "span": 12, "error": False, "compact": True,
+            "id": "tier_reviews",
+            "name": _("Review checkpoints · SA quarters (Feb → Jan)"),
+            "type": "qtiles", "model": "", "mode": "computed",
+            "measure": "", "groupby": _("Review"), "color": TIER_COLOR,
+            "help": "", "info": _(
+                "Definition: the next four SA-quarter reviews with the "
+                "trailing count projected to each date, assuming nothing new "
+                "closes (click a tile for the with-pipeline projection). "
+                "One-quarter grace applies before a downgrade takes effect."),
+            "value": float(len(q_points)), "format": "integer", "domain": [],
+            "points": q_points, "rows": [], "columns": [],
+            "span": 12, "error": False,
         })
 
         return widgets

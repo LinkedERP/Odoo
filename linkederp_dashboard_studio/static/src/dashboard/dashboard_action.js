@@ -118,6 +118,11 @@ export class LinkedERPDashboardAction extends Component {
             "resetFilters",
             "onCrmFilterChange",
             "onDatePresetChange",
+            "tierY",
+            "tierX",
+            "tierNowX",
+            "tierPoly",
+            "tierArea",
             "onWeekChange",
             "isWeekSelected",
             "onOpsTeamChange",
@@ -740,6 +745,47 @@ export class LinkedERPDashboardAction extends Component {
             this.state.filters.dateTo = this.dateToInput(today);
         }
         await this.load(this.state.dashboard && this.state.dashboard.id);
+    }
+
+    // ---- Odoo Partnership Tier line chart (mockup hero) ----
+    tierY(widget, value) {
+        const max = Number(widget.max_value || 1);
+        return (170 * (1 - Number(value || 0) / max)).toFixed(1);
+    }
+
+    tierX(widget, index) {
+        const n = (widget.points || []).length;
+        return n > 1 ? (600 * index / (n - 1)).toFixed(1) : 0;
+    }
+
+    tierNowX(widget) {
+        const points = widget.points || [];
+        const index = points.findIndex((p) => p.now);
+        return this.tierX(widget, Math.max(index, 0));
+    }
+
+    tierPoly(widget, key) {
+        return (widget.points || [])
+            .map((p, i) => (p[key] === null || p[key] === undefined)
+                ? null : `${this.tierX(widget, i)},${this.tierY(widget, p[key])}`)
+            .filter(Boolean)
+            .join(" ");
+    }
+
+    tierArea(widget) {
+        const points = widget.points || [];
+        const coords = [];
+        let last = -1;
+        points.forEach((p, i) => {
+            if (p.actual !== null && p.actual !== undefined) {
+                coords.push(`${this.tierX(widget, i)},${this.tierY(widget, p.actual)}`);
+                last = i;
+            }
+        });
+        if (!coords.length) {
+            return "";
+        }
+        return `0,170 ${coords.join(" ")} ${this.tierX(widget, last)},170`;
     }
 
     async onCrmFilterChange(key, ev) {

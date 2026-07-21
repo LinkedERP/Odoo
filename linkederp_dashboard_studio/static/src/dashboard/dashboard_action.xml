@@ -347,6 +347,8 @@
                                 type="button"
                                 t-on-click="() => onKpiClick(widget)">
                                 <span class="o_lds_kpi_value_row">
+                                    <!-- tier metal coin (Odoo Partnership Tier standing card) -->
+                                    <span t-if="widget.coin" t-att-class="'o_lds_coin' + (widget.coin === 'Au' ? ' o_lds_coin_gold' : '')" t-esc="widget.coin"/>
                                     <span class="o_lds_kpi_value" t-esc="widget.value_text || formatWidgetValue(widget)"/>
                                     <span
                                         t-if="widget.delta"
@@ -354,6 +356,12 @@
                                         t-esc="widget.delta.text"/>
                                 </span>
                                 <span class="o_lds_kpi_caption" t-esc="widget.measure"/>
+                                <!-- pass/fail pills (tier criteria cards) -->
+                                <span t-if="widget.chips and widget.chips.length" class="o_lds_chiprow">
+                                    <t t-foreach="widget.chips" t-as="chip" t-key="chip_index">
+                                        <span t-att-class="'o_lds_tchip o_lds_tchip_' + chip.tone"><i class="o_lds_tchip_dot"/><t t-esc="chip.text"/></span>
+                                    </t>
+                                </span>
                                 <span t-if="widget.split" class="o_lds_kpi_split">
                                     <t t-foreach="widget.split" t-as="seg" t-key="seg_index">
                                         <span t-if="seg.pct" t-att-style="'width:' + seg.pct + '%; background:' + seg.color + ';'" t-att-title="seg.label + ': ' + seg.pct + '%'"/>
@@ -365,8 +373,16 @@
                                          75/95 bands); absent = unchanged. -->
                                     <span class="o_lds_scale_track" t-att-style="widget.scale.style || ''">
                                         <span class="o_lds_scale_pin" t-att-style="'left:' + widget.scale.pos + '%;'"/>
+                                        <!-- threshold ticks (tier scale: Silver 75 / Gold 300) -->
+                                        <t t-if="widget.scale.marks">
+                                            <t t-foreach="widget.scale.marks" t-as="mark" t-key="mark_index">
+                                                <span class="o_lds_scale_mark" t-att-style="'left:' + mark.pos + '%;'">
+                                                    <small t-att-class="mark.right ? 'o_lds_mark_right' : ''" t-esc="mark.label"/>
+                                                </span>
+                                            </t>
+                                        </t>
                                     </span>
-                                    <small t-esc="widget.scale.label"/>
+                                    <small t-if="widget.scale.label" t-esc="widget.scale.label"/>
                                 </span>
                                 <div t-if="widget.points.length" class="o_lds_kpi_spark">
                                     <div class="o_lds_trend_plot" t-att-title="sparkTitle(widget)">
@@ -845,6 +861,96 @@
                                     </div>
                                 </t>
                                 <div t-if="!widget.items.length" class="o_lds_story_empty">Nothing stands out this period.</div>
+                            </div>
+                        </t>
+
+                        <t t-elif="widget.type === 'banner'">
+                            <!-- Odoo Partnership Tier: single worst-alert strip -->
+                            <div t-att-class="'o_lds_tbanner o_lds_tbanner_' + (widget.sev || 'warn')">
+                                <span class="o_lds_tbanner_icon" t-esc="widget.sev === 'bad' ? '⚠️' : '📌'"/>
+                                <span t-esc="widget.text"/>
+                            </div>
+                        </t>
+
+                        <t t-elif="widget.type === 'tierline'">
+                            <!-- mockup hero: actual / committed / forecast lines + thresholds -->
+                            <div class="o_lds_tierline">
+                                <div class="o_lds_tl_legend">
+                                    <span><i class="o_lds_tl_key" style="background:#7d4b78"></i><t t-esc="widget.label_actual"/></span>
+                                    <span><i class="o_lds_tl_key o_lds_tl_key_faded"></i><t t-esc="widget.label_committed"/></span>
+                                    <span><i class="o_lds_tl_key o_lds_tl_key_dash"></i><t t-esc="widget.label_forecast"/></span>
+                                    <span><i class="o_lds_tl_key" style="background:#cf9f3b"></i>Gold <t t-esc="widget.gold"/></span>
+                                    <span><i class="o_lds_tl_key" style="background:#8f9bab"></i>Silver <t t-esc="widget.silver"/></span>
+                                </div>
+                                <div class="o_lds_tl_plot">
+                                    <svg viewBox="0 0 600 170" preserveAspectRatio="none" role="img">
+                                        <line class="o_lds_tl_thresh o_lds_tl_gold" x1="0" x2="600" t-att-y1="tierY(widget, widget.gold)" t-att-y2="tierY(widget, widget.gold)"/>
+                                        <line class="o_lds_tl_thresh o_lds_tl_silver" x1="0" x2="600" t-att-y1="tierY(widget, widget.silver)" t-att-y2="tierY(widget, widget.silver)"/>
+                                        <line class="o_lds_tl_now" t-att-x1="tierNowX(widget)" t-att-x2="tierNowX(widget)" y1="0" y2="170"/>
+                                        <polygon class="o_lds_tl_area" t-att-points="tierArea(widget)"/>
+                                        <polyline class="o_lds_tl_committed" t-att-points="tierPoly(widget, 'committed')"/>
+                                        <polyline class="o_lds_tl_forecast" t-att-points="tierPoly(widget, 'forecast')"/>
+                                        <polyline class="o_lds_tl_actual" t-att-points="tierPoly(widget, 'actual')"/>
+                                    </svg>
+                                    <div class="o_lds_tl_cols">
+                                        <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                            <button
+                                                type="button"
+                                                t-att-class="'o_lds_tl_col' + (point.now ? ' o_lds_tl_col_now' : '')"
+                                                t-att-title="point.label + ': ' + (point.actual !== null ? point.actual : (point.forecast !== null ? point.forecast : ''))"
+                                                t-on-click="() => onColumnClick(widget, point)"/>
+                                        </t>
+                                    </div>
+                                </div>
+                                <div class="o_lds_tl_labels">
+                                    <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                        <span t-esc="(point_index % 3 === 0 || point.now) ? point.label : ''"/>
+                                    </t>
+                                </div>
+                            </div>
+                        </t>
+
+                        <t t-elif="widget.type === 'tierstack'">
+                            <div class="o_lds_tstack">
+                                <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                    <button
+                                        type="button"
+                                        class="o_lds_tstack_seg"
+                                        t-att-style="'width:' + point.pct + '%; background:' + point.color + ';'"
+                                        t-att-title="point.label + ' — ' + point.value + ' users (' + point.pct + '%)'"
+                                        t-on-click="() => onColumnClick(widget, point)">
+                                        <t t-esc="point.label + ' ' + point.value"/>
+                                    </button>
+                                </t>
+                            </div>
+                        </t>
+
+                        <t t-elif="widget.type === 'tiercompany'">
+                            <button class="o_lds_tco" type="button" t-on-click="() => onKpiClick(widget)">
+                                <span class="o_lds_tco_users"><t t-esc="widget.users"/> <small>users · <t t-esc="widget.share"/>%</small></span>
+                                <span class="o_lds_tco_bar">
+                                    <i t-att-style="'width:' + widget.bar_pct + '%; background:' + widget.color + ';'"/>
+                                    <b class="o_lds_tco_tick"/>
+                                </span>
+                                <span class="o_lds_tco_row">
+                                    <span>ARR <b t-esc="widget.arr_text"/></span>
+                                    <span>Target <b t-esc="widget.target_text"/> · <span t-att-class="'o_lds_tchip_' + widget.tone + '_text'" t-esc="widget.arr_pct + '%'"/></span>
+                                </span>
+                            </button>
+                        </t>
+
+                        <t t-elif="widget.type === 'qtiles'">
+                            <div class="o_lds_qtiles">
+                                <t t-foreach="widget.points" t-as="point" t-key="point.label">
+                                    <button
+                                        type="button"
+                                        t-att-class="'o_lds_qtile' + (point.alarm ? ' o_lds_qtile_alarm' : '')"
+                                        t-on-click="() => onColumnClick(widget, point)">
+                                        <span class="o_lds_qtile_h" t-esc="point.label"/>
+                                        <span class="o_lds_qtile_v" t-esc="point.value"/>
+                                        <span t-att-class="'o_lds_qtile_s o_lds_tchip_' + point.tone + '_text'" t-esc="point.status"/>
+                                    </button>
+                                </t>
                             </div>
                         </t>
 
