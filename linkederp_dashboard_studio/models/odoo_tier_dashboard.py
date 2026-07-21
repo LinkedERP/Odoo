@@ -284,15 +284,16 @@ class LinkederpDashboardTier(models.Model):
                 retention_rate = round(renewed / (renewed + churned) * 100, 1)
 
         # ---- trend months: display start → now → +12 ----
+        # NEVER name a local `cursor` (or user/cr/env/uid) in a function that
+        # calls _(): Odoo 19's translate frame-inspection grabs it as the DB
+        # cursor and asserts (learning #12 family — this one bit us live).
         months = []
-        cursor = TIER_DISPLAY_START
+        month_cursor = TIER_DISPLAY_START
         horizon = _month_add(this_month, TIER_FORECAST_MONTHS)
-        while cursor <= horizon:
-            months.append(cursor)
-            cursor = _month_add(cursor, 1)
+        while month_cursor <= horizon:
+            months.append(month_cursor)
+            month_cursor = _month_add(month_cursor, 1)
 
-        # Odoo 19: _() inside a list comprehension frame-inspects and finds no
-        # `self` -> AssertionError (learning #12 family). Hoist translations.
         label_joins = _("joins")
         label_rolls = _("rolls off")
 
