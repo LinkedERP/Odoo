@@ -35,7 +35,10 @@ OPS_EMAIL_MD_PARAM = "linkederp_dashboard.ops_email_md_to"
 OPS_EMAIL_LAST_PARAM = "linkederp_dashboard.ops_email_last_week"
 OPS_EMAIL_TEST_DEFAULT = "akshay@linkederp.com"
 
-GREEN, AMBER, RED, BLUE, GREY = "#2e7d2e", "#c98a1b", "#b03030", "#1d4ed8", "#64748b"
+# Data-state tones (match the dashboard) + LinkedERP brand (Beacon DEFAULT_BRAND).
+GREEN, AMBER, RED = "#2e7d2e", "#c98a1b", "#b03030"
+ACCENT, DARK, SOFT, INK = "#CC0000", "#1F2933", "#5B6770", "#333333"
+LINE, WASH, WASH_SOFT, GREY = "#E5E7EB", "#F3F4F6", "#FAFBFC", "#5B6770"
 BILL_TARGET = 75.0
 
 
@@ -427,29 +430,30 @@ def _support_stories(d):
 
 
 # --------------------------------------------------------------- render ----
-CARD = ("<td style='padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;"
-        "border-radius:8px;vertical-align:top;'>"
-        "<div style='font-size:11px;color:%(grey)s;text-transform:uppercase;"
-        "letter-spacing:.4px;'>%(title)s</div>"
+CARD = ("<td style='padding:12px 14px;background:%(wash)s;border:1px solid %(line)s;"
+        "border-top:3px solid %(accent)s;vertical-align:top;'>"
+        "<div style='font-size:10.5px;color:%(grey)s;text-transform:uppercase;"
+        "letter-spacing:.6px;'>%(title)s</div>"
         "<div style='font-size:24px;font-weight:700;color:%(color)s;padding:2px 0;'>%(big)s</div>"
         "<div style='font-size:11px;color:%(grey)s;'>%(sub)s</div></td>")
 
-TD = "padding:6px 8px;border-bottom:1px solid #e2e8f0;font-size:12px;"
-TH = ("padding:6px 8px;border-bottom:2px solid #cbd5e1;font-size:11px;color:#475569;"
-      "text-align:left;text-transform:uppercase;letter-spacing:.3px;")
+TD = "padding:6px 8px;border-bottom:1px solid %s;font-size:12px;color:%s;" % (LINE, INK)
+TH = ("padding:7px 8px;background:%s;border-bottom:2px solid %s;font-size:10.5px;color:%s;"
+      "text-align:left;text-transform:uppercase;letter-spacing:.6px;" % (WASH, LINE, DARK))
 TONES = {"red": RED, "amber": AMBER, "green": GREEN}
 
 
 def _card(title, big, sub, color):
     return CARD % {"title": escape(title), "big": escape(big), "sub": escape(sub),
-                   "color": color, "grey": GREY}
+                   "color": color, "grey": GREY, "wash": WASH_SOFT, "line": LINE,
+                   "accent": ACCENT}
 
 
 def _story_list(stories):
     items = "".join(
-        "<li style='margin:8px 0;font-size:13px;line-height:1.5;color:#1e293b;'>"
+        "<li style='margin:9px 0;font-size:13px;line-height:1.55;color:%s;'>"
         "<b style='color:%s;'>%s</b> — %s</li>"
-        % (TONES[t], escape(label), escape(text)) for t, label, text in stories)
+        % (INK, TONES[t], escape(label), escape(text)) for t, label, text in stories)
     return "<ul style='margin:8px 0 4px;padding-left:18px;'>%s</ul>" % items
 
 
@@ -521,22 +525,45 @@ def _sla_block(d):
 
 
 def _section(title, inner):
-    return ("<h3 style='font-size:14px;color:#0f172a;margin:22px 0 6px;'>%s</h3>%s"
-            % (escape(title), inner))
+    header = ("<table cellspacing='0' cellpadding='0' style='margin:24px 0 8px;'><tr>"
+              "<td style='width:4px;background:%s;font-size:0;line-height:0;'>&nbsp;</td>"
+              "<td style='padding-left:10px;font-size:12.5px;font-weight:700;color:%s;"
+              "text-transform:uppercase;letter-spacing:1px;'>%s</td>"
+              "</tr></table>" % (ACCENT, DARK, escape(title)))
+    return header + inner
 
 
-def _email_shell(title, subtitle, body):
-    return ("<div style='font-family:Segoe UI,Arial,sans-serif;max-width:860px;margin:0 auto;"
-            "background:#ffffff;'>"
-            "<div style='background:%s;color:#fff;padding:16px 20px;border-radius:8px 8px 0 0;'>"
-            "<div style='font-size:18px;font-weight:700;'>%s</div>"
-            "<div style='font-size:12px;opacity:.85;'>%s</div></div>"
-            "<div style='padding:16px 20px;border:1px solid #e2e8f0;border-top:0;"
-            "border-radius:0 0 8px 8px;'>%s"
-            "<div style='font-size:11px;color:%s;margin-top:24px;border-top:1px solid #e2e8f0;"
-            "padding-top:8px;'>Generated automatically from the Ops Weekly review dashboard — "
-            "numbers match the dashboard exactly. Reply if something looks off.</div>"
-            "</div></div>" % (BLUE, escape(title), escape(subtitle), body, GREY))
+def _email_shell(title, subtitle, week_label, body, logo_src):
+    """LinkedERP letterhead: logo + OPS WEEKLY eyebrow, charcoal title, red rule."""
+    return (
+        "<div style='font-family:Segoe UI,Arial,sans-serif;max-width:860px;margin:0 auto;"
+        "background:#FFFFFF;border:1px solid %(line)s;'>"
+        "<table cellspacing='0' cellpadding='0' style='width:100%%;'><tr>"
+        "<td style='padding:22px 24px 6px;vertical-align:middle;'>"
+        "<img src='%(logo)s' alt='LINKED' height='32' "
+        "style='display:block;border:0;height:32px;'></td>"
+        "<td style='padding:22px 24px 6px;text-align:right;vertical-align:middle;'>"
+        "<div style='font-size:11px;font-weight:700;letter-spacing:2.5px;color:%(accent)s;'>"
+        "OPS WEEKLY</div>"
+        "<div style='font-size:11px;color:%(soft)s;letter-spacing:.4px;padding-top:2px;'>"
+        "%(week)s</div></td></tr></table>"
+        "<div style='padding:10px 24px 16px;'>"
+        "<div style='font-size:21px;font-weight:700;color:%(dark)s;'>%(title)s</div>"
+        "<div style='font-size:12px;color:%(soft)s;padding-top:3px;'>%(subtitle)s</div></div>"
+        "<table cellspacing='0' cellpadding='0' style='width:100%%;'><tr>"
+        "<td style='height:3px;background:%(accent)s;font-size:0;line-height:0;'>&nbsp;"
+        "</td></tr></table>"
+        "<div style='padding:20px 24px 24px;'>%(body)s"
+        "<table cellspacing='0' cellpadding='0' style='width:100%%;margin-top:28px;"
+        "border-top:1px solid %(line)s;'><tr>"
+        "<td style='padding-top:10px;font-size:11px;color:%(soft)s;'>"
+        "<b style='color:%(dark)s;'>LINKED</b><b style='color:%(accent)s;'>ERP</b> · "
+        "Generated automatically from the Ops Weekly review dashboard — numbers match the "
+        "dashboard exactly. Reply if something looks off.</td></tr></table>"
+        "</div></div>"
+        % {"line": LINE, "logo": logo_src, "accent": ACCENT, "soft": SOFT, "dark": DARK,
+           "week": escape(week_label), "title": escape(title),
+           "subtitle": escape(subtitle), "body": body})
 
 
 def _kpi_row(cards):
@@ -545,7 +572,7 @@ def _kpi_row(cards):
             "separate;'><tr>%s</tr></table>" % tds)
 
 
-def _od_email(squad_label, od_name, week_label, d, ppl, proj):
+def _od_email(squad_label, od_name, week_label, d, ppl, proj, logo_src):
     cards = [
         _card("Time entry pass rate", "%s%%" % _h(d["pass_rate"]),
               "%s%s" % (d["pass_measure"], d["pass_wow"]), _tone(d["pass_rate"])),
@@ -573,9 +600,10 @@ def _od_email(squad_label, od_name, week_label, d, ppl, proj):
                            ", ".join(p["name"] for p in unplanned[:5]))))
     insights = ppl + hygiene
     body = (
-        "<p style='font-size:13px;color:#1e293b;'>Hi %s,<br>here is what last week's data "
-        "(%s) is actually saying about <b>%s</b> — trends first, tables after.</p>" %
-        (escape(_first_name(od_name)), escape(week_label), escape(squad_label))
+        "<p style='font-size:13px;color:%s;line-height:1.6;margin:0 0 16px;'>Hi %s,<br>"
+        "here is what last week's data (%s) is actually saying about <b>%s</b> — trends "
+        "first, tables after.</p>" %
+        (INK, escape(_first_name(od_name)), escape(week_label), escape(squad_label))
         + _kpi_row(cards)
         + _section("Your people — what the trends say",
                    _story_list(insights) if insights else
@@ -589,8 +617,9 @@ def _od_email(squad_label, od_name, week_label, d, ppl, proj):
         + _section("Project financials", _projects_table(d["projects"]))
         + _section("Ticket ageing detail", _sla_block(d))
     )
-    return _email_shell("Ops Weekly · %s" % squad_label,
-                        "%s · for %s" % (week_label, od_name or "team lead"), body)
+    return _email_shell(squad_label,
+                        "Weekly operations review · prepared for %s"
+                        % (od_name or "the team lead"), week_label, body, logo_src)
 
 
 def _md_league(squads):
@@ -760,7 +789,8 @@ def _md_attention(org, squads, today, sinks=None):
     return items
 
 
-def _md_email(week_label, org, squads, today, person_split=None, sinks=None):
+def _md_email(week_label, org, squads, today, person_split=None, sinks=None,
+              logo_src=""):
     d = org
     cards = [
         _card("Pass rate", "%s%%" % _h(d["pass_rate"]), d["pass_measure"] + d["pass_wow"],
@@ -783,12 +813,14 @@ def _md_email(week_label, org, squads, today, person_split=None, sinks=None):
                 seen.add(r["label"])
                 red_rows.append(r)
     body = (
-        "<p style='font-size:13px;color:#1e293b;'>Abhi, Ferry, Carel — operations last week "
-        "(%s), across all three companies, in the time it takes to drink half a coffee.</p>"
-        % escape(week_label)
+        "<p style='font-size:13px;color:%s;line-height:1.6;margin:0 0 16px;'>Abhi, Ferry, "
+        "Carel — the one-minute view of operations last week (%s) across all three "
+        "companies.</p>" % (INK, escape(week_label))
         + _section("The week in one line",
-                   "<p style='font-size:13.5px;line-height:1.55;color:#0f172a;'><b>%s</b></p>"
-                   % escape(_md_headline(org, squads)))
+                   "<table cellspacing='0' cellpadding='0' style='width:100%%;'><tr>"
+                   "<td style='background:%s;padding:14px 18px;color:#FFFFFF;"
+                   "font-size:13.5px;line-height:1.65;font-weight:600;'>%s</td></tr></table>"
+                   % (DARK, escape(_md_headline(org, squads))))
         + _kpi_row(cards)
         + _section("What's working", _story_list(_md_working(org, squads, person_split)))
         + _section("What needs attention", _story_list(attention))
@@ -797,7 +829,9 @@ def _md_email(week_label, org, squads, today, person_split=None, sinks=None):
            if red_rows else "")
         + _section("Support tickets ageing", _sla_block(d))
     )
-    return _email_shell("Ops Weekly · MD Brief", week_label, body)
+    return _email_shell("MD Brief",
+                        "Operations across all three companies · for Abhi, Ferry & Carel",
+                        week_label, body, logo_src)
 
 
 # ---------------------------------------------------------------------------
@@ -843,6 +877,8 @@ class LinkederpDashboardOpsEmail(models.Model):
         today = fields.Date.context_today(dashboard)
 
         icp = self.env["ir.config_parameter"].sudo()
+        # Company logo, served by this instance (Odoo's own email convention).
+        logo_src = (icp.get_param("web.base.url") or "").rstrip("/") + "/logo.png"
         test_to = (icp.get_param(OPS_EMAIL_TEST_PARAM) or "").strip()
         if not force and not test_to and icp.get_param(OPS_EMAIL_LAST_PARAM) == week_key:
             _logger.info("Ops weekly emails: %s already sent, skipping", week_key)
@@ -942,12 +978,12 @@ class LinkederpDashboardOpsEmail(models.Model):
         for s in squads:
             queue("Ops Weekly — %s — %s" % (s["label"], week_label),
                   _od_email(s["label"], s["od"], week_label, s["d"],
-                            s["ppl_stories"], s["proj_stories"]),
+                            s["ppl_stories"], s["proj_stories"], logo_src),
                   s["emails"])
         md_to = [a.strip() for a in (icp.get_param(OPS_EMAIL_MD_PARAM) or "").split(",")
                  if a.strip()]
         queue("Ops Weekly MD Brief — %s" % week_label,
-              _md_email(week_label, org, squads, today, person_split, sinks),
+              _md_email(week_label, org, squads, today, person_split, sinks, logo_src),
               md_to)
 
         if mail_ids:
