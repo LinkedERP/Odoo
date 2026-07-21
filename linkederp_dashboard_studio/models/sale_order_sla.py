@@ -13,3 +13,16 @@ class SaleOrderSla(models.Model):
         "this SLA contract. Used by the Weekly Support & SLA Dashboard "
         "as the monthly consumption target.",
     )
+
+    # Odoo-partnership retention (tier criterion 3): mark the outcome on each
+    # Odoo renewal SO; the Odoo Partnership Tier dashboard computes
+    # retention % = Renewed / (Renewed + Churned).
+    odoo_renewal_outcome = fields.Selection(
+        [("renewed", "Renewed"),
+         ("churned", "Churned"),
+         ("pending", "Pending")],
+        string="Odoo Renewal Outcome",
+        help="For Odoo subscription renewals: did the customer renew with "
+        "us? Feeds the retention criterion on the Odoo Partnership Tier "
+        "dashboard (Silver needs 70%, Gold 80%).",
+    )

@@ -9,3 +9,4 @@ from . import sale_order_sla
 from . import sla_dashboard
 from . import finance_dashboard
 from . import hr_dashboard
+from . import odoo_tier_dashboard

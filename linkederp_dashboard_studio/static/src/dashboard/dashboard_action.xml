@@ -250,7 +250,7 @@
                     </select>
                     <!-- The date family (AI/CRM dashboards): preset dropdown;
                          the two pickers show only for "Custom". -->
-                    <t t-set="dateFamily" t-value="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled &amp;&amp; !state.slaFilters.enabled &amp;&amp; !state.finFilters.enabled &amp;&amp; !state.peopleFilters.enabled"/>
+                    <t t-set="dateFamily" t-value="!state.opsFilters.enabled &amp;&amp; !state.awardsFilters.enabled &amp;&amp; !state.weeklyFilters.enabled &amp;&amp; !state.mgmtFilters.enabled &amp;&amp; !state.salesFilters.enabled &amp;&amp; !state.slaFilters.enabled &amp;&amp; !state.finFilters.enabled &amp;&amp; !state.peopleFilters.enabled &amp;&amp; !(state.dashboard &amp;&amp; state.dashboard.name === 'Odoo Partnership Tier')"/>
                     <select t-if="dateFamily" class="form-select o_lds_filter_select" t-on-change="onDatePresetChange">
                         <option value="all" t-att-selected="state.filters.datePreset === 'all'">All period</option>
                         <option value="lastweek" t-att-selected="state.filters.datePreset === 'lastweek'">Last week</option>

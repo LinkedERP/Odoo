@@ -52,6 +52,7 @@ DEFAULT_BUCKET_BY_NAME = {
     "Weekly Support & SLA Dashboard": "ops",
     "Aurika Finance Dashboard": "management",
     "Aurika People Dashboard": "management",
+    "Odoo Partnership Tier": "management",
 }
 
 
@@ -212,6 +213,12 @@ class LinkederpDashboard(models.Model):
                 )
             elif dashboard._is_people_dashboard():
                 widgets = dashboard._people_dashboard_widgets(
+                    date_from=date_from,
+                    date_to=date_to,
+                    filters=filters,
+                )
+            elif dashboard._is_tier_dashboard():
+                widgets = dashboard._tier_dashboard_widgets(
                     date_from=date_from,
                     date_to=date_to,
                     filters=filters,
