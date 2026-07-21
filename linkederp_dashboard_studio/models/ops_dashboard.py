@@ -602,10 +602,18 @@ class LinkederpDashboardOps(models.Model):
         Stage = self.env["helpdesk.stage"]
         closed_ids = Stage.search([("fold", "=", True)]).ids
         onhold_ids = Stage.search([("name", "ilike", "hold")]).ids
+        perf_tag_ids = self.env["helpdesk.tag"].search(
+            [("name", "=ilike", "performance management")]).ids
+        proj_team_ids = self.env["helpdesk.team"].search(
+            [("description", "ilike", "project")]).ids
 
         domain = []
         if closed_ids:
             domain.append(("stage_id", "not in", closed_ids))
+        if perf_tag_ids:
+            domain.append(("tag_ids", "not in", perf_tag_ids))
+        if proj_team_ids:
+            domain.append(("team_id", "not in", proj_team_ids))
         if sub_team:
             member_uids = list(self._ops_primary_employees(sub_team=sub_team).keys())
             domain.append(("user_id", "in", member_uids))
@@ -657,7 +665,7 @@ class LinkederpDashboardOps(models.Model):
             "measure": "",
             "groupby": _("Customer"),
             "color": "#1d4ed8",
-            "help": _("open, not on hold · ageing = working days since created"),
+            "help": _("open, not on hold, excl. Performance management & project teams · ageing = working days since created"),
             "value": float(len(rows)),
             "format": "integer",
             "domain": [],
