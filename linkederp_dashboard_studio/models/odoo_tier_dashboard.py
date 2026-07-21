@@ -291,6 +291,11 @@ class LinkederpDashboardTier(models.Model):
             months.append(cursor)
             cursor = _month_add(cursor, 1)
 
+        # Odoo 19: _() inside a list comprehension frame-inspects and finds no
+        # `self` -> AssertionError (learning #12 family). Hoist translations.
+        label_joins = _("joins")
+        label_rolls = _("rolls off")
+
         trend_points = []
         silver_loss_month = None
         for month in months:
@@ -303,11 +308,11 @@ class LinkederpDashboardTier(models.Model):
             expiring = [c for c in actual_cohorts
                         if c.get("month") and _month_add(c["month"], 12) == month]
             modal_rows = [{
-                "label": c["label"], "kind": _("joins"), "users": c["users"],
+                "label": c["label"], "kind": label_joins, "users": c["users"],
                 "model": "crm.lead" if c.get("lead_id") else "",
                 "domain": self._json_safe([("id", "=", c["lead_id"])]) if c.get("lead_id") else [],
             } for c in joined] + [{
-                "label": c["label"], "kind": _("rolls off"), "users": -c["users"],
+                "label": c["label"], "kind": label_rolls, "users": -c["users"],
                 "model": "crm.lead" if c.get("lead_id") else "",
                 "domain": self._json_safe([("id", "=", c["lead_id"])]) if c.get("lead_id") else [],
             } for c in expiring]
@@ -411,6 +416,7 @@ class LinkederpDashboardTier(models.Model):
                    "style": users_scale_style},
         ))
 
+        certified_text = _("Certified")
         widgets.append(self._tier_kpi(
             "tier_consultants", _("② Certified Consultants"), len(consultants),
             _("Silver needs %(s)s · Gold needs %(g)s")
@@ -424,7 +430,7 @@ class LinkederpDashboardTier(models.Model):
             modal=self._tier_modal(
                 _("Certified consultants"), _("Maintained list."), _("Consultant"),
                 [{"key": "status", "label": _("Status"), "format": "text"}],
-                [{"label": name, "status": _("Certified")} for name in consultants]),
+                [{"label": name, "status": certified_text} for name in consultants]),
         ))
 
         retention_text = ("%s%%" % retention_rate) if retention_rate is not None \
@@ -668,11 +674,13 @@ class LinkederpDashboardTier(models.Model):
             ))
 
         # ---- pipeline driver matrix ----
+        missing_text = _("— missing")
+        dash_text = _("—")
         pipe_rows = [{
             "label": c["label"],
             "users": c["users"],
-            "close": c["deadline"].strftime("%b %Y") if c.get("deadline") else _("— missing"),
-            "counts": self._tier_month_label(c["month"]) if c.get("month") else _("—"),
+            "close": c["deadline"].strftime("%b %Y") if c.get("deadline") else missing_text,
+            "counts": self._tier_month_label(c["month"]) if c.get("month") else dash_text,
             "model": "crm.lead",
             "domain": self._json_safe([("id", "=", c["lead_id"])]),
             "tones": {} if c.get("month") else {"close": "bad"},
