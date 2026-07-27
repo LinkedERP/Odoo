@@ -351,7 +351,13 @@ def _project_stories(d, hours_by_pid, today):
     stories = []
     for r in d["projects"]:
         name = r.get("label", "?")
-        story = _trend_story(r["inv_series"]) or _trend_story(r["so_series"])
+        # Prefer the invoiced margin; projects with nothing invoiced yet only
+        # have a sale-order margin, and the wording has to say which one it is.
+        inv_story = _trend_story(r["inv_series"])
+        story = inv_story or _trend_story(r["so_series"])
+        basis = "invoiced margin" if inv_story else "margin against the sale order"
+        weeks_counted = len([v for _l, v in (r["inv_series"] if inv_story
+                                             else r["so_series"]) if v is not None])
         bad = r.get("tones", {}).get("prof_so") == "bad" or \
             r.get("tones", {}).get("prof_inv") == "bad"
         # A falling margin that is still comfortably healthy (>=60%) is not
@@ -366,11 +372,10 @@ def _project_stories(d, hours_by_pid, today):
                     burn = (" It is also burning faster: %s h logged last week vs %s the "
                             "week before." % (_h(h_last), _h(h_prev)))
             stories.append((0, "red", name,
-                            "Profitability trend is DOWN: invoiced margin went %s%% → %s%% "
+                            "Profitability trend is DOWN: %s went %s%% → %s%% "
                             "over the last %s weeks (%s to %s).%s"
-                            % (_h(story["start"]), _h(story["end"]),
-                               len([v for _l, v in r["inv_series"] or
-                                    r["so_series"] if v is not None]),
+                            % (basis, _h(story["start"]), _h(story["end"]),
+                               weeks_counted,
                                story["start_label"], story["end_label"], burn)))
         elif bad and story and story["direction"] == "stable":
             stories.append((1, "red", name,
@@ -869,6 +874,13 @@ class LinkederpDashboardOpsEmail(models.Model):
 
     @api.model
     def _ops_weekly_emails_send(self, week=False, force=False):
+        # Seed the safety parameters before anything reads them. They are
+        # otherwise only written when someone opens a dashboard page, so a
+        # send on a freshly installed or restored database would run with
+        # test mode AND the CC list unset — straight to the real recipients,
+        # with nobody copied. Seeding here makes the safe state the default
+        # no matter how the agent is reached.
+        self.sudo()._ensure_packaged_dashboards()
         dashboard = self.sudo().search(
             [("name", "=", OPS_DASHBOARD_NAME), ("active", "=", True)], limit=1)
         if not dashboard:
