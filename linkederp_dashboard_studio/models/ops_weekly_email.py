@@ -32,8 +32,11 @@ _logger = logging.getLogger(__name__)
 
 OPS_EMAIL_TEST_PARAM = "linkederp_dashboard.ops_email_test_to"
 OPS_EMAIL_MD_PARAM = "linkederp_dashboard.ops_email_md_to"
+OPS_EMAIL_CC_PARAM = "linkederp_dashboard.ops_email_cc"
 OPS_EMAIL_LAST_PARAM = "linkederp_dashboard.ops_email_last_week"
+OPS_EMAIL_SEEDED_PARAM = "linkederp_dashboard.ops_email_seeded"
 OPS_EMAIL_TEST_DEFAULT = "akshay@linkederp.com"
+OPS_EMAIL_CC_DEFAULT = "akshay@linkederp.com"
 
 # Data-state tones (match the dashboard) + LinkedERP brand (Beacon DEFAULT_BRAND).
 GREEN, AMBER, RED = "#2e7d2e", "#c98a1b", "#b03030"
@@ -843,11 +846,16 @@ class LinkederpDashboardOpsEmail(models.Model):
     @api.model
     def _ensure_packaged_dashboards(self):
         super()._ensure_packaged_dashboards()
-        # Safe-by-default: until Akshay clears this parameter, every ops email
-        # goes only to him with a [TEST] prefix.
+        # Safe-by-default on FIRST install only: every ops email goes to the
+        # test address with a "[TEST] " prefix until it is cleared at go-live.
+        # The marker matters: get_param() returns False for an emptied
+        # parameter, so re-seeding on every payload load would silently drop
+        # the agent back into test mode after go-live.
         icp = self.env["ir.config_parameter"].sudo()
-        if icp.get_param(OPS_EMAIL_TEST_PARAM) is False:
+        if not icp.get_param(OPS_EMAIL_SEEDED_PARAM):
+            icp.set_param(OPS_EMAIL_SEEDED_PARAM, "1")
             icp.set_param(OPS_EMAIL_TEST_PARAM, OPS_EMAIL_TEST_DEFAULT)
+            icp.set_param(OPS_EMAIL_CC_PARAM, OPS_EMAIL_CC_DEFAULT)
 
     @api.model
     def _cron_ops_weekly_emails(self):
@@ -880,6 +888,15 @@ class LinkederpDashboardOpsEmail(models.Model):
         # Company logo, served by this instance (Odoo's own email convention).
         logo_src = (icp.get_param("web.base.url") or "").rstrip("/") + "/logo.png"
         test_to = (icp.get_param(OPS_EMAIL_TEST_PARAM) or "").strip()
+        cc_list = [a.strip() for a in (icp.get_param(OPS_EMAIL_CC_PARAM) or "").split(",")
+                   if a.strip()]
+        # Cron path guards, cheapest first — both run before any computation.
+        # Monday: the reviewed week has only just closed, so hold for Tuesday
+        # morning. Any later weekday still sends, which makes a missed Tuesday
+        # self-heal the next day; the once-a-week guard below keeps it to one.
+        if not force and fields.Date.context_today(dashboard).weekday() == 0:
+            _logger.info("Ops weekly emails: Monday — holding for Tuesday")
+            return {"sent": 0, "reason": "Monday — holding for Tuesday"}
         if not force and not test_to and icp.get_param(OPS_EMAIL_LAST_PARAM) == week_key:
             _logger.info("Ops weekly emails: %s already sent, skipping", week_key)
             return {"sent": 0, "reason": "already sent for %s" % week_key}
@@ -968,12 +985,17 @@ class LinkederpDashboardOpsEmail(models.Model):
                 skipped.append(subject)
                 _logger.warning("Ops weekly emails: no recipients for %r, skipped", subject)
                 return
-            mail_ids.append(Mail.create({
+            addressed = {r.lower() for r in recipients}
+            cc = [a for a in cc_list if a.lower() not in addressed]
+            values = {
                 "subject": subject,
                 "body_html": body,
                 "email_to": ",".join(recipients),
                 "auto_delete": False,
-            }).id)
+            }
+            if cc:
+                values["email_cc"] = ",".join(cc)
+            mail_ids.append(Mail.create(values).id)
 
         for s in squads:
             queue("Ops Weekly — %s — %s" % (s["label"], week_label),
@@ -994,4 +1016,5 @@ class LinkederpDashboardOpsEmail(models.Model):
                      week_label, len(mail_ids), len(squads), len(skipped), bool(test_to))
         return {"sent": len(mail_ids), "mail_ids": mail_ids, "week": week_key,
                 "week_label": week_label, "squads": [s["label"] for s in squads],
-                "test_mode": bool(test_to), "skipped": skipped}
+                "test_mode": bool(test_to), "skipped": skipped, "cc": cc_list,
+                "recipients": {s["label"]: s["emails"] for s in squads}}
