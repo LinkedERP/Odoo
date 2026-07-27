@@ -541,15 +541,22 @@ def _section(title, inner):
     return header + inner
 
 
-def _email_shell(title, subtitle, week_label, body, logo_src):
-    """LinkedERP letterhead: logo + OPS WEEKLY eyebrow, charcoal title, red rule."""
+def _email_shell(title, subtitle, week_label, body):
+    """LinkedERP letterhead: wordmark + OPS WEEKLY eyebrow, charcoal title, red rule.
+
+    The wordmark is LIVE TEXT, not an image: Outlook blocks remote images by
+    default and drew the hosted logo as a broken-image box, and it honours
+    neither data: URIs nor cid: references from a plain mail.mail (Odoo's
+    build_email attaches files without a Content-ID). Text always renders.
+    """
     return (
         "<div style='font-family:Segoe UI,Arial,sans-serif;max-width:860px;margin:0 auto;"
         "background:#FFFFFF;border:1px solid %(line)s;'>"
         "<table cellspacing='0' cellpadding='0' style='width:100%%;'><tr>"
         "<td style='padding:22px 24px 6px;vertical-align:middle;'>"
-        "<img src='%(logo)s' alt='LINKED' height='32' "
-        "style='display:block;border:0;height:32px;'></td>"
+        "<span style='font-size:23px;font-weight:700;letter-spacing:2px;color:%(dark)s;'>"
+        "LINKED</span><span style='font-size:23px;font-weight:700;letter-spacing:2px;"
+        "color:%(accent)s;'>ERP</span></td>"
         "<td style='padding:22px 24px 6px;text-align:right;vertical-align:middle;'>"
         "<div style='font-size:11px;font-weight:700;letter-spacing:2.5px;color:%(accent)s;'>"
         "OPS WEEKLY</div>"
@@ -569,7 +576,7 @@ def _email_shell(title, subtitle, week_label, body, logo_src):
         "Generated automatically from the Ops Weekly review dashboard — numbers match the "
         "dashboard exactly. Reply if something looks off.</td></tr></table>"
         "</div></div>"
-        % {"line": LINE, "logo": logo_src, "accent": ACCENT, "soft": SOFT, "dark": DARK,
+        % {"line": LINE, "accent": ACCENT, "soft": SOFT, "dark": DARK,
            "week": escape(week_label), "title": escape(title),
            "subtitle": escape(subtitle), "body": body})
 
@@ -580,7 +587,7 @@ def _kpi_row(cards):
             "separate;'><tr>%s</tr></table>" % tds)
 
 
-def _od_email(squad_label, od_name, week_label, d, ppl, proj, logo_src):
+def _od_email(squad_label, od_name, week_label, d, ppl, proj):
     cards = [
         _card("Time entry pass rate", "%s%%" % _h(d["pass_rate"]),
               "%s%s" % (d["pass_measure"], d["pass_wow"]), _tone(d["pass_rate"])),
@@ -627,7 +634,7 @@ def _od_email(squad_label, od_name, week_label, d, ppl, proj, logo_src):
     )
     return _email_shell(squad_label,
                         "Weekly operations review · prepared for %s"
-                        % (od_name or "the team lead"), week_label, body, logo_src)
+                        % (od_name or "the team lead"), week_label, body)
 
 
 def _md_league(squads):
@@ -797,8 +804,7 @@ def _md_attention(org, squads, today, sinks=None):
     return items
 
 
-def _md_email(week_label, org, squads, today, person_split=None, sinks=None,
-              logo_src=""):
+def _md_email(week_label, org, squads, today, person_split=None, sinks=None):
     d = org
     cards = [
         _card("Pass rate", "%s%%" % _h(d["pass_rate"]), d["pass_measure"] + d["pass_wow"],
@@ -839,7 +845,7 @@ def _md_email(week_label, org, squads, today, person_split=None, sinks=None,
     )
     return _email_shell("MD Brief",
                         "Operations across all three companies · for Abhi, Ferry & Carel",
-                        week_label, body, logo_src)
+                        week_label, body)
 
 
 # ---------------------------------------------------------------------------
@@ -897,8 +903,6 @@ class LinkederpDashboardOpsEmail(models.Model):
         today = fields.Date.context_today(dashboard)
 
         icp = self.env["ir.config_parameter"].sudo()
-        # Company logo, served by this instance (Odoo's own email convention).
-        logo_src = (icp.get_param("web.base.url") or "").rstrip("/") + "/logo.png"
         test_to = (icp.get_param(OPS_EMAIL_TEST_PARAM) or "").strip()
         cc_list = [a.strip() for a in (icp.get_param(OPS_EMAIL_CC_PARAM) or "").split(",")
                    if a.strip()]
@@ -1012,12 +1016,12 @@ class LinkederpDashboardOpsEmail(models.Model):
         for s in squads:
             queue("Ops Weekly — %s — %s" % (s["label"], week_label),
                   _od_email(s["label"], s["od"], week_label, s["d"],
-                            s["ppl_stories"], s["proj_stories"], logo_src),
+                            s["ppl_stories"], s["proj_stories"]),
                   s["emails"])
         md_to = [a.strip() for a in (icp.get_param(OPS_EMAIL_MD_PARAM) or "").split(",")
                  if a.strip()]
         queue("Ops Weekly MD Brief — %s" % week_label,
-              _md_email(week_label, org, squads, today, person_split, sinks, logo_src),
+              _md_email(week_label, org, squads, today, person_split, sinks),
               md_to)
 
         if mail_ids:
