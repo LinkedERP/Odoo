@@ -1,17 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo noupdate="1">
-    <!-- Tuesday Ops Weekly emails. Ships INACTIVE — go-live is an explicit,
-         deliberate flip. nextcall 02:30 UTC = 08:00 IST Tuesday. While the
-         linkederp_dashboard.ops_email_test_to parameter is set (default:
-         Akshay), every run emails only that address with a [TEST] prefix. -->
+    <!-- Ops Weekly emails. Ships INACTIVE — go-live is an explicit, deliberate
+         flip. Runs DAILY at 02:30 UTC (08:00 IST) but the code sends only
+         once per reviewed week and never on a Monday, so the normal cadence
+         is Tuesday morning; any later day acts as a self-healing catch-up
+         when a Tuesday run is missed. While the
+         linkederp_dashboard.ops_email_test_to parameter is set (seeded once
+         on install), every run emails only that address with a [TEST] prefix.
+         linkederp_dashboard.ops_email_cc is CC'd on every real email. -->
     <record id="ir_cron_ops_weekly_emails" model="ir.cron">
         <field name="name">Ops Weekly review — Tuesday emails</field>
         <field name="model_id" ref="model_linkederp_dashboard"/>
         <field name="state">code</field>
         <field name="code">model._cron_ops_weekly_emails()</field>
         <field name="interval_number">1</field>
-        <field name="interval_type">weeks</field>
-        <field name="nextcall">2026-07-28 02:30:00</field>
+        <field name="interval_type">days</field>
+        <field name="nextcall">2026-07-22 02:30:00</field>
         <field name="active" eval="False"/>
     </record>
 </odoo>
