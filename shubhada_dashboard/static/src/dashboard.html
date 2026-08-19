@@ -443,16 +443,33 @@ function buildRaw(r) {
       seen[i.partner_id[0]] = true; RAW.icPartnerIds[i.partner_id[0]] = true;
     }
   });
+  RAW.invById = {}; RAW.inv.forEach(function (i) { RAW.invById[i.id] = i; });
+  buildProdPlant();
 }
 
 function whCode(whId) { var w = RAW.whById[whId]; return w ? w.code : null; }
 function whOfPicking(pk) { return pk && pk.picking_type_id ? whCode(RAW.ptypeWh[pk.picking_type_id[0]]) : null; }
-function whOfInvoice(i) {
-  var origin = i.invoice_origin && i.invoice_origin.trim();
-  if (!origin) return null;
-  if (RAW.soShipWh[origin]) return whCode(RAW.soShipWh[origin]);
-  var so = RAW.soByName[origin];
-  return so && so.warehouse_id ? whCode(so.warehouse_id[0]) : null;
+/* Which plant makes/ships each product — derived from the completed customer
+   dispatch moves themselves (every product here ships from exactly one plant).
+   Revenue is attributed to plants per invoice LINE through this map, because
+   seeded picking origins are not a reliable order-to-plant join. */
+function buildProdPlant() {
+  var agg = {};
+  RAW.mvOut.forEach(function (mv) {
+    var w = whOfPicking(RAW.pkById[mv.picking_id ? mv.picking_id[0] : 0]);
+    if (!w) return;
+    var pid = mv.product_id[0];
+    if (!agg[pid]) agg[pid] = {};
+    agg[pid][w] = (agg[pid][w] || 0) + Math.abs(mv.value || 0);
+  });
+  RAW.prodPlant = {};
+  Object.keys(agg).forEach(function (pid) {
+    var best = null;
+    Object.keys(agg[pid]).forEach(function (w) {
+      if (!best || agg[pid][w] > agg[pid][best]) best = w;
+    });
+    RAW.prodPlant[pid] = best;
+  });
 }
 function famOf(prodId) {
   var p = RAW.prodById[prodId]; if (!p || !p.categ_id) return 'Other';
@@ -481,34 +498,41 @@ function compute() {
   var m = { months: [] };
   var mset = {};
 
-  /* ---- revenue (posted customer invoices, intercompany excluded) ---- */
+  /* ---- revenue (posted customer invoices, intercompany excluded) ----
+     Line-level, in company currency (line.balance is INR even on USD exports).
+     Plant attribution: the plant that dispatches the line's product. */
   m.rev = { total: 0, count: 0, byMonth: {}, byWh: {}, byPartner: {}, overdue: 0, overdueCnt: 0 };
-  var invIncluded = {};
+  m.revByFam = {};
+  var invEligible = {};                       // passes company + intercompany filters
   RAW.inv.forEach(function (i) {
     if (!passCompany(i.company_id)) return;
-    if (i.partner_id && RAW.icPartnerIds[i.partner_id[0]]) return;    // intercompany out
-    var w = whOfInvoice(i);
+    if (i.partner_id && RAW.icPartnerIds[i.partner_id[0]]) return;
+    invEligible[i.id] = true;
+  });
+  var invCounted = {};
+  RAW.invLines.forEach(function (l) {
+    var inv = RAW.invById[l.move_id[0]];
+    if (!inv || !invEligible[inv.id]) return;
+    var w = l.product_id ? RAW.prodPlant[l.product_id[0]] : null;
     if (!passPlant(w)) return;
-    invIncluded[i.id] = true;
-    var v = i.amount_untaxed_signed;
-    m.rev.total += v; m.rev.count += 1;
-    var mo = monthOf(i.invoice_date); mset[mo] = 1;
+    var v = -l.balance;
+    m.rev.total += v;
+    var mo = monthOf(inv.invoice_date); mset[mo] = 1;
     m.rev.byMonth[mo] = (m.rev.byMonth[mo] || 0) + v;
     if (w) m.rev.byWh[w] = (m.rev.byWh[w] || 0) + v;
-    var pn = i.partner_id ? i.partner_id[1] : '?';
+    var pn = inv.partner_id ? inv.partner_id[1] : '?';
     m.rev.byPartner[pn] = (m.rev.byPartner[pn] || 0) + v;
-    if (i.amount_residual_signed > 0 && i.invoice_date_due && dOnly(i.invoice_date_due) < TODAY) {
-      m.rev.overdue += i.amount_residual_signed; m.rev.overdueCnt++;
+    if (l.product_id) {
+      var f = famOf(l.product_id[0]);
+      m.revByFam[f] = (m.revByFam[f] || 0) + v;
     }
-  });
-
-  /* ---- revenue by product family (invoice lines, company currency) ---- */
-  m.revByFam = {};
-  RAW.invLines.forEach(function (l) {
-    if (!invIncluded[l.move_id[0]]) return;
-    if (!l.product_id) return;
-    var f = famOf(l.product_id[0]);
-    m.revByFam[f] = (m.revByFam[f] || 0) + (-l.balance);
+    if (!invCounted[inv.id]) {
+      invCounted[inv.id] = true;
+      m.rev.count += 1;
+      if (inv.amount_residual_signed > 0 && inv.invoice_date_due && dOnly(inv.invoice_date_due) < TODAY) {
+        m.rev.overdue += inv.amount_residual_signed; m.rev.overdueCnt++;
+      }
+    }
   });
 
   /* ---- dispatched cost (stock.move.value on done customer dispatches) ---- */
@@ -839,11 +863,23 @@ function render() {
   /* ---------- header narrative ---------- */
   var firstMonth = m.months.length ? MONTH_LBL[m.months[0]] : '';
   var narrative = '';
+  var realOems = m.oems.filter(function (o) { return o.rev > 500000; });
   if (!plantScoped && nsk && lon) {
+    var spreadTxt;
+    if (Math.abs(nsk.margin - lon.margin) >= 0.02) {
+      spreadTxt = 'a spread a single blended plant margin cannot show.';
+    } else if (realOems.length >= 2) {
+      var best = realOems[0], worst = realOems[realOems.length - 1];
+      spreadTxt = 'the wider spread is across accounts — from <b>' + pct(worst.margin) + '</b> on '
+        + esc(worst.name.split(' ')[0]) + ' to <b>' + pct(best.margin) + '</b> on '
+        + esc(best.name.split(' ')[0]) + ' — visible only when margin is cut per account.';
+    } else {
+      spreadTxt = 'computed per plant from the records, not blended.';
+    }
     narrative = 'Two plants are live on this system — <b>Nashik E-12</b> and <b>Lonavala 40-42</b> — carrying '
       + '<b>' + money(m.rev.total) + '</b> of invoiced sales since ' + firstMonth + '. '
-      + 'Nashik earns <b>' + pct(nsk.margin) + '</b> over dispatched cost, Lonavala <b>' + pct(lon.margin) + '</b> — '
-      + 'a spread a single blended plant margin cannot show.';
+      + 'Nashik earns <b>' + pct(nsk.margin) + '</b> over dispatched cost, Lonavala <b>' + pct(lon.margin) + '</b>; '
+      + spreadTxt;
   } else if (plantScoped && m.plants.length) {
     var p0 = m.plants[0];
     narrative = '<b>' + esc(p0.name) + '</b>: ' + money(p0.rev) + ' invoiced at <b>' + pct(p0.margin)
@@ -899,8 +935,8 @@ function render() {
     + (narrative ? '<div class="shb-narrative">' + narrative + '</div>' : '')
     + '<div class="shb-sec-note" style="margin-top:10px">Margin here means invoiced value minus the stock valuation of what was dispatched — computed per plant, per family and per account from the same records, replacing the single blended plant margin in the current system.</div>'
     + '<div class="shb-grid-2">'
-    + card({ title: 'Plant-Wise Profitability', rule: 'copper', drill: 'so',
-      why: 'Invoiced value minus dispatched cost, attributed to the plant that shipped the order, year to date. Green is above group average, red below. Click for the sales orders.',
+    + card({ title: 'Plant-Wise Profitability', rule: 'copper', drill: 'disp',
+      why: 'Invoiced value minus dispatched cost, attributed to the plant that dispatches each product, year to date. Green is above group average, red below. Click for the dispatch list.',
       body: plantsBody })
     + card({ title: 'OEM Account Profitability', rule: 'copper', drill: 'inv',
       why: 'The same margin, cut by customer account. The weakest account is shown honestly in red. Click for the invoice register.',
