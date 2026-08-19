@@ -349,8 +349,12 @@ function loadAll() {
       ['name', 'picking_type_id', 'partner_id', 'origin', 'state', 'date_done', 'scheduled_date', 'backorder_id'])),
     q('dispatch moves', srch('stock.move',
       [['state', '=', 'done'], ['company_id', 'in', COMPANIES],
-       ['picking_id.picking_type_id.code', '=', 'outgoing']],
+       ['picking_id.picking_type_id.code', '=', 'outgoing'],
+       ['location_dest_id.usage', '=', 'customer']],
       ['product_id', 'quantity', 'value', 'picking_id', 'date', 'company_id'])),
+    q('resupply moves', srch('stock.move',
+      [['state', '=', 'done'], ['picking_id.name', 'like', '/RES/']],
+      ['product_id', 'quantity', 'picking_id'])),
     q('manufacturing orders', srch('mrp.production', [['company_id', 'in', COMPANIES]],
       ['name', 'state', 'product_id', 'product_qty', 'date_finished', 'picking_type_id', 'company_id'])),
     q('open MO components', srch('stock.move',
@@ -407,11 +411,12 @@ function buildRaw(r) {
   RAW = {
     inv: r[0] || [], invLines: r[1] || [], so: r[2] || [], prod: r[3] || [],
     categ: r[4] || [], ptype: r[5] || [], pkOut: r[6] || [], mvOut: r[7] || [],
-    mo: r[8] || [], moRaw: r[9] || [], quants: r[10] || [], loc: r[11] || [],
-    poCu: r[12] || [], qc: r[13] || [], qp: r[14] || [], mrn: r[15] || [],
-    recLots: r[16] || [], scrap: r[17] || [], byp: r[18] || [], resPk: r[19] || [],
-    rcpt: r[20] || [], po: r[21] || [], poOpenLines: r[22] || [], pnl: r[23] || [],
-    accounts: r[24] || [], gate: r[25] || [], wh: r[26] || []
+    resMv: r[8] || [],
+    mo: r[9] || [], moRaw: r[10] || [], quants: r[11] || [], loc: r[12] || [],
+    poCu: r[13] || [], qc: r[14] || [], qp: r[15] || [], mrn: r[16] || [],
+    recLots: r[17] || [], scrap: r[18] || [], byp: r[19] || [], resPk: r[20] || [],
+    rcpt: r[21] || [], po: r[22] || [], poOpenLines: r[23] || [], pnl: r[24] || [],
+    accounts: r[25] || [], gate: r[26] || [], wh: r[27] || []
   };
   RAW.prodById = {}; RAW.prod.forEach(function (p) { RAW.prodById[p.id] = p; });
   RAW.categById = {}; RAW.categ.forEach(function (c) { RAW.categById[c.id] = c.complete_name; });
@@ -422,6 +427,15 @@ function buildRaw(r) {
   RAW.soByName = {}; RAW.so.forEach(function (s) { RAW.soByName[s.name] = s; });
   RAW.poByName = {}; RAW.po.forEach(function (p) { RAW.poByName[p.name] = p; });
   RAW.pkById = {}; RAW.pkOut.forEach(function (p) { RAW.pkById[p.id] = p; });
+  /* plant that actually shipped each order: origin -> dispatch warehouse
+     (done pickings win over open ones; falls back to the SO's warehouse) */
+  RAW.soShipWh = {};
+  RAW.pkOut.forEach(function (p) {
+    if (!p.origin) return;
+    var w = p.picking_type_id ? RAW.ptypeWh[p.picking_type_id[0]] : 0;
+    if (!w) return;
+    if (p.state === 'done' || !RAW.soShipWh[p.origin]) RAW.soShipWh[p.origin] = w;
+  });
   RAW.icPartnerIds = {};                       // intercompany partners, by name match
   var seen = {};
   RAW.inv.forEach(function (i) {
@@ -434,7 +448,10 @@ function buildRaw(r) {
 function whCode(whId) { var w = RAW.whById[whId]; return w ? w.code : null; }
 function whOfPicking(pk) { return pk && pk.picking_type_id ? whCode(RAW.ptypeWh[pk.picking_type_id[0]]) : null; }
 function whOfInvoice(i) {
-  var so = i.invoice_origin && RAW.soByName[i.invoice_origin.trim()];
+  var origin = i.invoice_origin && i.invoice_origin.trim();
+  if (!origin) return null;
+  if (RAW.soShipWh[origin]) return whCode(RAW.soShipWh[origin]);
+  var so = RAW.soByName[origin];
   return so && so.warehouse_id ? whCode(so.warehouse_id[0]) : null;
 }
 function famOf(prodId) {
@@ -677,34 +694,53 @@ function compute() {
   });
   m.fpy.rate = (m.fpy.pass + m.fpy.fail) ? m.fpy.pass / (m.fpy.pass + m.fpy.fail) : 0;
 
-  /* ---- subcontractor turnaround (resupply out -> receipt back) ---- */
-  var rcptByOrigin = {};
+  /* ---- subcontractor turnaround (resupply out -> receipt back) ----
+     Pairing is by VENDOR (the resupply picking's own partner) and date: the
+     next completed receipt from the same vendor after the material went out.
+     Seeded resupply "origin" references are not reliable vendor evidence. */
+  var rcptByPartner = {};
   RAW.rcpt.forEach(function (r) {
-    if (!r.origin) return;
-    if (!rcptByOrigin[r.origin]) rcptByOrigin[r.origin] = [];
-    rcptByOrigin[r.origin].push(r);
+    if (r.state !== 'done' || !r.date_done || !r.partner_id) return;
+    var pid = r.partner_id[0];
+    if (!rcptByPartner[pid]) rcptByPartner[pid] = [];
+    rcptByPartner[pid].push(r.date_done);
   });
+  Object.keys(rcptByPartner).forEach(function (k) { rcptByPartner[k].sort(); });
   var tat = {};
   m.subOpen = [];
+  var openResIds = {};
   RAW.resPk.forEach(function (rp) {
-    if (rp.state !== 'done' || !rp.date_done || !rp.origin) return;
-    var po = RAW.poByName[rp.origin];
-    var vendor = po && po.partner_id ? po.partner_id[1] : (rp.partner_id ? rp.partner_id[1] : '?');
-    var backs = (rcptByOrigin[rp.origin] || []).filter(function (r) {
-      return r.state === 'done' && r.date_done && r.date_done >= rp.date_done;
-    }).sort(function (a, b) { return a.date_done < b.date_done ? -1 : 1; });
-    if (backs.length) {
-      var d = daysBetween(rp.date_done, backs[0].date_done);
+    if (rp.state !== 'done' || !rp.date_done || !rp.partner_id) return;
+    var vendor = rp.partner_id[1];
+    var dates = rcptByPartner[rp.partner_id[0]] || [];
+    var back = null;
+    for (var i = 0; i < dates.length; i++) {
+      if (dates[i] >= rp.date_done) { back = dates[i]; break; }
+    }
+    if (back) {
+      var d = daysBetween(rp.date_done, back);
       if (!tat[vendor]) tat[vendor] = { days: 0, n: 0 };
       tat[vendor].days += d; tat[vendor].n++;
     } else {
-      m.subOpen.push({ vendor: vendor, origin: rp.origin, out: rp.date_done,
+      openResIds[rp.id] = true;
+      m.subOpen.push({ vendor: vendor, origin: rp.origin || rp.name, out: rp.date_done,
                        age: daysBetween(rp.date_done, TODAY + ' ') });
     }
   });
   m.tat = Object.keys(tat).map(function (v) {
     return { vendor: v, avg: tat[v].days / tat[v].n, n: tat[v].n };
   }).sort(function (a, b) { return b.avg - a.avg; });
+
+  /* at-subcontractor copper = material on consignments that have not come back
+     (plus anything sitting in a dedicated Subcontracting location, from quants) */
+  RAW.resMv.forEach(function (mv) {
+    if (!openResIds[mv.picking_id ? mv.picking_id[0] : 0]) return;
+    var p = RAW.prodById[mv.product_id[0]]; if (!p) return;
+    if (COPPER_CODES.indexOf(p.default_code) < 0) return;
+    m.cu.subcon += mv.quantity * p.standard_price;
+    if (p.uom_id && /kg/i.test(p.uom_id[1])) m.cu.subconKg += mv.quantity;
+  });
+  m.cu.total = m.cu.store + m.cu.subcon + m.cu.wip + m.cu.awaitMrn;
 
   /* ---- data confidence ---- */
   /* Overdue POs use Odoo's own receipt_status (same rule as the drill-down
@@ -857,14 +893,14 @@ function render() {
     return '<b>' + pct(r.margin) + '</b> · ' + money(r.rev) + ' rev';
   }, avgMargin);
   var oemBody = barRows(m.oems, function (r) {
-    return '<b>' + pct(r.margin) + '</b> · ' + money(r.rev) + ' rev · ' + money(r.rev - r.cost) + ' margin';
+    return '<b>' + pct(r.margin) + '</b> · ' + money(r.rev) + ' rev';
   }, avgMargin);
   var moneySec = '<div class="shb-sec"><div class="shb-sec-label">Where the money is made</div>'
     + (narrative ? '<div class="shb-narrative">' + narrative + '</div>' : '')
     + '<div class="shb-sec-note" style="margin-top:10px">Margin here means invoiced value minus the stock valuation of what was dispatched — computed per plant, per family and per account from the same records, replacing the single blended plant margin in the current system.</div>'
     + '<div class="shb-grid-2">'
     + card({ title: 'Plant-Wise Profitability', rule: 'copper', drill: 'so',
-      why: 'Invoiced value minus dispatched cost, by plant, year to date. Green is above group average, red below. Click for the sales orders.',
+      why: 'Invoiced value minus dispatched cost, attributed to the plant that shipped the order, year to date. Green is above group average, red below. Click for the sales orders.',
       body: plantsBody })
     + card({ title: 'OEM Account Profitability', rule: 'copper', drill: 'inv',
       why: 'The same margin, cut by customer account. The weakest account is shown honestly in red. Click for the invoice register.',
@@ -898,7 +934,9 @@ function render() {
         + '<div class="shb-stage"><div class="lbl">Committed to production</div><div class="amt">' + money(m.cu.wip)
         + '<small>' + (m.cu.wipKg ? kg(m.cu.wipKg) + ' + pieces' : 'open orders') + '</small></div></div>'
         + '<div class="shb-stage"><div class="lbl">At subcontractor</div><div class="amt">' + money(m.cu.subcon)
-        + '<small>' + (m.cu.subconKg ? kg(m.cu.subconKg) : 'nothing outstanding right now') + '</small></div></div>'
+        + '<small>' + (m.subOpen.length
+          ? m.subOpen.map(function (s) { return esc(s.vendor) + ', out ' + s.age + 'd'; }).join(' · ')
+          : 'nothing outstanding right now') + '</small></div></div>'
         + '<div class="shb-stage"><div class="lbl">Recovered, awaiting MRN</div><div class="amt">'
         + (m.cu.awaitList.length ? '<span style="color:var(--bad)">' + money(m.cu.awaitMrn) + '</span>' : money(0))
         + '<small>' + (m.cu.awaitList.length ? esc(m.cu.awaitList.join(', ')) + ' — blocked from issue' : 'none pending — the MRN register is clear') + '</small></div></div>'
@@ -975,6 +1013,7 @@ function render() {
   /* ---------- charts ---------- */
   Chart.defaults.font.family = '"Segoe UI", -apple-system, Roboto, Arial, sans-serif';
   Chart.defaults.color = '#6b7784';
+  Chart.defaults.animation = false;   // instant, deterministic paint (demo + screenshots)
   var spark = document.getElementById('c-spark');
   if (spark && m.months.length) {
     mkChart(spark, { type: 'line',

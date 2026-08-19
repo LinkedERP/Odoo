@@ -90,18 +90,20 @@
     </record>
 
     <record id="action_scrap" model="ir.actions.act_window">
-        <field name="name">Scrap Register</field>
+        <field name="name">Scrap Entries in Draft</field>
         <field name="res_model">stock.scrap</field>
         <field name="view_mode">list,form</field>
-        <field name="domain">[('company_id.name', 'like', 'Shubhada')]</field>
+        <field name="domain">[('state', '=', 'draft'), ('company_id.name', 'like', 'Shubhada')]</field>
     </record>
 
     <record id="action_rcpt_open" model="ir.actions.act_window">
-        <field name="name">Open Purchase Receipts</field>
+        <field name="name">Purchase Receipts Open 30+ Days</field>
         <field name="res_model">stock.picking</field>
         <field name="view_mode">list,form</field>
         <field name="domain">[('picking_type_id.code', '=', 'incoming'),
-            ('state', 'in', ('confirmed', 'assigned')), ('company_id.name', 'like', 'Shubhada')]</field>
+            ('state', 'in', ('confirmed', 'assigned')),
+            ('scheduled_date', '&lt;', (context_today() - relativedelta(days=30)).strftime('%Y-%m-%d')),
+            ('company_id.name', 'like', 'Shubhada')]</field>
     </record>
 
     <record id="action_po_over" model="ir.actions.act_window">
