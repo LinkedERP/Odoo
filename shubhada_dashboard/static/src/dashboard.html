@@ -841,7 +841,9 @@ function barRows(rows, fmtVal, groupAvg) {
   rows.forEach(function (r) { maxAbs = Math.max(maxAbs, Math.abs(r.margin)); });
   maxAbs = maxAbs || 1;
   return '<div class="shb-bars">' + rows.map(function (r) {
-    var cls = groupAvg === undefined ? 'copper' : (r.margin >= groupAvg ? 'good' : 'bad');
+    var cls = groupAvg === undefined ? 'copper'
+      : (Math.abs(r.margin - groupAvg) < 0.01 ? ''            // within 1pp of average: neutral
+        : (r.margin >= groupAvg ? 'good' : 'bad'));
     var wpct = Math.max(3, Math.abs(r.margin) / maxAbs * 100);
     return '<div class="shb-bar-row">'
       + '<div class="nm" title="' + esc(r.name) + '">' + esc(r.name) + '</div>'
