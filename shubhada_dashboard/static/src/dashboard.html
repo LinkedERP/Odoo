@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Shubhada Management Dashboard</title>
+<link rel="icon" href="/web/image/res.company/4/logo">
+<style>
+/* Shubhada Management Dashboard — design language
+   Palette: deep slate hero, copper accent, steel greys; green/red only where a
+   value is genuinely good or bad. Light background, generous whitespace. */
+
+:root {
+  --bg: #f4f5f7;
+  --card: #ffffff;
+  --ink: #1d2733;
+  --ink-2: #45535f;
+  --muted: #6b7784;
+  --line: #e4e8ec;
+  --slate: #24303d;
+  --slate-2: #35465a;
+  --copper: #b06a2e;
+  --copper-2: #c8803f;
+  --steel: #7d8ca0;
+  --good: #1a7f4e;
+  --good-bg: #e9f6ef;
+  --bad: #b3362f;
+  --bad-bg: #faeceb;
+  --amber: #a4690b;
+  --amber-bg: #fdf3e0;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  -webkit-text-size-adjust: 100%;
+}
+
+.shb-wrap { max-width: 1320px; margin: 0 auto; padding: 18px 22px 60px; }
+
+/* ---------- header ---------- */
+.shb-head { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; justify-content: space-between; margin-bottom: 6px; }
+.shb-title h1 { font-size: 21px; font-weight: 650; letter-spacing: .2px; color: var(--slate); }
+.shb-title .sub { font-size: 12.5px; color: var(--muted); margin-top: 3px; max-width: 760px; line-height: 1.45; }
+.shb-brand { display: flex; align-items: center; gap: 10px; }
+.shb-brand img { height: 34px; }
+.shb-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.shb-filters label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-right: 2px; }
+.shb-filters select {
+  font: inherit; font-size: 12.5px; color: var(--ink);
+  border: 1px solid var(--line); border-radius: 7px; background: #fff;
+  padding: 6px 26px 6px 9px; appearance: auto; cursor: pointer;
+}
+.shb-narrative {
+  font-size: 13.5px; color: var(--ink-2); line-height: 1.5;
+  background: #fff; border: 1px solid var(--line); border-left: 3px solid var(--copper);
+  border-radius: 8px; padding: 10px 14px; margin: 12px 0 4px;
+}
+
+/* ---------- sections ---------- */
+.shb-sec { margin-top: 26px; }
+.shb-sec-label {
+  font-size: 11px; font-weight: 650; letter-spacing: 2.2px; text-transform: uppercase;
+  color: var(--steel); margin-bottom: 10px;
+}
+.shb-sec-note { font-size: 12.5px; color: var(--muted); margin: -6px 0 10px; line-height: 1.45; }
+
+/* ---------- grids ---------- */
+.shb-hero-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.shb-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.shb-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+
+/* ---------- cards ---------- */
+.shb-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 13px 15px 14px; position: relative; overflow: hidden;
+  box-shadow: 0 1px 2px rgba(29, 39, 51, .04);
+}
+.shb-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--rule, var(--slate));
+}
+.shb-card.rule-copper { --rule: var(--copper); }
+.shb-card.rule-steel { --rule: var(--steel); }
+.shb-card.rule-good { --rule: var(--good); }
+.shb-card.rule-bad { --rule: var(--bad); }
+
+.shb-card h3 { font-size: 13px; font-weight: 650; color: var(--ink); letter-spacing: .1px; padding-right: 26px; }
+.shb-card .why { font-size: 11.8px; color: var(--muted); line-height: 1.45; margin: 4px 0 10px; padding-right: 4px; }
+
+.shb-big { font-size: 31px; font-weight: 680; color: var(--slate); line-height: 1.05; letter-spacing: -.3px; font-variant-numeric: tabular-nums; }
+.shb-big .unit { font-size: 17px; font-weight: 600; color: var(--ink-2); margin-left: 2px; }
+.shb-ctx { font-size: 12.2px; color: var(--muted); margin-top: 5px; line-height: 1.45; }
+.shb-ctx b { color: var(--ink-2); font-weight: 600; }
+.shb-ctx .good { color: var(--good); font-weight: 600; }
+.shb-ctx .bad { color: var(--bad); font-weight: 600; }
+
+.shb-expand {
+  position: absolute; top: 9px; right: 9px; width: 24px; height: 24px;
+  border: 1px solid var(--line); border-radius: 6px; background: #fff;
+  color: var(--steel); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; line-height: 1; text-decoration: none;
+}
+.shb-expand:hover { color: var(--copper); border-color: var(--copper-2); }
+
+.shb-spark { margin-top: 8px; height: 42px; }
+.shb-spark canvas { width: 100% !important; height: 42px !important; }
+
+/* ---------- bar lists (plants / families / OEMs) ---------- */
+.shb-bars { display: flex; flex-direction: column; gap: 7px; margin-top: 2px; }
+.shb-bar-row { display: grid; grid-template-columns: 148px 1fr 168px; gap: 10px; align-items: center; }
+.shb-bar-row .nm { font-size: 12.6px; color: var(--ink-2); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shb-bar-row .track { height: 17px; background: #eef1f4; border-radius: 4px; position: relative; }
+.shb-bar-row .fill { position: absolute; top: 0; left: 0; bottom: 0; border-radius: 4px; background: var(--steel); }
+.shb-bar-row .fill.good { background: var(--good); }
+.shb-bar-row .fill.bad { background: var(--bad); }
+.shb-bar-row .fill.copper { background: var(--copper-2); }
+.shb-bar-row .val { font-size: 12.2px; color: var(--ink-2); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.shb-bar-row .val b { color: var(--ink); }
+.shb-bar-dim { font-size: 12px; color: var(--muted); }
+.shb-avg-line { font-size: 11.6px; color: var(--muted); margin-top: 8px; padding-top: 7px; border-top: 1px dashed var(--line); }
+
+/* ---------- charts ---------- */
+.shb-chart { position: relative; height: 210px; margin-top: 6px; }
+.shb-chart canvas { max-width: 100%; }
+
+/* ---------- stat rows (copper stages) ---------- */
+.shb-stages { display: flex; flex-direction: column; gap: 9px; margin-top: 4px; }
+.shb-stage { display: grid; grid-template-columns: 158px 1fr; gap: 10px; align-items: baseline; }
+.shb-stage .lbl { font-size: 12.4px; color: var(--ink-2); font-weight: 600; }
+.shb-stage .amt { font-size: 14.5px; font-weight: 650; color: var(--slate); font-variant-numeric: tabular-nums; }
+.shb-stage .amt small { font-size: 11.5px; color: var(--muted); font-weight: 500; margin-left: 6px; }
+
+/* ---------- tables ---------- */
+.shb-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.shb-table th {
+  text-align: left; font-size: 10.8px; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--steel); font-weight: 650; padding: 6px 8px; border-bottom: 1px solid var(--line);
+}
+.shb-table td { padding: 7px 8px; font-size: 12.6px; color: var(--ink-2); border-bottom: 1px solid #f0f2f5; }
+.shb-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.shb-table tr:last-child td { border-bottom: none; }
+
+/* ---------- confidence panel ---------- */
+.shb-conf-row { display: grid; grid-template-columns: 30px 1fr auto auto; gap: 10px; align-items: center; padding: 8px 4px; border-bottom: 1px solid #f0f2f5; }
+.shb-conf-row:last-child { border-bottom: none; }
+.shb-conf-ic { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+.shb-conf-ic.ok { background: var(--good-bg); color: var(--good); }
+.shb-conf-ic.warn { background: var(--amber-bg); color: var(--amber); }
+.shb-conf-ic.bad { background: var(--bad-bg); color: var(--bad); }
+.shb-conf-txt { font-size: 12.8px; color: var(--ink-2); line-height: 1.4; }
+.shb-conf-txt small { display: block; color: var(--muted); font-size: 11.5px; }
+.shb-conf-n { font-size: 15px; font-weight: 680; color: var(--slate); font-variant-numeric: tabular-nums; }
+.shb-conf-act { font-size: 12px; color: var(--copper); text-decoration: none; font-weight: 600; white-space: nowrap; }
+.shb-conf-act:hover { text-decoration: underline; }
+
+/* ---------- pills / badges ---------- */
+.shb-pill { display: inline-block; font-size: 10.6px; font-weight: 650; letter-spacing: .4px; border-radius: 20px; padding: 2px 8px; vertical-align: 2px; }
+.shb-pill.good { background: var(--good-bg); color: var(--good); }
+.shb-pill.bad { background: var(--bad-bg); color: var(--bad); }
+.shb-pill.amber { background: var(--amber-bg); color: var(--amber); }
+.shb-pill.steel { background: #eef1f4; color: var(--ink-2); }
+
+/* ---------- footer ---------- */
+.shb-foot { margin-top: 26px; font-size: 11.6px; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.shb-foot a { color: var(--copper); text-decoration: none; }
+
+/* ---------- loading / error ---------- */
+.shb-loading { padding: 80px 0; text-align: center; color: var(--muted); font-size: 14px; }
+.shb-error { margin: 30px auto; max-width: 560px; background: var(--bad-bg); border: 1px solid #e8c2bf; color: var(--bad); border-radius: 10px; padding: 16px 18px; font-size: 13.5px; line-height: 1.5; }
+.shb-error a { color: var(--bad); font-weight: 650; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1100px) {
+  .shb-hero-grid { grid-template-columns: repeat(3, 1fr); }
+  .shb-grid-3 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 760px) {
+  .shb-wrap { padding: 12px 12px 48px; }
+  .shb-hero-grid { grid-template-columns: 1fr 1fr; }
+  .shb-grid-2, .shb-grid-3 { grid-template-columns: 1fr; }
+  .shb-big { font-size: 26px; }
+  .shb-bar-row { grid-template-columns: 108px 1fr; }
+  .shb-bar-row .val { grid-column: 1 / -1; text-align: left; margin-top: -3px; }
+  .shb-stage { grid-template-columns: 128px 1fr; }
+  .shb-chart { height: 180px; }
+  .shb-head { align-items: flex-start; flex-direction: column; }
+}
+@media (max-width: 420px) {
+  .shb-hero-grid { grid-template-columns: 1fr 1fr; gap: 9px; }
+  .shb-card { padding: 11px 12px 12px; }
+  .shb-big { font-size: 22px; }
+  .shb-big .unit { font-size: 13px; }
+}
+
+</style>
+<script src="/web/static/lib/Chart/Chart.js"></script>
+</head>
+<body>
+<div class="shb-wrap">
+  <div class="shb-head">
+    <div class="shb-brand">
+      <img src="/web/image/res.company/4/logo" alt="Shubhada">
+      <div class="shb-title">
+        <h1>Shubhada Management Dashboard</h1>
+        <div class="sub">Group year-to-date view: plant and product-family profitability,
+          copper exposure, and shop-floor throughput. All money in INR, ex-GST unless stated.
+          Every figure is computed live from the records behind it.</div>
+      </div>
+    </div>
+    <div class="shb-filters">
+      <label>FY</label>
+      <select id="shb-f-fy"><option value="2026">2026-27 (Apr–Mar)</option></select>
+      <label>Company</label>
+      <select id="shb-f-company">
+        <option value="all">Group (both entities)</option>
+        <option value="4">Shubhada Polymers (SPPL)</option>
+        <option value="5">Shubhada Technology (STC)</option>
+      </select>
+      <label>Plant</label>
+      <select id="shb-f-plant">
+        <option value="all">All plants</option>
+        <option value="NSK12">Nashik E-12</option>
+        <option value="LON40">Lonavala 40-42</option>
+        <option value="D506" disabled>Mumbai D-506 (no data yet)</option>
+        <option value="D178" disabled>Mumbai D-178/3 (no data yet)</option>
+        <option value="LON27" disabled>Lonavala 27/28 (no data yet)</option>
+        <option value="LON12" disabled>Lonavala 12-14 (no data yet)</option>
+        <option value="LON37" disabled>Lonavala Unit 37 (no data yet)</option>
+        <option value="NSKSM" disabled>Nashik F-11-12 (no data yet)</option>
+        <option value="STCNS" disabled>STC Nashik (no data yet)</option>
+      </select>
+    </div>
+  </div>
+  <div id="shb-root"></div>
+</div>
+<script>
+/* Shubhada Management Dashboard — application.
+   Every figure on this page is computed in this file from live Odoo records
+   fetched over /web/dataset/call_kw with the logged-in user's session.
+   No number is hardcoded. Drill-downs open real Odoo windows (ir.actions.act_window)
+   whose domains mirror the exact queries used to compute each figure. */
+'use strict';
+
+/* ---------------- constants ---------------- */
+var FY0 = '2026-04-01';                    // FY 2026-27 starts (Apr–Mar fiscal year)
+var COMPANIES = [4, 5];                    // 4 = SPPL, 5 = STC
+var CTX = { allowed_company_ids: COMPANIES };
+var COPPER_CODES = ['COPPER_ROD_80MM', 'COPPER_CONDUCTOR_MACHINED',
+                    'SILVER_PLATED_CONDUCTOR_420KV', 'COPPER_SCRAP_TURNINGS'];
+var WH_SHORT = { NSK12: 'Nashik E-12', LON40: 'Lonavala 40-42', D506: 'Mumbai D-506',
+                 D178: 'Mumbai D-178/3', LON27: 'Lonavala 27/28', LON12: 'Lonavala 12-14',
+                 LON37: 'Lonavala Unit 37', NSKSM: 'Nashik F-11-12', HYD: 'Hyderabad',
+                 JNPT: 'JNPT Navi Mumbai', STCNS: 'STC Nashik' };
+var MONTH_LBL = { '2026-04': 'Apr', '2026-05': 'May', '2026-06': 'Jun', '2026-07': 'Jul',
+                  '2026-08': 'Aug', '2026-09': 'Sep', '2026-10': 'Oct', '2026-11': 'Nov',
+                  '2026-12': 'Dec', '2027-01': 'Jan', '2027-02': 'Feb', '2027-03': 'Mar' };
+/* Drill actions are module records (shubhada_dashboard/views/actions.xml); the
+   xmlid slug is action_<key>. window.SHB.actions may override with numeric ids. */
+var ACT = (window.SHB && window.SHB.actions) || {};
+var ACT_KEYS = ['inv', 'so', 'disp', 'mo_open', 'mo_done', 'quant_cu', 'po_cu', 'qc_hv',
+                'qc_open', 'lots_rec', 'scrap', 'rcpt_open', 'po_over', 'pnl', 'subcon',
+                'prod_nostd', 'mrn'];
+
+/* ---------------- formatting (Indian) ---------------- */
+function inr(v, dec) {
+  return '₹' + Math.round(v).toLocaleString('en-IN', { maximumFractionDigits: dec || 0 });
+}
+function money(v) {
+  var a = Math.abs(v), s = v < 0 ? '−' : '';
+  if (a >= 1e7) return s + '₹' + (a / 1e7).toFixed(a >= 1e9 ? 1 : 2) + ' Cr';
+  if (a >= 1e5) return s + '₹' + (a / 1e5).toFixed(a >= 1e6 ? 1 : 2) + ' L';
+  return s + inr(a);
+}
+function moneyParts(v) {
+  var m = money(v).replace('₹', '');
+  var sp = m.split(' ');
+  return { n: '₹' + sp[0], u: sp[1] || '' };
+}
+function pct(v, dec) { return (v * 100).toFixed(dec === undefined ? 1 : dec) + '%'; }
+function kg(v) { return Math.round(v).toLocaleString('en-IN') + ' kg'; }
+function esc(s) {
+  return String(s === undefined || s === null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/* ---------------- rpc ---------------- */
+var RECORD_COUNT = 0;
+function kw(model, method, args, kwargs) {
+  kwargs = kwargs || {};
+  if (!kwargs.context) kwargs.context = CTX;
+  return fetch('/web/dataset/call_kw/' + model + '/' + method, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', method: 'call',
+                           params: { model: model, method: method, args: args || [], kwargs: kwargs } })
+  }).then(function (r) {
+    if (r.status === 401 || r.status === 403 || r.redirected) throw new Error('SESSION');
+    return r.json();
+  }).then(function (j) {
+    if (j.error) {
+      var msg = (j.error.data && j.error.data.message) || j.error.message || 'RPC error';
+      if (/Session|session/.test(msg)) throw new Error('SESSION');
+      throw new Error(model + '.' + method + ': ' + msg.slice(0, 180));
+    }
+    if (Array.isArray(j.result)) RECORD_COUNT += j.result.length;
+    return j.result;
+  });
+}
+function srch(model, domain, fields, extra) {
+  var kwargs = { fields: fields };
+  if (extra) for (var k in extra) kwargs[k] = extra[k];
+  return kw(model, 'search_read', [domain], kwargs);
+}
+
+/* ---------------- data load (one parallel wave) ---------------- */
+var FAILED = [];
+function q(name, promise) {
+  return promise.catch(function (e) {
+    if (String(e.message) === 'SESSION') throw e;
+    FAILED.push(name + ' — ' + e.message);
+    return null;
+  });
+}
+function loadAll() {
+  return Promise.all([
+    q('invoices', srch('account.move',
+      [['move_type', 'in', ['out_invoice', 'out_refund']], ['state', '=', 'posted'],
+       ['company_id', 'in', COMPANIES], ['invoice_date', '>=', FY0]],
+      ['name', 'invoice_date', 'invoice_date_due', 'amount_untaxed_signed', 'amount_total_signed',
+       'amount_residual_signed', 'partner_id', 'invoice_origin', 'company_id'])),
+    q('invoice lines', srch('account.move.line',
+      [['move_id.move_type', 'in', ['out_invoice', 'out_refund']], ['parent_state', '=', 'posted'],
+       ['display_type', '=', 'product'], ['company_id', 'in', COMPANIES], ['date', '>=', FY0]],
+      ['move_id', 'product_id', 'balance', 'quantity'])),
+    q('sale orders', srch('sale.order', [['company_id', 'in', COMPANIES]],
+      ['name', 'warehouse_id', 'partner_id', 'state', 'date_order'])),
+    q('products', srch('product.product', [],
+      ['default_code', 'categ_id', 'standard_price', 'uom_id', 'type', 'name'])),
+    q('categories', srch('product.category', [], ['complete_name'])),
+    q('picking types', srch('stock.picking.type', [], ['warehouse_id', 'code'])),
+    q('outgoing pickings', srch('stock.picking',
+      [['picking_type_id.code', '=', 'outgoing'], ['company_id', 'in', COMPANIES]],
+      ['name', 'picking_type_id', 'partner_id', 'origin', 'state', 'date_done', 'scheduled_date', 'backorder_id'])),
+    q('dispatch moves', srch('stock.move',
+      [['state', '=', 'done'], ['company_id', 'in', COMPANIES],
+       ['picking_id.picking_type_id.code', '=', 'outgoing']],
+      ['product_id', 'quantity', 'value', 'picking_id', 'date', 'company_id'])),
+    q('manufacturing orders', srch('mrp.production', [['company_id', 'in', COMPANIES]],
+      ['name', 'state', 'product_id', 'product_qty', 'date_finished', 'picking_type_id', 'company_id'])),
+    q('open MO components', srch('stock.move',
+      [['raw_material_production_id', '!=', false],
+       ['state', 'in', ['confirmed', 'assigned', 'partially_available', 'waiting']],
+       ['company_id', 'in', COMPANIES]],
+      ['product_id', 'product_uom_qty', 'raw_material_production_id'])),
+    q('stock on hand', srch('stock.quant',
+      [['location_id.usage', '=', 'internal'], ['company_id', 'in', COMPANIES], ['quantity', '!=', 0]],
+      ['product_id', 'location_id', 'quantity', 'company_id'])),
+    q('locations', srch('stock.location', [], ['complete_name', 'usage'])),
+    q('copper purchases', srch('purchase.order.line',
+      [['product_id.default_code', '=', 'COPPER_ROD_80MM'], ['order_id.state', 'in', ['purchase', 'done']]],
+      ['price_unit', 'product_qty', 'qty_received', 'date_planned', 'order_id', 'company_id'])),
+    q('quality checks', srch('quality.check', [['company_id', 'in', COMPANIES]],
+      ['quality_state', 'point_id', 'control_date'])),
+    q('quality points', srch('quality.point', [], ['title', 'operation_id'])),
+    q('MRNs', srch('x_mrn', [], ['x_name', 'x_state', 'x_qty', 'x_product_id', 'x_lot_id'])),
+    q('recovered lots', srch('stock.lot', [['x_recovered', '=', true]],
+      ['name', 'product_qty', 'product_id'])),
+    q('scrap', srch('stock.scrap', [['company_id', 'in', COMPANIES]],
+      ['product_id', 'scrap_qty', 'state'])),
+    q('by-product scrap', srch('stock.move',
+      [['production_id', '!=', false], ['state', '=', 'done'],
+       ['product_id.default_code', '=', 'COPPER_SCRAP_TURNINGS']],
+      ['quantity'])),
+    q('resupply pickings', srch('stock.picking', [['name', 'like', '/RES/']],
+      ['name', 'origin', 'date_done', 'state', 'partner_id', 'scheduled_date'])),
+    q('incoming receipts', srch('stock.picking',
+      [['picking_type_id.code', '=', 'incoming'], ['company_id', 'in', COMPANIES]],
+      ['name', 'origin', 'date_done', 'state', 'scheduled_date', 'partner_id'])),
+    q('purchase orders', srch('purchase.order', [['company_id', 'in', COMPANIES]],
+      ['name', 'partner_id', 'state', 'picking_type_id', 'receipt_status'])),
+    q('open PO lines', srch('purchase.order.line',
+      [['order_id.state', '=', 'purchase'], ['company_id', 'in', COMPANIES]],
+      ['order_id', 'product_qty', 'qty_received', 'date_planned'])),
+    q('P&L lines', kw('account.move.line', 'read_group',
+      [[['parent_state', '=', 'posted'], ['company_id', 'in', COMPANIES], ['date', '>=', FY0],
+        ['account_id.internal_group', 'in', ['income', 'expense']]],
+       ['balance'], ['account_id']], { lazy: false })),
+    q('accounts', srch('account.account', [], ['internal_group'])),
+    q('gate entries', srch('x_gate_entry', [], ['x_state', 'x_in_time'])),
+    q('warehouses', srch('stock.warehouse', [], ['code', 'name', 'company_id']))
+  ]);
+}
+
+/* ---------------- model ---------------- */
+var RAW = null;      // named raw sets
+var M = null;        // computed model for current filters
+var FILTER = { company: 'all', plant: 'all' };
+var TODAY = new Date().toISOString().slice(0, 10);
+
+function buildRaw(r) {
+  RAW = {
+    inv: r[0] || [], invLines: r[1] || [], so: r[2] || [], prod: r[3] || [],
+    categ: r[4] || [], ptype: r[5] || [], pkOut: r[6] || [], mvOut: r[7] || [],
+    mo: r[8] || [], moRaw: r[9] || [], quants: r[10] || [], loc: r[11] || [],
+    poCu: r[12] || [], qc: r[13] || [], qp: r[14] || [], mrn: r[15] || [],
+    recLots: r[16] || [], scrap: r[17] || [], byp: r[18] || [], resPk: r[19] || [],
+    rcpt: r[20] || [], po: r[21] || [], poOpenLines: r[22] || [], pnl: r[23] || [],
+    accounts: r[24] || [], gate: r[25] || [], wh: r[26] || []
+  };
+  RAW.prodById = {}; RAW.prod.forEach(function (p) { RAW.prodById[p.id] = p; });
+  RAW.categById = {}; RAW.categ.forEach(function (c) { RAW.categById[c.id] = c.complete_name; });
+  RAW.locById = {}; RAW.loc.forEach(function (l) { RAW.locById[l.id] = l; });
+  RAW.accById = {}; RAW.accounts.forEach(function (a) { RAW.accById[a.id] = a.internal_group; });
+  RAW.whById = {}; RAW.wh.forEach(function (w) { RAW.whById[w.id] = w; });
+  RAW.ptypeWh = {}; RAW.ptype.forEach(function (t) { RAW.ptypeWh[t.id] = t.warehouse_id ? t.warehouse_id[0] : 0; });
+  RAW.soByName = {}; RAW.so.forEach(function (s) { RAW.soByName[s.name] = s; });
+  RAW.poByName = {}; RAW.po.forEach(function (p) { RAW.poByName[p.name] = p; });
+  RAW.pkById = {}; RAW.pkOut.forEach(function (p) { RAW.pkById[p.id] = p; });
+  RAW.icPartnerIds = {};                       // intercompany partners, by name match
+  var seen = {};
+  RAW.inv.forEach(function (i) {
+    if (i.partner_id && /shubhada/i.test(i.partner_id[1]) && !seen[i.partner_id[0]]) {
+      seen[i.partner_id[0]] = true; RAW.icPartnerIds[i.partner_id[0]] = true;
+    }
+  });
+}
+
+function whCode(whId) { var w = RAW.whById[whId]; return w ? w.code : null; }
+function whOfPicking(pk) { return pk && pk.picking_type_id ? whCode(RAW.ptypeWh[pk.picking_type_id[0]]) : null; }
+function whOfInvoice(i) {
+  var so = i.invoice_origin && RAW.soByName[i.invoice_origin.trim()];
+  return so && so.warehouse_id ? whCode(so.warehouse_id[0]) : null;
+}
+function famOf(prodId) {
+  var p = RAW.prodById[prodId]; if (!p || !p.categ_id) return 'Other';
+  var c = RAW.categById[p.categ_id[0]] || '';
+  if (c.indexOf('Bushings') >= 0) return 'Bushings';
+  if (c.indexOf('Instrument Transformers') >= 0) return 'Instrument Transformers';
+  if (c.indexOf('Enclosures') >= 0) return 'Enclosures (SMC)';
+  if (c.indexOf('Plating Chemicals') >= 0) return 'Plating chemical (trade)';
+  if (c.indexOf('Scrap') >= 0) return 'Scrap & recovery sales';
+  if (c.indexOf('Semi-Finished') >= 0) return 'Semi-finished (trade)';
+  return 'Other';
+}
+function passCompany(cid) {
+  if (FILTER.company === 'all') return true;
+  return cid && cid[0] === Number(FILTER.company);
+}
+function passPlant(code) {
+  if (FILTER.plant === 'all') return true;
+  return code === FILTER.plant;
+}
+function dOnly(s) { return (s || '').slice(0, 10); }
+function monthOf(s) { return (s || '').slice(0, 7); }
+function daysBetween(a, b) { return Math.round((new Date(dOnly(b)) - new Date(dOnly(a))) / 86400000); }
+
+function compute() {
+  var m = { months: [] };
+  var mset = {};
+
+  /* ---- revenue (posted customer invoices, intercompany excluded) ---- */
+  m.rev = { total: 0, count: 0, byMonth: {}, byWh: {}, byPartner: {}, overdue: 0, overdueCnt: 0 };
+  var invIncluded = {};
+  RAW.inv.forEach(function (i) {
+    if (!passCompany(i.company_id)) return;
+    if (i.partner_id && RAW.icPartnerIds[i.partner_id[0]]) return;    // intercompany out
+    var w = whOfInvoice(i);
+    if (!passPlant(w)) return;
+    invIncluded[i.id] = true;
+    var v = i.amount_untaxed_signed;
+    m.rev.total += v; m.rev.count += 1;
+    var mo = monthOf(i.invoice_date); mset[mo] = 1;
+    m.rev.byMonth[mo] = (m.rev.byMonth[mo] || 0) + v;
+    if (w) m.rev.byWh[w] = (m.rev.byWh[w] || 0) + v;
+    var pn = i.partner_id ? i.partner_id[1] : '?';
+    m.rev.byPartner[pn] = (m.rev.byPartner[pn] || 0) + v;
+    if (i.amount_residual_signed > 0 && i.invoice_date_due && dOnly(i.invoice_date_due) < TODAY) {
+      m.rev.overdue += i.amount_residual_signed; m.rev.overdueCnt++;
+    }
+  });
+
+  /* ---- revenue by product family (invoice lines, company currency) ---- */
+  m.revByFam = {};
+  RAW.invLines.forEach(function (l) {
+    if (!invIncluded[l.move_id[0]]) return;
+    if (!l.product_id) return;
+    var f = famOf(l.product_id[0]);
+    m.revByFam[f] = (m.revByFam[f] || 0) + (-l.balance);
+  });
+
+  /* ---- dispatched cost (stock.move.value on done customer dispatches) ---- */
+  m.cost = { total: 0, byWh: {}, byPartner: {}, byFam: {} };
+  RAW.mvOut.forEach(function (mv) {
+    if (!passCompany(mv.company_id)) return;
+    var pk = RAW.pkById[mv.picking_id ? mv.picking_id[0] : 0];
+    var w = whOfPicking(pk);
+    if (!passPlant(w)) return;
+    if (pk && pk.partner_id && RAW.icPartnerIds[pk.partner_id[0]]) return;
+    var v = Math.abs(mv.value || 0);
+    m.cost.total += v;
+    if (w) m.cost.byWh[w] = (m.cost.byWh[w] || 0) + v;
+    if (pk && pk.partner_id) {
+      var pn = pk.partner_id[1];
+      m.cost.byPartner[pn] = (m.cost.byPartner[pn] || 0) + v;
+    }
+    var f = famOf(mv.product_id[0]);
+    m.cost.byFam[f] = (m.cost.byFam[f] || 0) + v;
+  });
+  m.margin = m.rev.total ? (m.rev.total - m.cost.total) / m.rev.total : 0;
+
+  /* ---- per-plant table ---- */
+  m.plants = [];
+  Object.keys(m.rev.byWh).forEach(function (w) {
+    var rev = m.rev.byWh[w], cost = m.cost.byWh[w] || 0;
+    m.plants.push({ code: w, name: WH_SHORT[w] || w, rev: rev, cost: cost,
+                    margin: rev ? (rev - cost) / rev : 0 });
+  });
+  m.plants.sort(function (a, b) { return b.margin - a.margin; });
+  m.idleWh = RAW.wh.filter(function (w) {
+    return !m.rev.byWh[w.code] && (FILTER.company === 'all' || w.company_id[0] === Number(FILTER.company));
+  }).map(function (w) { return WH_SHORT[w.code] || w.code; });
+
+  /* ---- families ---- */
+  m.families = [];
+  Object.keys(m.revByFam).forEach(function (f) {
+    var rev = m.revByFam[f], cost = m.cost.byFam[f] || 0;
+    if (Math.abs(rev) < 1) return;
+    m.families.push({ name: f, rev: rev, cost: cost, margin: rev ? (rev - cost) / rev : 0 });
+  });
+  m.families.sort(function (a, b) { return b.margin - a.margin; });
+
+  /* ---- OEM accounts ---- */
+  m.oems = [];
+  Object.keys(m.rev.byPartner).forEach(function (p) {
+    var rev = m.rev.byPartner[p], cost = m.cost.byPartner[p] || 0;
+    m.oems.push({ name: p, rev: rev, cost: cost, margin: rev ? (rev - cost) / rev : 0 });
+  });
+  m.oems.sort(function (a, b) { return b.margin - a.margin; });
+
+  /* ---- on-time dispatch (done; day-level) ---- */
+  m.otd = { done: 0, late: 0, openOverdue: [] };
+  RAW.pkOut.forEach(function (p) {
+    var w = whOfPicking(p);
+    if (!passPlant(w)) return;
+    if (p.partner_id && RAW.icPartnerIds[p.partner_id[0]]) return;
+    if (p.state === 'done') {
+      m.otd.done++;
+      if (p.date_done && p.scheduled_date && dOnly(p.date_done) > dOnly(p.scheduled_date)) m.otd.late++;
+    } else if (p.state !== 'cancel') {
+      if (p.scheduled_date && dOnly(p.scheduled_date) <= TODAY) m.otd.openOverdue.push(p);
+    }
+  });
+
+  /* ---- WIP (open MOs; components committed, at standard) ---- */
+  var moById = {}; var openMo = {};
+  m.wip = { value: 0, count: 0 };
+  RAW.mo.forEach(function (mo) {
+    moById[mo.id] = mo;
+    var w = whOfPicking(mo);
+    if (!passCompany(mo.company_id) || !passPlant(w)) return;
+    if (['confirmed', 'progress', 'to_close'].indexOf(mo.state) >= 0) { openMo[mo.id] = mo; m.wip.count++; }
+  });
+  RAW.moRaw.forEach(function (mv) {
+    var mo = moById[mv.raw_material_production_id[0]];
+    if (!mo || !openMo[mo.id]) return;
+    var p = RAW.prodById[mv.product_id[0]];
+    m.wip.value += mv.product_uom_qty * (p ? p.standard_price : 0);
+  });
+
+  /* ---- copper ---- */
+  var cuIds = {};
+  RAW.prod.forEach(function (p) { if (COPPER_CODES.indexOf(p.default_code) >= 0) cuIds[p.id] = p; });
+  m.cu = { store: 0, storeKg: 0, storeEa: 0, subcon: 0, subconKg: 0, wip: 0, wipKg: 0,
+           awaitMrn: 0, awaitList: [] };
+  RAW.quants.forEach(function (qt) {
+    if (!cuIds[qt.product_id[0]] || !passCompany(qt.company_id)) return;
+    var L = RAW.locById[qt.location_id[0]] || {};
+    var root = (L.complete_name || '').split('/')[0];
+    var isSub = /subcontract/i.test(L.complete_name || '');
+    if (!isSub && !passPlant(root)) return;
+    var p = cuIds[qt.product_id[0]];
+    var val = qt.quantity * p.standard_price;   // standard costing: value == qty x standard
+    var isKg = p.uom_id && /kg/i.test(p.uom_id[1]);
+    if (isSub) { m.cu.subcon += val; m.cu.subconKg += isKg ? qt.quantity : 0; }
+    else { m.cu.store += val; if (isKg) m.cu.storeKg += qt.quantity; else m.cu.storeEa += qt.quantity; }
+  });
+  RAW.moRaw.forEach(function (mv) {
+    var p = cuIds[mv.product_id[0]]; if (!p) return;
+    var mo = moById[mv.raw_material_production_id[0]];
+    if (!mo || !openMo[mo.id]) return;
+    m.cu.wip += mv.product_uom_qty * p.standard_price;
+    if (p.uom_id && /kg/i.test(p.uom_id[1])) m.cu.wipKg += mv.product_uom_qty;
+  });
+  var approvedLots = {};
+  RAW.mrn.forEach(function (r) { if (r.x_state === 'approved' && r.x_lot_id) approvedLots[r.x_lot_id[0]] = true; });
+  RAW.recLots.forEach(function (l) {
+    if (l.product_qty > 0 && !approvedLots[l.id]) {
+      var p = RAW.prodById[l.product_id[0]];
+      m.cu.awaitMrn += l.product_qty * (p ? p.standard_price : 0);
+      m.cu.awaitList.push(l.name);
+    }
+  });
+  m.cu.total = m.cu.store + m.cu.subcon + m.cu.wip + m.cu.awaitMrn;
+
+  /* ---- PPV by month ---- */
+  var rod = RAW.prod.filter(function (p) { return p.default_code === 'COPPER_ROD_80MM'; })[0];
+  m.ppv = { std: rod ? rod.standard_price : 0, byMonth: {}, total: 0, qty: 0,
+            minP: null, maxP: null };
+  RAW.poCu.forEach(function (l) {
+    if (!passCompany(l.company_id)) return;
+    var po = RAW.poByName[l.order_id[1].split(' ')[0]] || RAW.poByName[l.order_id[1]];
+    if (po && po.picking_type_id && !passPlant(whCode(RAW.ptypeWh[po.picking_type_id[0]]))) return;
+    var qty = l.qty_received || 0; if (!qty) return;
+    var mo = monthOf(l.date_planned);
+    var varAmt = (l.price_unit - m.ppv.std) * qty;
+    m.ppv.byMonth[mo] = (m.ppv.byMonth[mo] || 0) + varAmt;
+    m.ppv.total += varAmt; m.ppv.qty += qty;
+    if (m.ppv.minP === null || l.price_unit < m.ppv.minP) m.ppv.minP = l.price_unit;
+    if (m.ppv.maxP === null || l.price_unit > m.ppv.maxP) m.ppv.maxP = l.price_unit;
+    mset[mo] = 1;
+  });
+
+  /* ---- recovery ---- */
+  m.rec = { mrnKg: 0, mrnCnt: 0, mrnValue: 0, scrapKg: 0 };
+  RAW.mrn.forEach(function (r) {
+    if (r.x_state !== 'approved') return;
+    m.rec.mrnCnt++;
+    var p = r.x_product_id ? RAW.prodById[r.x_product_id[0]] : null;
+    var qty = r.x_qty || 0;
+    var isKg = p && p.uom_id && /kg/i.test(p.uom_id[1]);
+    var kgs = isKg ? qty : qty * 12.8;          // conductor BOM: 12.8 kg copper per EA
+    m.rec.mrnKg += kgs;
+    m.rec.mrnValue += qty * (p ? p.standard_price : 0);
+  });
+  RAW.byp.forEach(function (b) { m.rec.scrapKg += b.quantity; });
+  RAW.scrap.forEach(function (s) {
+    var p = RAW.prodById[s.product_id[0]];
+    if (s.state === 'done' && p && COPPER_CODES.indexOf(p.default_code) >= 0) m.rec.scrapKg += s.scrap_qty;
+  });
+  m.rec.rate = (m.rec.mrnKg + m.rec.scrapKg) ? m.rec.mrnKg / (m.rec.mrnKg + m.rec.scrapKg) : 0;
+
+  /* ---- production output by plant by month (at standard) ---- */
+  m.out = { byMonthWh: {}, months: [], whs: [] };
+  RAW.mo.forEach(function (mo) {
+    if (mo.state !== 'done' || !passCompany(mo.company_id)) return;
+    var w = whOfPicking(mo);
+    if (!w || !passPlant(w)) return;
+    var mth = monthOf(mo.date_finished); if (!mth) return;
+    var p = RAW.prodById[mo.product_id[0]];
+    var val = mo.product_qty * (p ? p.standard_price : 0);
+    if (!m.out.byMonthWh[mth]) m.out.byMonthWh[mth] = {};
+    m.out.byMonthWh[mth][w] = (m.out.byMonthWh[mth][w] || 0) + val;
+    mset[mth] = 1;
+    if (m.out.whs.indexOf(w) < 0) m.out.whs.push(w);
+  });
+
+  /* ---- first-pass yield at HV / routine test ---- */
+  var hvPts = {};
+  RAW.qp.forEach(function (p) {
+    var op = p.operation_id ? p.operation_id[1] : '';
+    if (/HV|Routine Test/i.test(op) || /^HV|PD at/i.test(p.title || '')) hvPts[p.id] = p;
+  });
+  m.fpy = { pass: 0, fail: 0, open: 0 };
+  m.qcOpenAll = 0;
+  RAW.qc.forEach(function (c) {
+    if (c.quality_state === 'none') m.qcOpenAll++;
+    if (!c.point_id || !hvPts[c.point_id[0]]) return;
+    if (c.quality_state === 'pass') m.fpy.pass++;
+    else if (c.quality_state === 'fail') m.fpy.fail++;
+    else m.fpy.open++;
+  });
+  m.fpy.rate = (m.fpy.pass + m.fpy.fail) ? m.fpy.pass / (m.fpy.pass + m.fpy.fail) : 0;
+
+  /* ---- subcontractor turnaround (resupply out -> receipt back) ---- */
+  var rcptByOrigin = {};
+  RAW.rcpt.forEach(function (r) {
+    if (!r.origin) return;
+    if (!rcptByOrigin[r.origin]) rcptByOrigin[r.origin] = [];
+    rcptByOrigin[r.origin].push(r);
+  });
+  var tat = {};
+  m.subOpen = [];
+  RAW.resPk.forEach(function (rp) {
+    if (rp.state !== 'done' || !rp.date_done || !rp.origin) return;
+    var po = RAW.poByName[rp.origin];
+    var vendor = po && po.partner_id ? po.partner_id[1] : (rp.partner_id ? rp.partner_id[1] : '?');
+    var backs = (rcptByOrigin[rp.origin] || []).filter(function (r) {
+      return r.state === 'done' && r.date_done && r.date_done >= rp.date_done;
+    }).sort(function (a, b) { return a.date_done < b.date_done ? -1 : 1; });
+    if (backs.length) {
+      var d = daysBetween(rp.date_done, backs[0].date_done);
+      if (!tat[vendor]) tat[vendor] = { days: 0, n: 0 };
+      tat[vendor].days += d; tat[vendor].n++;
+    } else {
+      m.subOpen.push({ vendor: vendor, origin: rp.origin, out: rp.date_done,
+                       age: daysBetween(rp.date_done, TODAY + ' ') });
+    }
+  });
+  m.tat = Object.keys(tat).map(function (v) {
+    return { vendor: v, avg: tat[v].days / tat[v].n, n: tat[v].n };
+  }).sort(function (a, b) { return b.avg - a.avg; });
+
+  /* ---- data confidence ---- */
+  /* Overdue POs use Odoo's own receipt_status (same rule as the drill-down
+     domain), so the card count and the opened list always agree. */
+  var lateLinePo = {};
+  RAW.poOpenLines.forEach(function (l) {
+    if (dOnly(l.date_planned) < TODAY) lateLinePo[l.order_id[0]] = 1;
+  });
+  var overduePo = {};
+  RAW.po.forEach(function (p) {
+    if (p.state === 'purchase' && ['pending', 'partial'].indexOf(p.receipt_status) >= 0
+        && lateLinePo[p.id]) overduePo[p.id] = 1;
+  });
+  var oldRcpt = 0;
+  RAW.rcpt.forEach(function (r) {
+    if (['assigned', 'confirmed'].indexOf(r.state) >= 0 && r.scheduled_date
+        && daysBetween(r.scheduled_date, TODAY + ' ') > 30) oldRcpt++;
+  });
+  var scrapDraft = RAW.scrap.filter(function (s) { return s.state === 'draft'; }).length;
+  var noStd = RAW.prod.filter(function (p) {
+    return p.type === 'consu' && !p.standard_price && p.default_code;
+  }).length;
+  var gateOpen = RAW.gate.filter(function (g) { return ['in'].indexOf(g.x_state) >= 0; }).length;
+  m.conf = {
+    overduePo: Object.keys(overduePo).length,
+    oldRcpt: oldRcpt,
+    qcOpen: m.qcOpenAll,
+    scrapDraft: scrapDraft,
+    awaitMrn: m.cu.awaitList.length,
+    noStd: noStd,
+    gateOpen: gateOpen
+  };
+
+  /* ---- P&L net ---- */
+  m.pnl = { income: 0, expense: 0 };
+  (RAW.pnl || []).forEach(function (g) {
+    var grp = g.account_id ? RAW.accById[g.account_id[0]] : null;
+    if (grp === 'income') m.pnl.income += -g.balance;
+    else if (grp === 'expense') m.pnl.expense += g.balance;
+  });
+  m.pnl.net = m.pnl.income ? (m.pnl.income - m.pnl.expense) / m.pnl.income : 0;
+
+  m.months = Object.keys(mset).filter(function (k) { return k >= '2026-04'; }).sort();
+  M = m;
+}
+
+/* ---------------- rendering ---------------- */
+var CHARTS = [];
+function el(html) { var d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; }
+function drill(key) {
+  if (ACT[key]) return '/odoo/action-' + ACT[key];
+  if (ACT_KEYS.indexOf(key) >= 0) return '/odoo/action-shubhada_dashboard.action_' + key;
+  return null;
+}
+function expandBtn(key, label) {
+  var u = drill(key);
+  if (!u) return '';
+  return '<a class="shb-expand" href="' + u + '" title="' + esc(label || 'Open the records behind this number') + '">⤢</a>';
+}
+function card(opts) {
+  return '<div class="shb-card ' + (opts.rule ? 'rule-' + opts.rule : '') + '">'
+    + (opts.drill ? expandBtn(opts.drill, opts.drillLabel) : '')
+    + '<h3>' + esc(opts.title) + '</h3>'
+    + '<div class="why">' + opts.why + '</div>'
+    + (opts.body || '') + '</div>';
+}
+function bigNum(v, ctx) {
+  var p = moneyParts(v);
+  return '<div class="shb-big">' + p.n + (p.u ? '<span class="unit">' + p.u + '</span>' : '') + '</div>'
+    + (ctx ? '<div class="shb-ctx">' + ctx + '</div>' : '');
+}
+function barRows(rows, fmtVal, groupAvg) {
+  var maxAbs = 0;
+  rows.forEach(function (r) { maxAbs = Math.max(maxAbs, Math.abs(r.margin)); });
+  maxAbs = maxAbs || 1;
+  return '<div class="shb-bars">' + rows.map(function (r) {
+    var cls = groupAvg === undefined ? 'copper' : (r.margin >= groupAvg ? 'good' : 'bad');
+    var wpct = Math.max(3, Math.abs(r.margin) / maxAbs * 100);
+    return '<div class="shb-bar-row">'
+      + '<div class="nm" title="' + esc(r.name) + '">' + esc(r.name) + '</div>'
+      + '<div class="track"><div class="fill ' + cls + '" style="width:' + wpct.toFixed(1) + '%"></div></div>'
+      + '<div class="val">' + fmtVal(r) + '</div></div>';
+  }).join('') + '</div>';
+}
+function mkChart(canvas, cfg) { var c = new Chart(canvas, cfg); CHARTS.push(c); return c; }
+function destroyCharts() { CHARTS.forEach(function (c) { try { c.destroy(); } catch (e) {} }); CHARTS = []; }
+
+function render() {
+  destroyCharts();
+  var root = document.getElementById('shb-root');
+  var m = M;
+  var plantScoped = FILTER.plant !== 'all';
+  var nsk = m.plants.filter(function (p) { return p.code === 'NSK12'; })[0];
+  var lon = m.plants.filter(function (p) { return p.code === 'LON40'; })[0];
+
+  /* ---------- header narrative ---------- */
+  var firstMonth = m.months.length ? MONTH_LBL[m.months[0]] : '';
+  var narrative = '';
+  if (!plantScoped && nsk && lon) {
+    narrative = 'Two plants are live on this system — <b>Nashik E-12</b> and <b>Lonavala 40-42</b> — carrying '
+      + '<b>' + money(m.rev.total) + '</b> of invoiced sales since ' + firstMonth + '. '
+      + 'Nashik earns <b>' + pct(nsk.margin) + '</b> over dispatched cost, Lonavala <b>' + pct(lon.margin) + '</b> — '
+      + 'a spread a single blended plant margin cannot show.';
+  } else if (plantScoped && m.plants.length) {
+    var p0 = m.plants[0];
+    narrative = '<b>' + esc(p0.name) + '</b>: ' + money(p0.rev) + ' invoiced at <b>' + pct(p0.margin)
+      + '</b> margin over dispatched cost, financial year to date.';
+  }
+
+  /* ---------- hero ---------- */
+  var mrev = m.months.map(function (k) { return m.rev.byMonth[k] || 0; });
+  var hero = '<div class="shb-hero-grid">'
+    + card({ title: 'Revenue YTD', rule: 'copper', drill: 'inv',
+      why: 'Posted customer invoices net of credit notes, ex-GST, both entities, intercompany sales excluded. Click for the invoice register.',
+      body: bigNum(m.rev.total, '<b>' + m.rev.count + '</b> invoices · ' + (m.rev.overdueCnt
+        ? '<span class="bad">' + money(m.rev.overdue) + ' overdue</span>' : 'receivables current'))
+        + '<div class="shb-spark"><canvas id="c-spark"></canvas></div>' })
+    + card({ title: 'Gross Margin', rule: 'good', drill: 'pnl',
+      why: 'Invoiced value minus the stock valuation of goods dispatched, year to date. Click for the P&L journal items.',
+      body: '<div class="shb-big">' + pct(m.margin) + '</div>'
+        + '<div class="shb-ctx">' + (nsk && lon
+          ? 'plants run <b>' + pct(Math.min(nsk.margin, lon.margin)) + '</b> to <b>' + pct(Math.max(nsk.margin, lon.margin)) + '</b>'
+          : 'on ' + money(m.rev.total) + ' revenue')
+        + ' · net after operating costs <b>' + pct(m.pnl.net) + '</b></div>' })
+    + card({ title: 'Copper Exposure', rule: 'steel', drill: 'quant_cu',
+      why: 'Copper value on the books right now: in store, committed to open production, at subcontractors, and recovered stock awaiting an MRN. At standard cost. Click for the stock lines.',
+      body: bigNum(m.cu.total, 'store <b>' + money(m.cu.store) + '</b> · production <b>' + money(m.cu.wip)
+        + '</b> · subcontractor <b>' + money(m.cu.subcon) + '</b>'
+        + (m.cu.awaitMrn ? ' · <span class="bad">awaiting MRN ' + money(m.cu.awaitMrn) + '</span>' : '')) })
+    + card({ title: 'On-Time Dispatch', rule: m.otd.openOverdue.length ? 'bad' : 'good', drill: 'disp',
+      why: 'Dispatches that left on or before their scheduled day, of all completed dispatches this year. Click for the delivery list.',
+      body: '<div class="shb-big">' + pct(m.otd.done ? (m.otd.done - m.otd.late) / m.otd.done : 0, m.otd.late ? 1 : 0) + '</div>'
+        + '<div class="shb-ctx"><b>' + m.otd.done + '</b> dispatches · <b>' + m.otd.late + '</b> late'
+        + (m.otd.openOverdue.length ? ' · <span class="bad">' + m.otd.openOverdue.length
+          + ' open past date (' + esc(m.otd.openOverdue[0].origin || m.otd.openOverdue[0].name) + ')</span>' : '') + '</div>' })
+    + card({ title: 'WIP Value', rule: 'steel', drill: 'mo_open',
+      why: 'Material committed to manufacturing orders that are still open, valued at standard cost. Click for the open orders.',
+      body: bigNum(m.wip.value, '<b>' + m.wip.count + '</b> open manufacturing orders') })
+    + '</div>';
+
+  /* ---------- where the money is made ---------- */
+  var avgMargin = m.margin;
+  var plantsBody = barRows(m.plants, function (r) {
+    return '<b>' + pct(r.margin) + '</b> · ' + money(r.rev) + ' rev · ' + money(r.rev - r.cost) + ' margin';
+  }, avgMargin)
+    + (m.idleWh.length ? '<div class="shb-avg-line">Group average ' + pct(avgMargin)
+      + '. No transactions in this database yet for: ' + esc(m.idleWh.join(', ')) + '.</div>'
+      : '<div class="shb-avg-line">Group average ' + pct(avgMargin) + '.</div>');
+  var famBody = barRows(m.families, function (r) {
+    return '<b>' + pct(r.margin) + '</b> · ' + money(r.rev) + ' rev';
+  }, avgMargin);
+  var oemBody = barRows(m.oems, function (r) {
+    return '<b>' + pct(r.margin) + '</b> · ' + money(r.rev) + ' rev · ' + money(r.rev - r.cost) + ' margin';
+  }, avgMargin);
+  var moneySec = '<div class="shb-sec"><div class="shb-sec-label">Where the money is made</div>'
+    + (narrative ? '<div class="shb-narrative">' + narrative + '</div>' : '')
+    + '<div class="shb-sec-note" style="margin-top:10px">Margin here means invoiced value minus the stock valuation of what was dispatched — computed per plant, per family and per account from the same records, replacing the single blended plant margin in the current system.</div>'
+    + '<div class="shb-grid-2">'
+    + card({ title: 'Plant-Wise Profitability', rule: 'copper', drill: 'so',
+      why: 'Invoiced value minus dispatched cost, by plant, year to date. Green is above group average, red below. Click for the sales orders.',
+      body: plantsBody })
+    + card({ title: 'OEM Account Profitability', rule: 'copper', drill: 'inv',
+      why: 'The same margin, cut by customer account. The weakest account is shown honestly in red. Click for the invoice register.',
+      body: oemBody })
+    + '</div>'
+    + '<div style="margin-top:12px">'
+    + card({ title: 'Product-Family Margin', rule: 'copper', drill: 'inv',
+      why: 'Margin by product family from invoice lines and dispatch valuation. Trade rows (plating chemical, scrap sales) are part of the business and shown as themselves.',
+      body: famBody })
+    + '</div></div>';
+
+  /* ---------- copper lens ---------- */
+  var ppvNarr = '';
+  if (m.ppv.minP !== null) {
+    ppvNarr = 'Copper rod moved between <b>' + inr(m.ppv.minP) + '</b> and <b>' + inr(m.ppv.maxP)
+      + '</b> a kilo against a <b>' + inr(m.ppv.std) + '</b> standard — purchases ran <b>'
+      + money(Math.abs(m.ppv.total)) + (m.ppv.total > 0 ? ' above' : ' below')
+      + '</b> standard in total, while sale prices stayed locked at booking.';
+  }
+  var copperSec = '<div class="shb-sec"><div class="shb-sec-label">The copper lens</div>'
+    + (ppvNarr ? '<div class="shb-narrative">' + ppvNarr + '</div>' : '')
+    + '<div class="shb-grid-3" style="margin-top:10px">'
+    + card({ title: 'Purchase Price Variance — Copper', rule: 'copper', drill: 'po_cu',
+      why: 'Copper rod at standard cost versus what we actually paid, received quantities, by month. A bar above zero means we bought above standard. Click for the purchase orders.',
+      body: '<div class="shb-chart" style="height:190px"><canvas id="c-ppv"></canvas></div>' })
+    + card({ title: 'Copper by Stage', rule: 'steel', drill: 'quant_cu',
+      why: 'Where the copper physically is right now. Recovered stock cannot re-enter production without an approved Material Return Note. Click for the stock lines.',
+      body: '<div class="shb-stages">'
+        + '<div class="shb-stage"><div class="lbl">In stores</div><div class="amt">' + money(m.cu.store)
+        + '<small>' + kg(m.cu.storeKg) + (m.cu.storeEa ? ' + ' + m.cu.storeEa + ' conductors' : '') + '</small></div></div>'
+        + '<div class="shb-stage"><div class="lbl">Committed to production</div><div class="amt">' + money(m.cu.wip)
+        + '<small>' + (m.cu.wipKg ? kg(m.cu.wipKg) + ' + pieces' : 'open orders') + '</small></div></div>'
+        + '<div class="shb-stage"><div class="lbl">At subcontractor</div><div class="amt">' + money(m.cu.subcon)
+        + '<small>' + (m.cu.subconKg ? kg(m.cu.subconKg) : 'nothing outstanding right now') + '</small></div></div>'
+        + '<div class="shb-stage"><div class="lbl">Recovered, awaiting MRN</div><div class="amt">'
+        + (m.cu.awaitList.length ? '<span style="color:var(--bad)">' + money(m.cu.awaitMrn) + '</span>' : money(0))
+        + '<small>' + (m.cu.awaitList.length ? esc(m.cu.awaitList.join(', ')) + ' — blocked from issue' : 'none pending — the MRN register is clear') + '</small></div></div>'
+        + '</div>' })
+    + card({ title: 'Copper Recovery', rule: m.rec.mrnKg ? 'good' : 'steel', drill: 'mrn',
+      why: 'Copper brought back into production through approved Material Return Notes, against copper lost as process scrap (machining turnings). Click for the MRN register.',
+      body: '<div class="shb-big">' + kg(m.rec.mrnKg) + '</div>'
+        + '<div class="shb-ctx">recovered via <b>' + m.rec.mrnCnt + '</b> approved MRNs (' + money(m.rec.mrnValue) + ')'
+        + ' · process scrap <b>' + kg(m.rec.scrapKg) + '</b> · recovery ratio <b>' + pct(m.rec.rate) + '</b></div>' })
+    + '</div></div>';
+
+  /* ---------- what the floor is doing ---------- */
+  var floorSec = '<div class="shb-sec"><div class="shb-sec-label">What the floor is doing</div>'
+    + '<div class="shb-grid-3">'
+    + card({ title: 'Production Output by Plant', rule: 'steel', drill: 'mo_done',
+      why: 'Completed manufacturing orders valued at standard cost, by month and plant. Click for the completed orders.',
+      body: '<div class="shb-chart" style="height:190px"><canvas id="c-out"></canvas></div>' })
+    + card({ title: 'First-Pass Yield — HV Test', rule: m.fpy.fail ? 'bad' : 'good', drill: 'qc_hv',
+      why: 'Units that passed high-voltage and routine testing on the first attempt. Failures route to quarantine and rework. Click for the test records.',
+      body: '<div class="shb-big">' + pct(m.fpy.rate) + '</div>'
+        + '<div class="shb-ctx"><b>' + m.fpy.pass + '</b> passed · <span class="bad"><b>' + m.fpy.fail
+        + '</b> failed → rework</span>' + (m.fpy.open ? ' · ' + m.fpy.open + ' awaiting result' : '') + '</div>' })
+    + card({ title: 'Subcontractor Turnaround', rule: 'steel', drill: 'subcon',
+      why: 'Average days from material leaving the gate to processed goods coming back, per vendor, slowest first. Click for the resupply transfers.',
+      body: (m.tat.length ? '<table class="shb-table"><tr><th>Vendor</th><th style="text-align:right">Avg days</th><th style="text-align:right">Cycles</th></tr>'
+        + m.tat.map(function (t) {
+          return '<tr><td>' + esc(t.vendor) + '</td><td class="num"><b>' + t.avg.toFixed(1)
+            + '</b></td><td class="num">' + t.n + '</td></tr>';
+        }).join('') + '</table>' : '<div class="shb-ctx">no completed out-and-back cycles in range</div>')
+        + (m.subOpen.length ? '<div class="shb-ctx" style="margin-top:6px"><span class="bad">'
+          + m.subOpen.length + ' consignment' + (m.subOpen.length > 1 ? 's' : '') + ' still out</span> — '
+          + m.subOpen.map(function (s) { return esc(s.vendor) + ' ' + s.age + 'd (' + esc(s.origin) + ')'; }).join(' · ')
+          + '</div>' : '') })
+    + '</div></div>';
+
+  /* ---------- data confidence ---------- */
+  function confRow(state, txt, small, n, act) {
+    var ic = state === 'ok' ? '✓' : (state === 'warn' ? '!' : '✗');
+    return '<div class="shb-conf-row"><div class="shb-conf-ic ' + state + '">' + ic + '</div>'
+      + '<div class="shb-conf-txt">' + txt + '<small>' + small + '</small></div>'
+      + '<div class="shb-conf-n">' + n + '</div>'
+      + (act && drill(act) ? '<a class="shb-conf-act" href="' + drill(act) + '">open →</a>' : '<span></span>')
+      + '</div>';
+  }
+  var confSec = '<div class="shb-sec"><div class="shb-sec-label">Data confidence</div>'
+    + '<div class="shb-sec-note">Honest checks on the working data. A number here is not a failure of the system — it is the system knowing where the loose ends are.</div>'
+    + '<div class="shb-card rule-steel" style="padding-top:10px">'
+    + confRow(m.conf.overduePo ? 'bad' : 'ok', 'Purchase orders with overdue, undelivered lines',
+      'Confirmed orders where a line is past its planned date and not fully received', m.conf.overduePo, 'po_over')
+    + confRow(m.conf.oldRcpt ? 'warn' : 'ok', 'Purchase receipts open beyond 30 days',
+      'Incoming shipments scheduled more than a month ago and still not received', m.conf.oldRcpt, 'rcpt_open')
+    + confRow(m.conf.qcOpen ? 'warn' : 'ok', 'Quality checks awaiting a result',
+      'Inspections created but not yet passed or failed', m.conf.qcOpen, 'qc_open')
+    + confRow(m.conf.scrapDraft ? 'warn' : 'ok', 'Scrap entries still in draft',
+      'Scrap recorded on the floor but not yet confirmed by stores', m.conf.scrapDraft, 'scrap')
+    + confRow(m.conf.awaitMrn ? 'bad' : 'ok', 'Recovered lots awaiting an MRN',
+      'Recovered material is blocked from production until its Material Return Note is approved', m.conf.awaitMrn, 'lots_rec')
+    + confRow(m.conf.noStd ? 'bad' : 'ok', 'Products without a standard cost',
+      'A costed dashboard is only as good as its standards — this should stay at zero', m.conf.noStd, 'prod_nostd')
+    + '</div></div>';
+
+  /* ---------- footer ---------- */
+  var failNote = FAILED.length
+    ? '<span style="color:var(--bad)">Unavailable (query failed): ' + esc(FAILED.join('; ')) + '</span>' : '';
+  var foot = '<div class="shb-foot">'
+    + '<span>Computed live from <b>' + RECORD_COUNT.toLocaleString('en-IN') + '</b> Odoo records in '
+    + '<b>' + (window.__shb_load_ms || 0) + ' ms</b> · ' + new Date().toLocaleString('en-IN',
+      { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }) + '</span>'
+    + '<a href="#" id="shb-refresh">refresh</a>' + failNote + '</div>';
+
+  root.innerHTML = hero + moneySec + copperSec + floorSec + confSec + foot;
+  document.getElementById('shb-refresh').onclick = function (e) { e.preventDefault(); location.reload(); };
+
+  /* ---------- charts ---------- */
+  Chart.defaults.font.family = '"Segoe UI", -apple-system, Roboto, Arial, sans-serif';
+  Chart.defaults.color = '#6b7784';
+  var spark = document.getElementById('c-spark');
+  if (spark && m.months.length) {
+    mkChart(spark, { type: 'line',
+      data: { labels: m.months.map(function (k) { return MONTH_LBL[k] || k; }),
+        datasets: [{ data: mrev, borderColor: '#b06a2e', backgroundColor: 'rgba(176,106,46,.12)',
+          fill: true, tension: .35, pointRadius: 0, borderWidth: 2 }] },
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: {
+          label: function (c) { return money(c.parsed.y); } } } },
+        scales: { x: { display: false }, y: { display: false } } } });
+  }
+  var ppvC = document.getElementById('c-ppv');
+  if (ppvC) {
+    var pmonths = m.months;
+    var pdata = pmonths.map(function (k) { return (m.ppv.byMonth[k] || 0) / 1e5; });
+    mkChart(ppvC, { type: 'bar',
+      data: { labels: pmonths.map(function (k) { return MONTH_LBL[k] || k; }),
+        datasets: [{ data: pdata,
+          backgroundColor: pdata.map(function (v) { return v > 0 ? '#b3362f' : '#1a7f4e'; }) }] },
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: {
+          label: function (c) { return (c.parsed.y > 0 ? 'paid above standard: ' : 'paid below standard: ')
+            + money(Math.abs(c.parsed.y) * 1e5); } } } },
+        scales: { y: { title: { display: true, text: '₹ lakh vs standard' }, grid: { color: '#eef1f4' } },
+                  x: { grid: { display: false } } } } });
+  }
+  var outC = document.getElementById('c-out');
+  if (outC) {
+    var colors = { NSK12: '#35465a', LON40: '#c8803f' };
+    var ds = m.out.whs.map(function (w) {
+      return { label: WH_SHORT[w] || w, backgroundColor: colors[w] || '#7d8ca0',
+        data: m.months.map(function (k) { return ((m.out.byMonthWh[k] || {})[w] || 0) / 1e7; }) };
+    });
+    mkChart(outC, { type: 'bar',
+      data: { labels: m.months.map(function (k) { return MONTH_LBL[k] || k; }), datasets: ds },
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } },
+          tooltip: { callbacks: { label: function (c) {
+            return c.dataset.label + ': ' + money(c.parsed.y * 1e7); } } } },
+        scales: { x: { stacked: true, grid: { display: false } },
+                  y: { stacked: true, title: { display: true, text: '₹ crore at standard' },
+                       grid: { color: '#eef1f4' } } } } });
+  }
+}
+
+/* ---------------- filters ---------------- */
+function wireFilters() {
+  var cSel = document.getElementById('shb-f-company');
+  var pSel = document.getElementById('shb-f-plant');
+  if (cSel) cSel.onchange = function () { FILTER.company = cSel.value; compute(); render(); };
+  if (pSel) pSel.onchange = function () { FILTER.plant = pSel.value; compute(); render(); };
+}
+
+/* ---------------- boot ---------------- */
+(function () {
+  var t0 = performance.now();
+  var root = document.getElementById('shb-root');
+  root.innerHTML = '<div class="shb-loading">Computing from live records…</div>';
+  loadAll().then(function (r) {
+    buildRaw(r);
+    window.__shb_load_ms = Math.round(performance.now() - t0);
+    compute();
+    render();
+    wireFilters();
+    window.__shb_ready = true;
+    window.__shb_model = M;
+  }).catch(function (e) {
+    if (String(e.message) === 'SESSION') {
+      root.innerHTML = '<div class="shb-error">Your Odoo session has expired. '
+        + '<a href="/web/login?redirect=' + encodeURIComponent(location.pathname) + '">Log in again</a> to reload the dashboard.</div>';
+    } else {
+      root.innerHTML = '<div class="shb-error">Could not load the dashboard: ' + esc(e.message)
+        + '<br/><a href="#" onclick="location.reload();return false;">Try again</a></div>';
+    }
+    window.__shb_error = String(e.message);
+  });
+})();
+
+</script>
+</body>
+</html>

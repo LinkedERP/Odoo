@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Visibility: only members of this group (assigned per-user, e.g. the MD,
+         the COO and the IT admin) see the app on the home menu. -->
+    <record id="group_user" model="res.groups">
+        <field name="name">Shubhada Dashboard User</field>
+    </record>
+
+    <record id="action_open" model="ir.actions.act_url">
+        <field name="name">Shubhada Management Dashboard</field>
+        <field name="url">/shubhada/dashboard</field>
+        <field name="target">self</field>
+    </record>
+
+    <menuitem id="menu_root"
+              name="Management Dashboard"
+              action="action_open"
+              web_icon="shubhada_dashboard,static/description/icon.png"
+              groups="group_user"
+              sequence="6"/>
+</odoo>

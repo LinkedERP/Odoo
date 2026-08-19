@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Drill-down windows behind every dashboard figure. Each domain mirrors the
+         exact computation in static/src/dashboard.html so the number a card shows
+         and the records its expand icon opens always agree. -->
+
+    <record id="action_inv" model="ir.actions.act_window">
+        <field name="name">Customer Invoices — FY 2026-27</field>
+        <field name="res_model">account.move</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('move_type', 'in', ('out_invoice', 'out_refund')),
+            ('state', '=', 'posted'), ('invoice_date', '&gt;=', '2026-04-01'),
+            ('company_id.name', 'like', 'Shubhada'),
+            ('partner_id.name', 'not like', 'Shubhada')]</field>
+    </record>
+
+    <record id="action_so" model="ir.actions.act_window">
+        <field name="name">Sales Orders — FY 2026-27</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('company_id.name', 'like', 'Shubhada'),
+            ('partner_id.name', 'not like', 'Shubhada')]</field>
+        <field name="context">{'group_by': ['warehouse_id']}</field>
+    </record>
+
+    <record id="action_disp" model="ir.actions.act_window">
+        <field name="name">Customer Dispatches — FY 2026-27</field>
+        <field name="res_model">stock.picking</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('picking_type_id.code', '=', 'outgoing'),
+            ('company_id.name', 'like', 'Shubhada'),
+            ('partner_id.name', 'not like', 'Shubhada')]</field>
+    </record>
+
+    <record id="action_mo_open" model="ir.actions.act_window">
+        <field name="name">Open Manufacturing Orders</field>
+        <field name="res_model">mrp.production</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('state', 'in', ('confirmed', 'progress', 'to_close')),
+            ('company_id.name', 'like', 'Shubhada')]</field>
+    </record>
+
+    <record id="action_mo_done" model="ir.actions.act_window">
+        <field name="name">Completed Manufacturing Orders — FY 2026-27</field>
+        <field name="res_model">mrp.production</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('state', '=', 'done'), ('company_id.name', 'like', 'Shubhada')]</field>
+        <field name="context">{'group_by': ['picking_type_id']}</field>
+    </record>
+
+    <record id="action_quant_cu" model="ir.actions.act_window">
+        <field name="name">Copper on Hand — by Location</field>
+        <field name="res_model">stock.quant</field>
+        <field name="view_mode">list</field>
+        <field name="domain">[('product_id.default_code', 'in', ('COPPER_ROD_80MM',
+            'COPPER_CONDUCTOR_MACHINED', 'SILVER_PLATED_CONDUCTOR_420KV', 'COPPER_SCRAP_TURNINGS')),
+            ('location_id.usage', '=', 'internal')]</field>
+        <field name="context">{'group_by': ['location_id']}</field>
+    </record>
+
+    <record id="action_po_cu" model="ir.actions.act_window">
+        <field name="name">Copper Rod Purchases — FY 2026-27</field>
+        <field name="res_model">purchase.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('order_line.product_id.default_code', '=', 'COPPER_ROD_80MM'),
+            ('state', 'in', ('purchase', 'done')), ('company_id.name', 'like', 'Shubhada')]</field>
+    </record>
+
+    <record id="action_qc_hv" model="ir.actions.act_window">
+        <field name="name">HV / Routine Test Checks</field>
+        <field name="res_model">quality.check</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">['|', ('point_id.operation_id.name', 'like', 'HV'),
+            ('point_id.operation_id.name', 'like', 'Routine Test'),
+            ('company_id.name', 'like', 'Shubhada')]</field>
+    </record>
+
+    <record id="action_qc_open" model="ir.actions.act_window">
+        <field name="name">Quality Checks Awaiting Result</field>
+        <field name="res_model">quality.check</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('quality_state', '=', 'none'), ('company_id.name', 'like', 'Shubhada')]</field>
+    </record>
+
+    <record id="action_lots_rec" model="ir.actions.act_window">
+        <field name="name">Recovered Lots (MRN-controlled)</field>
+        <field name="res_model">stock.lot</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('x_recovered', '=', True)]</field>
+    </record>
+
+    <record id="action_scrap" model="ir.actions.act_window">
+        <field name="name">Scrap Register</field>
+        <field name="res_model">stock.scrap</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('company_id.name', 'like', 'Shubhada')]</field>
+    </record>
+
+    <record id="action_rcpt_open" model="ir.actions.act_window">
+        <field name="name">Open Purchase Receipts</field>
+        <field name="res_model">stock.picking</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('picking_type_id.code', '=', 'incoming'),
+            ('state', 'in', ('confirmed', 'assigned')), ('company_id.name', 'like', 'Shubhada')]</field>
+    </record>
+
+    <record id="action_po_over" model="ir.actions.act_window">
+        <field name="name">Purchase Orders — Overdue Undelivered Lines</field>
+        <field name="res_model">purchase.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('state', '=', 'purchase'),
+            ('receipt_status', 'in', ('pending', 'partial')),
+            ('order_line', 'any', [('date_planned', '&lt;', context_today().strftime('%Y-%m-%d'))]),
+            ('company_id.name', 'like', 'Shubhada')]</field>
+    </record>
+
+    <record id="action_pnl" model="ir.actions.act_window">
+        <field name="name">P&amp;L Journal Items — FY 2026-27</field>
+        <field name="res_model">account.move.line</field>
+        <field name="view_mode">list</field>
+        <field name="domain">[('parent_state', '=', 'posted'), ('date', '&gt;=', '2026-04-01'),
+            ('account_id.internal_group', 'in', ('income', 'expense')),
+            ('company_id.name', 'like', 'Shubhada')]</field>
+        <field name="context">{'group_by': ['account_id']}</field>
+    </record>
+
+    <record id="action_subcon" model="ir.actions.act_window">
+        <field name="name">Subcontract Resupply Transfers</field>
+        <field name="res_model">stock.picking</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('name', 'like', '/RES/')]</field>
+    </record>
+
+    <record id="action_prod_nostd" model="ir.actions.act_window">
+        <field name="name">Products Missing a Standard Cost</field>
+        <field name="res_model">product.product</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('standard_price', '=', 0), ('type', '=', 'consu'),
+            ('default_code', '!=', False)]</field>
+    </record>
+
+    <record id="action_mrn" model="ir.actions.act_window">
+        <field name="name">Material Return Notes</field>
+        <field name="res_model">x_mrn</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[]</field>
+    </record>
+</odoo>
