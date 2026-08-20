@@ -173,18 +173,29 @@ class PurchaseOrder(models.Model):
             raise UserError(_('Only a posted order can be amended.'))
         if not self.order_line:
             raise UserError(_('This order has no items to reprice.'))
+        # Create the amendment server-side and open it, rather than opening a blank
+        # form. An unsaved form builds its receipt rows in an onchange, and Odoo
+        # then sends only the changed fields for those rows on save - which drops
+        # move_id and fails with "Missing required value for the field 'Move'".
+        # Creating first means the rows are real records from the outset.
+        Amendment = self.env['shubhada.po.amendment']
+        line = self.order_line[0]
+        existing = Amendment.search([
+            ('order_id', '=', self.id), ('state', '=', 'draft'),
+        ], limit=1)
+        amendment = existing or Amendment.create({
+            'order_id': self.id,
+            'line_id': line.id,
+            'new_rate': line.price_unit,
+            'old_rate': line.price_unit,
+        })
         return {
             'type': 'ir.actions.act_window',
             'name': _('Amend Rate'),
             'res_model': 'shubhada.po.amendment',
+            'res_id': amendment.id,
             'view_mode': 'form',
             'target': 'current',
-            'context': {
-                'default_order_id': self.id,
-                'default_line_id': self.order_line[0].id,
-                'default_new_rate': self.order_line[0].price_unit,
-                'default_old_rate': self.order_line[0].price_unit,
-            },
         }
 
     def action_galaxy_short_close(self):

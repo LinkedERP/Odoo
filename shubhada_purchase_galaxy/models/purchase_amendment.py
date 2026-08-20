@@ -42,7 +42,9 @@ class ShubhadaPoAmendment(models.Model):
     effective_date = fields.Date(
         required=True, default=fields.Date.context_today,
         help="Receipts on or after this date are the ones the revised rate reaches.")
-    reason = fields.Text(required=True)
+    reason = fields.Text(
+        help="Required before the amendment can be applied - checked in action_apply "
+             "rather than at create, so the record can be opened and filled in.")
 
     receipt_ids = fields.One2many(
         'shubhada.po.amendment.receipt', 'amendment_id', string='Receipts (GRNs)')
@@ -80,26 +82,16 @@ class ShubhadaPoAmendment(models.Model):
 
     @api.onchange('line_id')
     def _onchange_line_id(self):
-        """Fill the receipt grid as soon as an item is picked.
+        """Keep the rates in step when the item changes.
 
-        create() also loads them, but a form the user has not saved yet has no
-        record to load onto - so without this the grid sits empty exactly when
-        they need to look at it and decide which GRNs to tick.
+        The grid itself is built server-side in create(), because rows invented by
+        an onchange lose move_id when Odoo saves them.
         """
         if not self.line_id:
-            self.receipt_ids = [(5, 0, 0)]
             return
         self.old_rate = self.line_id.price_unit
         if not self.new_rate:
             self.new_rate = self.line_id.price_unit
-        moves = self.line_id.move_ids.filtered(
-            lambda m: m.state == 'done' and m.picking_id).sorted('date')
-        self.receipt_ids = [(5, 0, 0)] + [(0, 0, {
-            'move_id': move.id,
-            'quantity': move.quantity,
-            'old_rate': move.price_unit or self.line_id.price_unit,
-            'new_rate': self.new_rate or self.line_id.price_unit,
-        }) for move in moves]
         self._onchange_reprice()
 
     @api.onchange('new_rate', 'effective_date')
@@ -140,6 +132,9 @@ class ShubhadaPoAmendment(models.Model):
                 raise UserError(_('This amendment has already been applied.'))
             if not rec.new_rate:
                 raise UserError(_('Set the revised rate first.'))
+            if not (rec.reason or '').strip():
+                raise UserError(_(
+                    'Give a reason. An amendment without one is just an edit.'))
 
             # 1. the open balance of the order carries the new rate from here on
             rec.line_id.price_unit = rec.new_rate
