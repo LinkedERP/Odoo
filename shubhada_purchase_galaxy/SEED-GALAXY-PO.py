@@ -1,13 +1,12 @@
 """Install shubhada_purchase_galaxy and seed the purchase order from Mahesh's screen.
 
-Run AFTER pushing to StagingDM:
+Run it straight after pushing to StagingDM - it waits for the build itself:
 
     python SEED-GALAXY-PO.py
 
 Authenticates as the demo admin persona with the plain password - no API key.
-Waits out an Odoo.sh rebuild (503) instead of dying on it, refreshes the apps
-list so a freshly pushed module is found, and only creates what is missing.
-The order is left in DRAFT so the approval chain can be shown live.
+Only creates what is missing, and leaves the order in DRAFT so the approval
+chain can be shown live on camera.
 """
 import json
 import time
@@ -18,14 +17,19 @@ URL = 'https://linked-staging2.odoo.com/jsonrpc'
 DB = 'linkederp-stagingdm-36147382'
 LOGIN = 'mahesh@shubhada.demo'
 PWD = 'Shubhada@2026'
+
 MODULE = 'shubhada_purchase_galaxy'
+# Keep in step with __manifest__.py. The script refuses to install until Odoo.sh
+# has actually published this version - see wait_for_build().
+EXPECT_VERSION = '19.0.1.0.1'
+
 CTX = {'context': {'allowed_company_ids': [4], 'company_id': 4}}
 _id = [0]
 REPORT = []
 
 
 def rpc(service, method, args, timeout=600):
-    """One JSON-RPC call, waiting out an Odoo.sh rebuild if the instance is down."""
+    """One JSON-RPC call, waiting out an Odoo.sh restart if the instance is down."""
     _id[0] += 1
     body = json.dumps({'jsonrpc': '2.0', 'method': 'call', 'id': _id[0],
                        'params': {'service': service, 'method': method,
@@ -38,12 +42,10 @@ def rpc(service, method, args, timeout=600):
                 j = json.load(r)
             break
         except urllib.error.HTTPError as e:
-            # 503 means Odoo.sh is building. Anything else is a real error.
             if e.code != 503 or attempt == 19:
                 raise
             if attempt == 0:
-                print('      instance is rebuilding (503) - waiting, '
-                      'this can take a few minutes...')
+                print('      instance is restarting (503) - waiting...')
             time.sleep(30)
     if 'error' in j:
         d = j['error'].get('data') or {}
@@ -72,33 +74,59 @@ def create(model, vals):
     return res[0] if isinstance(res, list) else res
 
 
+def wait_for_build(minutes=12):
+    """Block until the running instance actually serves EXPECT_VERSION.
+
+    An Odoo.sh staging rebuild keeps the PREVIOUS build live until the new one is
+    ready, so a fresh push is not visible straight away and there is no 503 to
+    catch - the old code just quietly answers. For a module that is not installed,
+    ir.module.module.installed_version reports the version in the manifest ON DISK,
+    which is how old code can be told apart from new.
+    """
+    deadline = time.time() + minutes * 60
+    said = None
+    while True:
+        try:
+            c('ir.module.module', 'update_list')
+        except RuntimeError as e:
+            print('      update_list failed: %s' % str(e)[:160])
+
+        rec = one('ir.module.module', [('name', '=', MODULE)],
+                  ['state', 'id', 'installed_version', 'latest_version'])
+        if rec:
+            on_disk = (rec['latest_version'] if rec['state'] == 'installed'
+                       else rec['installed_version'])
+            if on_disk == EXPECT_VERSION:
+                return rec
+            msg = 'serving %s, waiting for %s' % (on_disk or '?', EXPECT_VERSION)
+        else:
+            msg = 'not in the apps list yet'
+
+        if msg != said:
+            print('      %s ...' % msg)
+            said = msg
+        if time.time() > deadline:
+            raise SystemExit(
+                '\nGave up after %d minutes waiting for version %s.\n'
+                '  -> The Odoo.sh build for StagingDM has not published it.\n'
+                '  -> Check the StagingDM build log on the Odoo.sh dashboard.\n'
+                '  -> Nothing has been changed.' % (minutes, EXPECT_VERSION))
+        time.sleep(30)
+
+
 # ------------------------------------------------------------ 1. install module
 print('[1/4] module')
-mod = one('ir.module.module', [('name', '=', MODULE)], ['state', 'id'])
-if not mod:
-    # A module pushed after the last build sits on disk but is not in the apps
-    # list until the list is rescanned. Rescan, then look again.
-    print('      not in the apps list - refreshing it (takes ~30s)...')
-    try:
-        c('ir.module.module', 'update_list')
-    except RuntimeError as e:
-        print('      update_list failed: %s' % str(e)[:160])
-    mod = one('ir.module.module', [('name', '=', MODULE)], ['state', 'id'])
-
-if not mod:
-    raise SystemExit(
-        '\nModule still not in the apps list after a refresh.\n'
-        '  -> The Odoo.sh build for branch StagingDM has not finished, or it failed.\n'
-        '  -> Open the Odoo.sh dashboard, check the StagingDM build log, then run\n'
-        '     this script again. Nothing has been changed.')
-
-if mod['state'] != 'installed':
+mod = wait_for_build()
+print('      version %s is live on the instance' % EXPECT_VERSION)
+if mod['state'] == 'installed':
+    print('      already installed - upgrading to this version...')
+    c('ir.module.module', 'button_immediate_upgrade', [mod['id']])
+    print('      upgraded')
+else:
     print('      state is %s - installing...' % mod['state'])
     c('ir.module.module', 'button_immediate_install', [mod['id']])
     print('      installed')
-else:
-    print('      already installed')
-REPORT.append(('MODULE', '%s installed' % MODULE))
+REPORT.append(('MODULE', '%s %s' % (MODULE, EXPECT_VERSION)))
 
 
 # ------------------------------------------------------------------ 2. vendor
@@ -133,8 +161,8 @@ ITEMS = [
     ('26102331', 'COTTON ROLL', 10.0, 170.00),
 ]
 
-uom = one('uom.uom', [('name', '=', 'Units')], ['id']) \
-    or c('uom.uom', 'search_read', [], ['id'], limit=1)[0]
+uom = (one('uom.uom', [('name', '=', 'Units')], ['id'])
+       or c('uom.uom', 'search_read', [], ['id'], limit=1)[0])
 UOM_ID = uom['id']
 
 product_ids = {}
