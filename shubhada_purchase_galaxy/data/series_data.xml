@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- Divisions. The letter is what appears inside the document number. -->
+        <record id="division_nsk" model="shubhada.division">
+            <field name="name">NASHIK</field>
+            <field name="code">NSK</field>
+            <field name="number_letter">N</field>
+            <field name="company_letters">SH</field>
+        </record>
+
+        <record id="division_sat" model="shubhada.division">
+            <field name="name">SATPUR</field>
+            <field name="code">SAT</field>
+            <field name="number_letter">S</field>
+            <field name="company_letters">SH</field>
+        </record>
+
+        <record id="division_lon" model="shubhada.division">
+            <field name="name">LONAND</field>
+            <field name="code">LON</field>
+            <field name="number_letter">L</field>
+            <field name="company_letters">ST</field>
+        </record>
+
+        <!--
+            Series. Serial counters are seeded to continue Shubhada's live Galaxy
+            numbering, so the first order raised here reads SHN27PO04204 — the very
+            next number after the order Mahesh showed us (SHN27PO04203).
+        -->
+        <record id="series_boughtout" model="shubhada.po.series">
+            <field name="name">PO - BOUGHTOUT MATERIAL</field>
+            <field name="code">PC01</field>
+            <field name="document_code">PO</field>
+            <field name="next_serial">4204</field>
+            <field name="buyer_group_id" ref="shubhada_purchase_galaxy.group_buyer_boughtout"/>
+        </record>
+
+        <record id="series_subcontract" model="shubhada.po.series">
+            <field name="name">PO - SUBCONTRACTING</field>
+            <field name="code">PC02</field>
+            <field name="document_code">SC</field>
+            <field name="next_serial">1187</field>
+            <field name="buyer_group_id" ref="shubhada_purchase_galaxy.group_buyer_subcontract"/>
+        </record>
+
+        <record id="series_capital" model="shubhada.po.series">
+            <field name="name">PO - LOCAL CAPITAL</field>
+            <field name="code">PC03</field>
+            <field name="document_code">CP</field>
+            <field name="next_serial">312</field>
+            <field name="buyer_group_id" ref="shubhada_purchase_galaxy.group_buyer_capital"/>
+        </record>
+
+        <record id="series_open_order" model="shubhada.po.series">
+            <field name="name">PO - OPEN ORDER</field>
+            <field name="code">PC04</field>
+            <field name="document_code">OP</field>
+            <field name="next_serial">208</field>
+            <field name="buyer_group_id" ref="shubhada_purchase_galaxy.group_buyer_boughtout"/>
+        </record>
+
+        <record id="series_subcontract_bom" model="shubhada.po.series">
+            <field name="name">PO - SUBCONTRACTING WITH BILL OF MATERIAL</field>
+            <field name="code">PC05</field>
+            <field name="document_code">SB</field>
+            <field name="next_serial">741</field>
+            <field name="buyer_group_id" ref="shubhada_purchase_galaxy.group_buyer_subcontract"/>
+        </record>
+
+        <record id="series_service" model="shubhada.po.series">
+            <field name="name">PO - SERVICE ORDER</field>
+            <field name="code">PC06</field>
+            <field name="document_code">SV</field>
+            <field name="next_serial">903</field>
+            <field name="buyer_group_id" ref="shubhada_purchase_galaxy.group_buyer_service"/>
+        </record>
+
+    </data>
+</odoo>

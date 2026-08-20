@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="module_category_shubhada_purchase" model="ir.module.category">
+        <field name="name">Shubhada Purchase</field>
+        <field name="description">Series-level purchase segregation for Shubhada Polymers.</field>
+        <field name="sequence">20</field>
+    </record>
+
+    <!-- Buyer segments. A user gets only the segments they buy for. -->
+    <record id="group_buyer_boughtout" model="res.groups">
+        <field name="name">Buyer — Bought-out Material</field>
+        <field name="category_id" ref="module_category_shubhada_purchase"/>
+        <field name="implied_ids" eval="[(4, ref('purchase.group_purchase_user'))]"/>
+    </record>
+
+    <record id="group_buyer_subcontract" model="res.groups">
+        <field name="name">Buyer — Subcontracting</field>
+        <field name="category_id" ref="module_category_shubhada_purchase"/>
+        <field name="implied_ids" eval="[(4, ref('purchase.group_purchase_user'))]"/>
+    </record>
+
+    <record id="group_buyer_capital" model="res.groups">
+        <field name="name">Buyer — Local Capital</field>
+        <field name="category_id" ref="module_category_shubhada_purchase"/>
+        <field name="implied_ids" eval="[(4, ref('purchase.group_purchase_user'))]"/>
+    </record>
+
+    <record id="group_buyer_service" model="res.groups">
+        <field name="name">Buyer — Services</field>
+        <field name="category_id" ref="module_category_shubhada_purchase"/>
+        <field name="implied_ids" eval="[(4, ref('purchase.group_purchase_user'))]"/>
+    </record>
+
+    <!-- Approval roles -->
+    <record id="group_po_hod" model="res.groups">
+        <field name="name">Purchase HOD (first approval)</field>
+        <field name="category_id" ref="module_category_shubhada_purchase"/>
+    </record>
+
+    <record id="group_po_poster" model="res.groups">
+        <field name="name">Plant Head (post / final approval)</field>
+        <field name="category_id" ref="module_category_shubhada_purchase"/>
+        <field name="implied_ids" eval="[(4, ref('group_po_hod'))]"/>
+    </record>
+
+    <!--
+        Series segregation.
+
+        Each rule is attached to ONE buyer group, so it restricts only the members of
+        that group. Users outside these groups (every other demo on this database)
+        are not affected at all.
+    -->
+    <record id="rule_po_series_boughtout" model="ir.rule">
+        <field name="name">Buyer sees only Bought-out series</field>
+        <field name="model_id" ref="purchase.model_purchase_order"/>
+        <field name="groups" eval="[(4, ref('group_buyer_boughtout'))]"/>
+        <field name="domain_force">
+            ['|', ('x_series_id', '=', False), ('x_series_id.code', 'in', ['PC01', 'PC04'])]
+        </field>
+    </record>
+
+    <record id="rule_po_series_subcontract" model="ir.rule">
+        <field name="name">Buyer sees only Subcontracting series</field>
+        <field name="model_id" ref="purchase.model_purchase_order"/>
+        <field name="groups" eval="[(4, ref('group_buyer_subcontract'))]"/>
+        <field name="domain_force">
+            ['|', ('x_series_id', '=', False), ('x_series_id.code', 'in', ['PC02', 'PC05'])]
+        </field>
+    </record>
+
+    <record id="rule_po_series_capital" model="ir.rule">
+        <field name="name">Buyer sees only Local Capital series</field>
+        <field name="model_id" ref="purchase.model_purchase_order"/>
+        <field name="groups" eval="[(4, ref('group_buyer_capital'))]"/>
+        <field name="domain_force">
+            ['|', ('x_series_id', '=', False), ('x_series_id.code', '=', 'PC03')]
+        </field>
+    </record>
+
+    <record id="rule_po_series_service" model="ir.rule">
+        <field name="name">Buyer sees only Service series</field>
+        <field name="model_id" ref="purchase.model_purchase_order"/>
+        <field name="groups" eval="[(4, ref('group_buyer_service'))]"/>
+        <field name="domain_force">
+            ['|', ('x_series_id', '=', False), ('x_series_id.code', '=', 'PC06')]
+        </field>
+    </record>
+
+</odoo>

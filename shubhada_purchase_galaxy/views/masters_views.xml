@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================ Division ============================ -->
+    <record id="view_shubhada_division_list" model="ir.ui.view">
+        <field name="name">shubhada.division.list</field>
+        <field name="model">shubhada.division</field>
+        <field name="arch" type="xml">
+            <list string="Divisions">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="company_letters" string="Company letters"/>
+                <field name="number_letter" string="Number letter"/>
+                <field name="warehouse_ids" widget="many2many_tags"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_shubhada_division_form" model="ir.ui.view">
+        <field name="name">shubhada.division.form</field>
+        <field name="model">shubhada.division</field>
+        <field name="arch" type="xml">
+            <form string="Division">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="NASHIK"/></h1>
+                    </div>
+                    <group>
+                        <group string="Identity">
+                            <field name="code" placeholder="NSK"/>
+                            <field name="company_letters"/>
+                            <field name="number_letter"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group string="Scope">
+                            <field name="warehouse_ids" widget="many2many_tags"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <div class="text-muted">
+                        The document number is built as
+                        <b>company letters + number letter + financial year + document code + serial</b>
+                        — for example <b>SH</b> + <b>N</b> + <b>27</b> + <b>PO</b> + <b>04203</b>.
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_shubhada_division" model="ir.actions.act_window">
+        <field name="name">Divisions</field>
+        <field name="res_model">shubhada.division</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ============================= Series ============================= -->
+    <record id="view_shubhada_po_series_list" model="ir.ui.view">
+        <field name="name">shubhada.po.series.list</field>
+        <field name="model">shubhada.po.series</field>
+        <field name="arch" type="xml">
+            <list string="Purchase Series">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="document_code"/>
+                <field name="next_serial"/>
+                <field name="buyer_group_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_shubhada_po_series_form" model="ir.ui.view">
+        <field name="name">shubhada.po.series.form</field>
+        <field name="model">shubhada.po.series</field>
+        <field name="arch" type="xml">
+            <form string="Purchase Series">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="PO - BOUGHTOUT MATERIAL"/></h1>
+                    </div>
+                    <group>
+                        <group string="Numbering">
+                            <field name="code" placeholder="PC01"/>
+                            <field name="document_code"/>
+                            <field name="next_serial"/>
+                            <field name="serial_padding"/>
+                        </group>
+                        <group string="Who may use it">
+                            <field name="buyer_group_id"/>
+                            <field name="active" widget="boolean_toggle"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <div class="text-muted">
+                        Each series keeps <b>its own running serial</b> and can be limited to
+                        <b>its own buyers</b>. A bought-out buyer never sees a capital order.
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_shubhada_po_series" model="ir.actions.act_window">
+        <field name="name">Purchase Series</field>
+        <field name="res_model">shubhada.po.series</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

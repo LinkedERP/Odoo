@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        A standalone PRIMARY form. It deliberately does not touch
+        purchase.purchase_order_form, so every other demo on this database keeps the
+        stock Odoo purchase screen exactly as it is.
+    -->
+    <record id="view_purchase_order_galaxy_form" model="ir.ui.view">
+        <field name="name">purchase.order.galaxy.form</field>
+        <field name="model">purchase.order</field>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <form string="Purchase Order">
+                <header>
+                    <button name="action_galaxy_submit" type="object"
+                            string="Submit for Approval" class="btn-primary"
+                            invisible="x_approval_state != 'draft'"/>
+                    <button name="action_galaxy_approve_hod" type="object"
+                            string="HOD Approve" class="btn-primary"
+                            invisible="x_approval_state != 'submitted'"
+                            groups="shubhada_purchase_galaxy.group_po_hod"/>
+                    <button name="action_galaxy_post" type="object"
+                            string="Post" class="btn-primary"
+                            invisible="x_approval_state != 'hod_approved'"
+                            groups="shubhada_purchase_galaxy.group_po_poster"/>
+                    <button name="action_galaxy_amend" type="object"
+                            string="Amend"
+                            invisible="x_approval_state != 'posted'"
+                            groups="shubhada_purchase_galaxy.group_po_hod"/>
+                    <button name="action_galaxy_short_close" type="object"
+                            string="Short Close"
+                            invisible="x_approval_state != 'posted' or x_galaxy_status == 'short_closed'"
+                            groups="shubhada_purchase_galaxy.group_po_hod"/>
+                    <button name="action_galaxy_cancel" type="object"
+                            string="Cancel"
+                            invisible="x_approval_state != 'posted' or x_galaxy_status == 'cancel'"
+                            groups="shubhada_purchase_galaxy.group_po_hod"/>
+                    <field name="x_approval_state" widget="statusbar"
+                           statusbar_visible="draft,submitted,hod_approved,posted"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="x_galaxy_number" string="Number"/>
+                        <h1>
+                            <field name="x_galaxy_number" readonly="1"
+                                   placeholder="assigned on approval"/>
+                        </h1>
+                        <div class="text-muted"
+                             invisible="x_approval_state == 'posted'">
+                            No number yet — Galaxy-style, the number is issued when the
+                            order is <b>posted</b>, not when it is saved.
+                        </div>
+                    </div>
+
+                    <group>
+                        <group string="Document">
+                            <field name="date_order" string="Date"/>
+                            <field name="x_amendment_no"/>
+                            <field name="x_amendment_date"
+                                   invisible="x_amendment_no == 0"/>
+                            <field name="x_division_id" string="By Location"/>
+                            <field name="x_for_division_id"/>
+                            <field name="x_wef_date"/>
+                            <field name="x_validity_date"/>
+                            <field name="x_project_code"/>
+                        </group>
+                        <group string="Series">
+                            <field name="x_series_id"/>
+                            <field name="x_galaxy_status" widget="radio"
+                                   options="{'horizontal': true}"
+                                   invisible="x_approval_state != 'posted'"/>
+                            <field name="x_period_code"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+
+                    <group>
+                        <group string="Party">
+                            <field name="partner_id" string="Party"/>
+                            <field name="partner_ref" string="Party's Quotation No."/>
+                            <field name="x_party_quotation_date"/>
+                        </group>
+                        <group string="Our Reference">
+                            <field name="x_our_reference" placeholder="Store Dept."/>
+                            <field name="x_supplier_conf_remark"/>
+                            <field name="x_confirmation_date"/>
+                        </group>
+                    </group>
+
+                    <group>
+                        <group string="Commercial">
+                            <field name="x_payment_mode"/>
+                            <field name="x_entry_tax_applicable"/>
+                            <field name="currency_id"/>
+                            <field name="x_advance_amount"/>
+                        </group>
+                        <group string="Amount">
+                            <field name="x_basic_amount"/>
+                            <field name="amount_tax" string="Tax"/>
+                            <field name="amount_total" string="Total Amount"
+                                   class="oe_subtotal_footer_separator"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Items" name="items">
+                            <field name="order_line">
+                                <list editable="bottom">
+                                    <field name="product_id" string="Item Code"/>
+                                    <field name="name" string="Description"/>
+                                    <field name="x_sc_bom" string="S/C BOM"/>
+                                    <field name="x_incoming_operation" optional="show"/>
+                                    <field name="x_outgoing_operation" optional="show"/>
+                                    <field name="product_uom_id" string="Unit"/>
+                                    <field name="product_qty" string="Quantity"/>
+                                    <field name="price_unit" string="Rate"/>
+                                    <field name="x_last_purchase_rate" readonly="1"
+                                           string="Last Purchased Rate"/>
+                                    <field name="x_rate_per_qty" optional="hide"/>
+                                    <field name="x_asset_code" optional="hide"/>
+                                    <field name="x_scheduled_qty" readonly="1"
+                                           string="Total Sch. Qty" optional="show"/>
+                                    <field name="price_subtotal" string="Amount"/>
+                                    <field name="date_planned" optional="hide"/>
+                                    <field name="tax_ids" widget="many2many_tags"
+                                           optional="hide"/>
+                                </list>
+                                <form string="Item">
+                                    <group>
+                                        <group string="Item">
+                                            <field name="product_id"/>
+                                            <field name="name"/>
+                                            <field name="product_qty"/>
+                                            <field name="product_uom_id"/>
+                                            <field name="price_unit"/>
+                                            <field name="x_last_purchase_rate" readonly="1"/>
+                                            <field name="x_rate_per_qty"/>
+                                            <field name="tax_ids" widget="many2many_tags"/>
+                                        </group>
+                                        <group string="Operations &amp; Asset">
+                                            <field name="x_sc_bom"/>
+                                            <field name="x_incoming_operation"/>
+                                            <field name="x_outgoing_operation"/>
+                                            <field name="x_asset_code"/>
+                                        </group>
+                                    </group>
+                                    <group string="Dimensions">
+                                        <group>
+                                            <field name="x_length"/>
+                                            <field name="x_width"/>
+                                            <field name="x_thickness"/>
+                                        </group>
+                                        <group>
+                                            <field name="x_od"/>
+                                            <field name="x_id"/>
+                                            <field name="x_cs"/>
+                                        </group>
+                                    </group>
+                                    <separator string="Delivery Schedule"/>
+                                    <field name="x_schedule_ids">
+                                        <list editable="bottom">
+                                            <field name="required_date" string="Date"/>
+                                            <field name="required_qty" string="Required Qty"/>
+                                            <field name="state" string="Status"/>
+                                            <field name="received_qty" string="Received Qty"/>
+                                            <field name="rejected_qty" string="Rejected Qty"/>
+                                            <field name="short_closed_qty" string="Short Closed"/>
+                                            <field name="cancelled_qty" string="Cancelled"/>
+                                            <field name="supplier_conf_ref"/>
+                                            <field name="supplier_conf_date"/>
+                                        </list>
+                                    </field>
+                                </form>
+                            </field>
+                        </page>
+
+                        <page string="Document Reference" name="doc_ref">
+                            <field name="x_doc_ref_ids">
+                                <list editable="bottom">
+                                    <field name="document_type" string="Type"/>
+                                    <field name="document_number" string="Number"/>
+                                    <field name="amendment_number" string="Amend."/>
+                                    <field name="department_code" string="Department"/>
+                                    <field name="department_name" string="Department Name"/>
+                                    <field name="quantity"/>
+                                </list>
+                            </field>
+                        </page>
+
+                        <page string="Audit" name="audit">
+                            <group>
+                                <group string="Maker">
+                                    <field name="x_created_uid"/>
+                                    <field name="x_created_on"/>
+                                    <field name="x_modified_uid"/>
+                                    <field name="x_modified_on"/>
+                                </group>
+                                <group string="Checker">
+                                    <field name="x_hod_uid"/>
+                                    <field name="x_hod_on"/>
+                                    <field name="x_posted_uid"/>
+                                    <field name="x_posted_on"/>
+                                </group>
+                            </group>
+                            <div class="text-muted">
+                                Every one of these is written by the system. None of them
+                                can be typed. The order cannot be approved by the person
+                                who raised it.
+                            </div>
+                        </page>
+
+                        <page string="Odoo status" name="odoo_state">
+                            <group>
+                                <field name="state" readonly="1"/>
+                                <field name="invoice_status" readonly="1"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_purchase_order_galaxy_list" model="ir.ui.view">
+        <field name="name">purchase.order.galaxy.list</field>
+        <field name="model">purchase.order</field>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <list string="Purchase Orders">
+                <field name="x_galaxy_number" string="Number"/>
+                <field name="date_order" string="Date"/>
+                <field name="x_series_id" string="Series"/>
+                <field name="x_division_id" string="Location"/>
+                <field name="partner_id" string="Party"/>
+                <field name="x_amendment_no" string="Amd."/>
+                <field name="amount_total" string="Total"/>
+                <field name="x_created_uid" string="Created by"/>
+                <field name="x_posted_uid" string="Posted by"/>
+                <field name="x_approval_state" widget="badge"
+                       decoration-success="x_approval_state == 'posted'"
+                       decoration-warning="x_approval_state == 'submitted'"/>
+                <field name="x_galaxy_status" optional="show"/>
+                <field name="currency_id" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_purchase_order_galaxy_search" model="ir.ui.view">
+        <field name="name">purchase.order.galaxy.search</field>
+        <field name="model">purchase.order</field>
+        <field name="arch" type="xml">
+            <search string="Purchase Orders">
+                <field name="x_galaxy_number" string="Number"/>
+                <field name="partner_id"/>
+                <field name="x_series_id"/>
+                <field name="x_division_id"/>
+                <filter name="pending_approval" string="Pending Approval"
+                        domain="[('x_approval_state', 'in', ['submitted', 'hod_approved'])]"/>
+                <filter name="posted" string="Posted"
+                        domain="[('x_approval_state', '=', 'posted')]"/>
+                <filter name="amended" string="Amended"
+                        domain="[('x_amendment_no', '>', 0)]"/>
+                <separator/>
+                <filter name="my_orders" string="My Orders"
+                        domain="[('x_created_uid', '=', uid)]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_series" string="Series"
+                            context="{'group_by': 'x_series_id'}"/>
+                    <filter name="group_division" string="Location"
+                            context="{'group_by': 'x_division_id'}"/>
+                    <filter name="group_approval" string="Approval"
+                            context="{'group_by': 'x_approval_state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_purchase_order_galaxy" model="ir.actions.act_window">
+        <field name="name">Purchase Orders</field>
+        <field name="res_model">purchase.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_purchase_order_galaxy_search"/>
+        <field name="context">{'default_x_approval_state': 'draft'}</field>
+    </record>
+
+    <record id="action_purchase_order_galaxy_list_view" model="ir.actions.act_window.view">
+        <field name="sequence">1</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_purchase_order_galaxy_list"/>
+        <field name="act_window_id" ref="action_purchase_order_galaxy"/>
+    </record>
+
+    <record id="action_purchase_order_galaxy_form_view" model="ir.actions.act_window.view">
+        <field name="sequence">2</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_purchase_order_galaxy_form"/>
+        <field name="act_window_id" ref="action_purchase_order_galaxy"/>
+    </record>
+
+    <!-- Its own root menu, so the standard Purchase app is untouched. -->
+    <menuitem id="menu_shubhada_purchase_root" name="Purchase (Shubhada)"
+              web_icon="purchase,static/description/icon.png" sequence="21"/>
+    <menuitem id="menu_shubhada_purchase_orders" name="Purchase Orders"
+              parent="menu_shubhada_purchase_root"
+              action="action_purchase_order_galaxy" sequence="10"/>
+    <menuitem id="menu_shubhada_purchase_config" name="Configuration"
+              parent="menu_shubhada_purchase_root" sequence="90"/>
+    <menuitem id="menu_shubhada_purchase_series" name="Purchase Series"
+              parent="menu_shubhada_purchase_config"
+              action="action_shubhada_po_series" sequence="10"/>
+    <menuitem id="menu_shubhada_purchase_division" name="Divisions"
+              parent="menu_shubhada_purchase_config"
+              action="action_shubhada_division" sequence="20"/>
+
+</odoo>

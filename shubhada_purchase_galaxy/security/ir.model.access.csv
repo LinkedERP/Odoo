@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_shubhada_division_user,shubhada.division.user,model_shubhada_division,purchase.group_purchase_user,1,0,0,0
+access_shubhada_division_manager,shubhada.division.manager,model_shubhada_division,purchase.group_purchase_manager,1,1,1,1
+access_shubhada_po_series_user,shubhada.po.series.user,model_shubhada_po_series,purchase.group_purchase_user,1,1,0,0
+access_shubhada_po_series_manager,shubhada.po.series.manager,model_shubhada_po_series,purchase.group_purchase_manager,1,1,1,1
+access_shubhada_po_doc_ref_user,shubhada.po.doc.ref.user,model_shubhada_po_doc_ref,purchase.group_purchase_user,1,1,1,1
+access_shubhada_po_schedule_user,shubhada.po.schedule.user,model_shubhada_po_schedule,purchase.group_purchase_user,1,1,1,1
