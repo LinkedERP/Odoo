@@ -102,7 +102,6 @@ class ShubhadaPoAmendment(models.Model):
             received_on = line.date.date() if line.date else False
             line.selected = bool(
                 self.effective_date and received_on and received_on >= self.effective_date)
-            line._recost(self.new_rate)
 
     def _load_receipts(self):
         """Pull the done receipts already made against this line."""
@@ -178,7 +177,13 @@ class ShubhadaPoAmendmentReceipt(models.Model):
 
     quantity = fields.Float(readonly=True)
     old_rate = fields.Float(string='Booked at', readonly=True)
-    new_rate = fields.Float(string='Revised to', readonly=True)
+    # Related and stored, NOT written by the onchange. The view shows this column
+    # readonly, and Odoo does not send readonly fields back on save - so an
+    # onchange-set value was silently dropped and every difference saved as zero,
+    # even though the screen had shown the right number a moment earlier.
+    new_rate = fields.Float(
+        string='Revised to', related='amendment_id.new_rate',
+        store=True, readonly=True)
     old_value = fields.Monetary(
         compute='_compute_values', currency_field='currency_id', string='Booked value')
     new_value = fields.Monetary(
@@ -194,10 +199,6 @@ class ShubhadaPoAmendmentReceipt(models.Model):
             line.old_value = line.quantity * line.old_rate
             line.new_value = line.quantity * line.new_rate
             line.difference = line.new_value - line.old_value
-
-    def _recost(self, new_rate):
-        for line in self:
-            line.new_rate = new_rate
 
     def _apply_to_move(self, new_rate):
         """Reprice the receipt itself.
