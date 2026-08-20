@@ -1,6 +1,6 @@
 {
     'name': 'Shubhada Purchase (Galaxy parity)',
-    'version': '19.0.1.0.7',
+    'version': '19.0.1.0.8',
     'summary': 'Series-segmented Purchase Orders with maker-checker approval, '
                'Galaxy-style document numbering, amendments and delivery schedules.',
     'description': """

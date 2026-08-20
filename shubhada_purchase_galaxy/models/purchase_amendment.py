@@ -73,15 +73,34 @@ class ShubhadaPoAmendment(models.Model):
                 vals['name'] = self.env['ir.sequence'].next_by_code(
                     'shubhada.po.amendment') or 'AMD/NEW'
         records = super().create(vals_list)
-        records._load_receipts()
+        # only build the grid for records created without one (e.g. over RPC);
+        # a form the user filled in already carries its ticked rows
+        records.filtered(lambda r: not r.receipt_ids)._load_receipts()
         return records
 
     @api.onchange('line_id')
     def _onchange_line_id(self):
-        if self.line_id:
-            self.old_rate = self.line_id.price_unit
-            if not self.new_rate:
-                self.new_rate = self.line_id.price_unit
+        """Fill the receipt grid as soon as an item is picked.
+
+        create() also loads them, but a form the user has not saved yet has no
+        record to load onto - so without this the grid sits empty exactly when
+        they need to look at it and decide which GRNs to tick.
+        """
+        if not self.line_id:
+            self.receipt_ids = [(5, 0, 0)]
+            return
+        self.old_rate = self.line_id.price_unit
+        if not self.new_rate:
+            self.new_rate = self.line_id.price_unit
+        moves = self.line_id.move_ids.filtered(
+            lambda m: m.state == 'done' and m.picking_id).sorted('date')
+        self.receipt_ids = [(5, 0, 0)] + [(0, 0, {
+            'move_id': move.id,
+            'quantity': move.quantity,
+            'old_rate': move.price_unit or self.line_id.price_unit,
+            'new_rate': self.new_rate or self.line_id.price_unit,
+        }) for move in moves]
+        self._onchange_reprice()
 
     @api.onchange('new_rate', 'effective_date')
     def _onchange_reprice(self):
