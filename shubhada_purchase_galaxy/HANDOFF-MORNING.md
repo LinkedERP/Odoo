@@ -9,8 +9,15 @@
 **The amendment is built and it works.** That was the one thing Mahesh said with certainty
 Odoo could not do, and it now does it — verified against real receipts, not a mock-up.
 
-Module `shubhada_purchase_galaxy` is at **19.0.1.0.8**, live on **StagingDM**. Eight versions
-overnight, every one of them a real fix found by testing rather than a guess.
+Module `shubhada_purchase_galaxy` is at **19.0.1.1.0**, live on **StagingDM**. Eleven versions
+overnight, every one of them a real defect found by driving the thing rather than a guess.
+
+**Two videos are rendered and waiting in `Downloads\Shubhada-Galaxy-Videos\`:**
+
+| File | What it shows |
+|---|---|
+| `1-Your-Purchase-Screen.mp4` | 102s — series, division, no-number-until-posted, submit, and the Approve button absent from the raiser's screen |
+| `2-The-Amendment.mp4` | 125s — **the deal-maker.** Two GRNs, rate revised effective 10 Aug, only the second reached, ₹36,000, applied and stamped |
 
 ---
 
@@ -119,6 +126,8 @@ the most:
 ---
 
 ## 6. NEXT
+
+- **Videos 2 and 3 specs are written** (`galaxy-permissions-a.json` / `-b.json`) but not rendered — they need two takes concatenated because the story spans two logins
 
 - Re-render both videos with the real voice once the key is in
 - **Videos 2 and 3** (permissions; the whole line) — specs not written yet
