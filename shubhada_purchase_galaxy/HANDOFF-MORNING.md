@@ -127,10 +127,10 @@ the most:
 
 ## 6. NEXT
 
-- **Videos 2 and 3 specs are written** (`galaxy-permissions-a.json` / `-b.json`) but not rendered — they need two takes concatenated because the story spans two logins
-
 - Re-render both videos with the real voice once the key is in
-- **Videos 2 and 3** (permissions; the whole line) — specs not written yet
+- **Video 3 (permissions) is written but not rendered** — `galaxy-permissions-a.json` and
+  `-b.json`. It needs two takes concatenated, because the proof only lands when the same
+  search returns nothing for the buyer and the capital order for the plant head.
 - The **test-pack video**. His objection was never speed, it was *"60% of the time is
   testing."* Four videos of fast building, all untested, argues his side. Add one showing
   the tests running and it argues yours.
