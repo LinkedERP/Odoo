@@ -21,7 +21,7 @@ PWD = 'Shubhada@2026'
 MODULE = 'shubhada_purchase_galaxy'
 # Keep in step with __manifest__.py. The script refuses to install until Odoo.sh
 # has actually published this version - see wait_for_build().
-EXPECT_VERSION = '19.0.1.0.4'
+EXPECT_VERSION = '19.0.1.0.5'
 
 CTX = {'context': {'allowed_company_ids': [4], 'company_id': 4}}
 _id = [0]

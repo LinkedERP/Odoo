@@ -5,3 +5,6 @@ access_shubhada_po_series_user,shubhada.po.series.user,model_shubhada_po_series,
 access_shubhada_po_series_manager,shubhada.po.series.manager,model_shubhada_po_series,purchase.group_purchase_manager,1,1,1,1
 access_shubhada_po_doc_ref_user,shubhada.po.doc.ref.user,model_shubhada_po_doc_ref,purchase.group_purchase_user,1,1,1,1
 access_shubhada_po_schedule_user,shubhada.po.schedule.user,model_shubhada_po_schedule,purchase.group_purchase_user,1,1,1,1
+access_shubhada_po_amendment_user,shubhada.po.amendment.user,model_shubhada_po_amendment,purchase.group_purchase_user,1,1,1,0
+access_shubhada_po_amendment_mgr,shubhada.po.amendment.manager,model_shubhada_po_amendment,shubhada_purchase_galaxy.group_po_hod,1,1,1,1
+access_shubhada_po_amendment_receipt_user,shubhada.po.amendment.receipt.user,model_shubhada_po_amendment_receipt,purchase.group_purchase_user,1,1,1,1

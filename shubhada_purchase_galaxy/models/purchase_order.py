@@ -166,6 +166,27 @@ class PurchaseOrder(models.Model):
             })
         return True
 
+    def action_open_rate_amendment(self):
+        """Open a fresh amendment for this order, first line pre-picked."""
+        self.ensure_one()
+        if self.x_approval_state != 'posted':
+            raise UserError(_('Only a posted order can be amended.'))
+        if not self.order_line:
+            raise UserError(_('This order has no items to reprice.'))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Amend Rate'),
+            'res_model': 'shubhada.po.amendment',
+            'view_mode': 'form',
+            'target': 'current',
+            'context': {
+                'default_order_id': self.id,
+                'default_line_id': self.order_line[0].id,
+                'default_new_rate': self.order_line[0].price_unit,
+                'default_old_rate': self.order_line[0].price_unit,
+            },
+        }
+
     def action_galaxy_short_close(self):
         self.write({'x_galaxy_status': 'short_closed'})
         return True
@@ -214,7 +235,7 @@ class PurchaseOrderLine(models.Model):
     x_cs = fields.Float(string='CS')
 
     x_last_purchase_rate = fields.Float(
-        string='Last Purchased Rate', compute='_compute_x_last_purchase_rate',
+        string='Last Rate', compute='_compute_x_last_purchase_rate',
         help="Rate on the most recent confirmed order for this product from this vendor.")
     x_schedule_ids = fields.One2many(
         'shubhada.po.schedule', 'line_id', string='Delivery Schedule')

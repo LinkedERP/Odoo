@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_po_amendment" model="ir.sequence">
+            <field name="name">Purchase Order Amendment</field>
+            <field name="code">shubhada.po.amendment</field>
+            <field name="prefix">AMD/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="number_next">1</field>
+            <field name="implementation">standard</field>
+        </record>
+    </data>
+</odoo>

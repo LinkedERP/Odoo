@@ -24,6 +24,10 @@
                             string="Post" class="btn-primary"
                             invisible="x_approval_state != 'hod_approved'"
                             groups="shubhada_purchase_galaxy.group_po_poster"/>
+                    <button name="action_open_rate_amendment" type="object"
+                            string="Amend Rate" class="btn-secondary"
+                            invisible="x_approval_state != 'posted'"
+                            groups="shubhada_purchase_galaxy.group_po_hod"/>
                     <button name="action_galaxy_amend" type="object"
                             string="Amend"
                             invisible="x_approval_state != 'posted'"
@@ -110,13 +114,12 @@
                                     <field name="product_id" string="Item Code"/>
                                     <field name="name" string="Description"/>
                                     <field name="x_sc_bom" string="S/C BOM"/>
-                                    <field name="x_incoming_operation" optional="show"/>
-                                    <field name="x_outgoing_operation" optional="show"/>
+                                    <field name="x_incoming_operation" optional="hide"/>
+                                    <field name="x_outgoing_operation" optional="hide"/>
                                     <field name="product_uom_id" string="Unit"/>
                                     <field name="product_qty" string="Quantity"/>
                                     <field name="price_unit" string="Rate"/>
-                                    <field name="x_last_purchase_rate" readonly="1"
-                                           string="Last Purchased Rate"/>
+                                    <field name="x_last_purchase_rate" readonly="1"/>
                                     <field name="x_rate_per_qty" optional="hide"/>
                                     <field name="x_asset_code" optional="hide"/>
                                     <field name="x_scheduled_qty" readonly="1"
@@ -210,7 +213,7 @@
                             </div>
                         </page>
 
-                        <page string="Odoo status" name="odoo_state">
+                        <page string="Receipts" name="odoo_state">
                             <group>
                                 <field name="state" readonly="1"/>
                                 <field name="invoice_status" readonly="1"/>

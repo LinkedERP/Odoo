@@ -1,6 +1,6 @@
 {
     'name': 'Shubhada Purchase (Galaxy parity)',
-    'version': '19.0.1.0.4',
+    'version': '19.0.1.0.5',
     'summary': 'Series-segmented Purchase Orders with maker-checker approval, '
                'Galaxy-style document numbering, amendments and delivery schedules.',
     'description': """
@@ -36,8 +36,10 @@ Built for the Shubhada Polymers evaluation.
         'security/purchase_galaxy_security.xml',
         'security/ir.model.access.csv',
         'data/series_data.xml',
+        'data/amendment_sequence.xml',
         'views/masters_views.xml',
         'views/purchase_order_views.xml',
+        'views/purchase_amendment_views.xml',
     ],
     'installable': True,
     'application': False,

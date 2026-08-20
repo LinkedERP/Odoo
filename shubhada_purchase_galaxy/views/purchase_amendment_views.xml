@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_po_amendment_form" model="ir.ui.view">
+        <field name="name">shubhada.po.amendment.form</field>
+        <field name="model">shubhada.po.amendment</field>
+        <field name="arch" type="xml">
+            <form string="Purchase Order Amendment">
+                <header>
+                    <button name="action_apply" type="object" string="Apply Amendment"
+                            class="btn-primary" invisible="state != 'draft'"
+                            confirm="This reprices the open balance of the order and revalues the ticked receipts. Continue?"/>
+                    <button name="action_reload_receipts" type="object"
+                            string="Reload receipts" invisible="state != 'draft'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,applied"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="What is changing">
+                            <field name="order_id" readonly="1"/>
+                            <field name="line_id" readonly="state != 'draft'"
+                                   options="{'no_create': True}"/>
+                            <field name="product_id"/>
+                            <field name="amendment_type" readonly="state != 'draft'"/>
+                            <field name="old_rate" readonly="1"/>
+                            <field name="new_rate" readonly="state != 'draft'"/>
+                        </group>
+                        <group string="From when">
+                            <field name="effective_date" readonly="state != 'draft'"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="selected_count" string="Receipts affected"/>
+                            <field name="difference_total"/>
+                            <field name="applied_uid" invisible="state != 'applied'"/>
+                            <field name="applied_on" invisible="state != 'applied'"/>
+                        </group>
+                    </group>
+                    <group string="Reason">
+                        <field name="reason" nolabel="1" readonly="state != 'draft'"
+                               placeholder="Commodity rate revised by the vendor with effect from the date above…"/>
+                    </group>
+
+                    <separator string="Receipts already made against this item"/>
+                    <div class="text-muted mb-2">
+                        Tick the GRNs this revised rate reaches back to. Receipts dated on
+                        or after the effective date are ticked for you; anything earlier
+                        stays at the rate it was booked at.
+                    </div>
+                    <field name="receipt_ids" readonly="state != 'draft'">
+                        <list editable="bottom" create="false" delete="false">
+                            <field name="selected" string="Apply" widget="boolean_toggle"/>
+                            <field name="picking_id" string="GRN" readonly="1"/>
+                            <field name="date" string="Received on" readonly="1"/>
+                            <field name="quantity" readonly="1"/>
+                            <field name="old_rate" string="Booked at" readonly="1"/>
+                            <field name="new_rate" string="Revised to" readonly="1"/>
+                            <field name="old_value" string="Booked value" readonly="1"/>
+                            <field name="new_value" string="Revised value" readonly="1"/>
+                            <field name="difference" readonly="1"
+                                   decoration-danger="difference &gt; 0"
+                                   decoration-success="difference &lt; 0"/>
+                            <field name="currency_id" column_invisible="True"/>
+                        </list>
+                    </field>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_po_amendment_list" model="ir.ui.view">
+        <field name="name">shubhada.po.amendment.list</field>
+        <field name="model">shubhada.po.amendment</field>
+        <field name="arch" type="xml">
+            <list string="Amendments">
+                <field name="name"/>
+                <field name="order_id"/>
+                <field name="product_id"/>
+                <field name="old_rate"/>
+                <field name="new_rate"/>
+                <field name="effective_date"/>
+                <field name="selected_count" string="GRNs"/>
+                <field name="difference_total"/>
+                <field name="applied_uid"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'applied'"/>
+                <field name="currency_id" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_po_amendment" model="ir.actions.act_window">
+        <field name="name">Amendments</field>
+        <field name="res_model">shubhada.po.amendment</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_shubhada_purchase_amendments" name="Amendments"
+              parent="menu_shubhada_purchase_root"
+              action="action_po_amendment" sequence="20"/>
+
+</odoo>
