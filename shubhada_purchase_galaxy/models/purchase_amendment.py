@@ -87,8 +87,10 @@ class ShubhadaPoAmendment(models.Model):
     def _onchange_reprice(self):
         """Re-tick by date and re-cost, so the grid answers as you type."""
         for line in self.receipt_ids:
+            # move.date is a Datetime, effective_date is a Date - compare like for like
+            received_on = line.date.date() if line.date else False
             line.selected = bool(
-                self.effective_date and line.date and line.date >= self.effective_date)
+                self.effective_date and received_on and received_on >= self.effective_date)
             line._recost(self.new_rate)
 
     def _load_receipts(self):
