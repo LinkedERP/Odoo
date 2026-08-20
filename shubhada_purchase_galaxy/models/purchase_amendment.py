@@ -201,4 +201,7 @@ class ShubhadaPoAmendmentReceipt(models.Model):
             if 'value' in line.move_id._fields:
                 vals['value'] = line.quantity * new_rate
             line.move_id.sudo().write(vals)
-            line.old_rate = new_rate
+            # old_rate deliberately NOT touched. It is the rate the receipt was
+            # booked at, and it has to survive so the applied amendment keeps
+            # showing 862 -> 892 and the difference it caused. Overwriting it
+            # recomputed every difference to zero and emptied the audit trail.

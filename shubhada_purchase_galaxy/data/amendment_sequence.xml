@@ -8,6 +8,9 @@
             <field name="padding">4</field>
             <field name="number_next">1</field>
             <field name="implementation">standard</field>
+            <!-- shared across companies; without this it binds to whichever
+                 company installed the module and next_by_code finds nothing -->
+            <field name="company_id" eval="False"/>
         </record>
     </data>
 </odoo>
