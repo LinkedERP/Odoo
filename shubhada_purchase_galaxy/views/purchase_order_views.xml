@@ -261,17 +261,17 @@
                 <filter name="posted" string="Posted"
                         domain="[('x_approval_state', '=', 'posted')]"/>
                 <filter name="amended" string="Amended"
-                        domain="[('x_amendment_no', '>', 0)]"/>
+                        domain="[('x_amendment_no', '&gt;', 0)]"/>
                 <separator/>
                 <filter name="my_orders" string="My Orders"
                         domain="[('x_created_uid', '=', uid)]"/>
-                <group expand="0" string="Group By">
+                <group>
                     <filter name="group_series" string="Series"
-                            context="{'group_by': 'x_series_id'}"/>
+                            domain="[]" context="{'group_by': 'x_series_id'}"/>
                     <filter name="group_division" string="Location"
-                            context="{'group_by': 'x_division_id'}"/>
+                            domain="[]" context="{'group_by': 'x_division_id'}"/>
                     <filter name="group_approval" string="Approval"
-                            context="{'group_by': 'x_approval_state'}"/>
+                            domain="[]" context="{'group_by': 'x_approval_state'}"/>
                 </group>
             </search>
         </field>
