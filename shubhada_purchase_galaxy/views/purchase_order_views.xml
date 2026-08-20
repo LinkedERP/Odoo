@@ -277,11 +277,17 @@
         </field>
     </record>
 
+    <!--
+        Only orders that carry a series belong on this menu. Without the domain the
+        list also shows every series-less purchase order on the database, which on a
+        shared demo instance means other customers' orders sitting in Shubhada's screen.
+    -->
     <record id="action_purchase_order_galaxy" model="ir.actions.act_window">
         <field name="name">Purchase Orders</field>
         <field name="res_model">purchase.order</field>
         <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_purchase_order_galaxy_search"/>
+        <field name="domain">[('x_series_id', '!=', False)]</field>
         <field name="context">{'default_x_approval_state': 'draft'}</field>
     </record>
 
