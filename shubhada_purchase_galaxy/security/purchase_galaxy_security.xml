@@ -7,40 +7,51 @@
         <field name="sequence">20</field>
     </record>
 
+    <!--
+        Odoo 19 groups hang off a privilege, not directly off a module category.
+        One privilege here, so all six groups appear together on the user form.
+    -->
+    <record id="privilege_shubhada_purchase" model="res.groups.privilege">
+        <field name="name">Purchase Series</field>
+        <field name="category_id" ref="module_category_shubhada_purchase"/>
+        <field name="description">Which purchase series a user may raise and see, and who may approve.</field>
+        <field name="sequence">10</field>
+    </record>
+
     <!-- Buyer segments. A user gets only the segments they buy for. -->
     <record id="group_buyer_boughtout" model="res.groups">
         <field name="name">Buyer — Bought-out Material</field>
-        <field name="category_id" ref="module_category_shubhada_purchase"/>
+        <field name="privilege_id" ref="privilege_shubhada_purchase"/>
         <field name="implied_ids" eval="[(4, ref('purchase.group_purchase_user'))]"/>
     </record>
 
     <record id="group_buyer_subcontract" model="res.groups">
         <field name="name">Buyer — Subcontracting</field>
-        <field name="category_id" ref="module_category_shubhada_purchase"/>
+        <field name="privilege_id" ref="privilege_shubhada_purchase"/>
         <field name="implied_ids" eval="[(4, ref('purchase.group_purchase_user'))]"/>
     </record>
 
     <record id="group_buyer_capital" model="res.groups">
         <field name="name">Buyer — Local Capital</field>
-        <field name="category_id" ref="module_category_shubhada_purchase"/>
+        <field name="privilege_id" ref="privilege_shubhada_purchase"/>
         <field name="implied_ids" eval="[(4, ref('purchase.group_purchase_user'))]"/>
     </record>
 
     <record id="group_buyer_service" model="res.groups">
         <field name="name">Buyer — Services</field>
-        <field name="category_id" ref="module_category_shubhada_purchase"/>
+        <field name="privilege_id" ref="privilege_shubhada_purchase"/>
         <field name="implied_ids" eval="[(4, ref('purchase.group_purchase_user'))]"/>
     </record>
 
     <!-- Approval roles -->
     <record id="group_po_hod" model="res.groups">
         <field name="name">Purchase HOD (first approval)</field>
-        <field name="category_id" ref="module_category_shubhada_purchase"/>
+        <field name="privilege_id" ref="privilege_shubhada_purchase"/>
     </record>
 
     <record id="group_po_poster" model="res.groups">
         <field name="name">Plant Head (post / final approval)</field>
-        <field name="category_id" ref="module_category_shubhada_purchase"/>
+        <field name="privilege_id" ref="privilege_shubhada_purchase"/>
         <field name="implied_ids" eval="[(4, ref('group_po_hod'))]"/>
     </record>
 
