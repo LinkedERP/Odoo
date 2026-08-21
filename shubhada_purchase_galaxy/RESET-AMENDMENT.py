@@ -4,8 +4,8 @@ Run this after any rehearsal or take, so the amendment can be demonstrated live 
 
     python RESET-AMENDMENT.py
 
-Restores order SHN27PO04190 (copper, 4,000 kg at Rs 862) to:
-    posted, no amendments, both GRNs booked at Rs 862
+Restores order SHN27PO04190 (copper, 4,000 kg) to:
+    posted, no amendments, three GRNs booked at 845 / 862 / 875
 so the revision to Rs 892 effective 10 August can be done on camera.
 """
 import json
@@ -22,7 +22,14 @@ PWD = 'Shubhada@2026'
 CTX = {'context': {'allowed_company_ids': [4], 'company_id': 4}}
 
 GALAXY_NUMBER = 'SHN27PO04190'
-BASE_RATE = 862.0
+# Three receipts, three booked rates - the contract rate walked up over the quarter.
+# The line itself carries the latest of them, which is what future receipts cost.
+RECEIPT_RATES = {
+    'NSK12/IN/00175': 845.0,   # 5 Aug
+    'NSK12/IN/00176': 862.0,   # 14 Aug
+    'NSK12/IN/00177': 875.0,   # 20 Aug
+}
+LINE_RATE = 875.0
 _id = [0]
 
 
@@ -74,17 +81,22 @@ for a in amds:
 print('[1/3] removed %d amendment(s): %s'
       % (len(amds), ', '.join(a['name'] for a in amds) or 'none'))
 
-# 2. rate back to the contract rate, on the line and on every receipt
+# 2. rates back where they were - the LINE first, because writing it cascades the
+#    new price onto every move it produced, which would undo the per-receipt rates
 line = c('purchase.order.line', 'search_read',
          [('order_id', '=', order['id'])], ['id', 'price_unit', 'move_ids'])[0]
-c('purchase.order.line', 'write', [line['id']], {'price_unit': BASE_RATE})
+c('purchase.order.line', 'write', [line['id']], {'price_unit': LINE_RATE})
 moves = c('stock.move', 'search_read',
           [('id', 'in', line['move_ids']), ('state', '=', 'done')],
           ['id', 'picking_id', 'quantity', 'price_unit'])
 for m in moves:
+    rate = RECEIPT_RATES.get(m['picking_id'][1])
+    if rate is None:
+        continue
     c('stock.move', 'write', [m['id']],
-      {'price_unit': BASE_RATE, 'value': m['quantity'] * BASE_RATE})
-print('[2/3] rate reset to %.2f on the line and %d receipt(s)' % (BASE_RATE, len(moves)))
+      {'price_unit': rate, 'value': m['quantity'] * rate})
+print('[2/3] line back to %.2f, %d receipt(s) back to their booked rates'
+      % (LINE_RATE, len(moves)))
 
 # 3. order back to posted, no amendment history
 c('purchase.order', 'write', [order['id']], {
@@ -107,6 +119,7 @@ for m in c('stock.move', 'search_read',
            ['picking_id', 'quantity', 'price_unit', 'date'], order='date'):
     print('  %-16s %6.0f kg @ %7.2f   %s'
           % (m['picking_id'][1], m['quantity'], m['price_unit'], m['date'][:10]))
-print('  On camera: revise to Rs 892 with effect from 10 Aug -> only the second')
-print('  receipt is reached, difference Rs 36,000.')
+print('  On camera: revise to Rs 892 with effect from 10 Aug ->')
+print('  the 5 Aug receipt is left alone; the 14 and 20 Aug ones are repriced;')
+print('  2 receipts affected, difference Rs 49,600.')
 print('=' * 64)
