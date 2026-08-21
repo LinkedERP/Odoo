@@ -50,14 +50,14 @@
                     </div>
                     <field name="receipt_ids" readonly="state != 'draft'">
                         <list editable="bottom" create="false" delete="false">
-                            <field name="selected" string="Apply" widget="boolean_toggle"/>
+                            <field name="selected" string="Reprice this GRN" widget="boolean_toggle"/>
                             <field name="picking_id" string="GRN" readonly="1"/>
                             <field name="date" string="Received on" readonly="1"/>
                             <field name="quantity" readonly="1"/>
                             <field name="old_rate" string="Booked at" readonly="1"/>
-                            <field name="new_rate" string="Revised to" readonly="1"/>
+                            <field name="new_rate" string="Rate if applied" readonly="1"/>
                             <field name="old_value" string="Booked value" readonly="1"/>
-                            <field name="new_value" string="Revised value" readonly="1"/>
+                            <field name="new_value" string="Value if applied" readonly="1"/>
                             <field name="difference" readonly="1"
                                    decoration-danger="difference &gt; 0"
                                    decoration-success="difference &lt; 0"/>

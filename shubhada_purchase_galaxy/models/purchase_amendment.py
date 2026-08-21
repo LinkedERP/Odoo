@@ -135,6 +135,16 @@ class ShubhadaPoAmendment(models.Model):
                 raise UserError(_(
                     'Give a reason. An amendment without one is just an edit.'))
 
+            # Snapshot what every receipt is booked at BEFORE anything moves.
+            # Repricing the order line makes Odoo's own purchase logic push the new
+            # price down onto every stock move that line produced - including the
+            # ones deliberately left alone. Without restoring them afterwards, a
+            # receipt we promised not to touch silently changes value.
+            untouched = {
+                line.id: (line.move_id.price_unit, line.move_id.value)
+                for line in rec.receipt_ids.filtered(lambda l: not l.selected)
+            }
+
             # 1. the open balance of the order carries the new rate from here on
             rec.line_id.price_unit = rec.new_rate
 
@@ -142,7 +152,14 @@ class ShubhadaPoAmendment(models.Model):
             for line in rec.receipt_ids.filtered('selected'):
                 line._apply_to_move(rec.new_rate)
 
-            # 3. the order itself is now an amended document and goes back
+            # 3. put the untouched receipts back exactly as they were
+            for line in rec.receipt_ids.filtered(lambda l: not l.selected):
+                price, value = untouched.get(line.id, (None, None))
+                if price is None:
+                    continue
+                line.move_id.sudo().write({'price_unit': price, 'value': value})
+
+            # 4. the order itself is now an amended document and goes back
             #    through the approval chain - a posted order is never quietly edited
             rec.order_id.action_galaxy_amend()
 
@@ -193,12 +210,15 @@ class ShubhadaPoAmendmentReceipt(models.Model):
     selected = fields.Boolean(
         string='Apply', help="Tick the receipts this revised rate reaches back to.")
 
-    @api.depends('quantity', 'old_rate', 'new_rate')
+    @api.depends('quantity', 'old_rate', 'new_rate', 'selected')
     def _compute_values(self):
         for line in self:
             line.old_value = line.quantity * line.old_rate
             line.new_value = line.quantity * line.new_rate
-            line.difference = line.new_value - line.old_value
+            # A row that is not ticked is not changing, so its difference is zero.
+            # Showing what it *would* have been read as though both receipts had
+            # been repriced.
+            line.difference = (line.new_value - line.old_value) if line.selected else 0.0
 
     def _apply_to_move(self, new_rate):
         """Reprice the receipt itself.
