@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_property_form_followup_receivers" model="ir.ui.view">
+        <field name="name">res.partner.property.form.followup.receivers</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="account_followup.view_partner_property_form_followup"/>
+        <field name="arch" type="xml">
+            <field name="followup_responsible_id" position="after">
+                <field name="followup_email_receivers"
+                       placeholder="e.g. billing@customer.com, ap@customer.com"/>
+            </field>
+        </field>
+    </record>
+</odoo>
