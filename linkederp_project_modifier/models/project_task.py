@@ -8,26 +8,29 @@ class ProjectTask(models.Model):
         compute="_compute_available_sale_line_domain"
     )
 
-    @api.depends("project_sale_order_id")
+    @api.depends("project_sale_order_id", "project_id")
     def _compute_available_sale_line_domain(self):
         for task in self:
+            sale = self.env["sale.order"].search([
+                ("project_id", "=", task.project_id.id)
+            ])
+            sale_lines = sale.mapped("order_line")
             if task.project_sale_order_id:
-                task.available_sale_line_domain = json.dumps([
-                    ("id", "in", task.project_sale_order_id.order_line.ids)
-                ])
-            else:
-                task.available_sale_line_domain = json.dumps([])
+                sale_lines |= task.project_sale_order_id.order_line
+            task.available_sale_line_domain = json.dumps([
+                ("id", "in", sale_lines.ids),
+            ])
 
     sale_order_completed = fields.Boolean(compute='_compute_sale_order_complete', store=False)
 
-    @api.depends("sale_order_id", "project_sale_order_id")
+    @api.depends("sale_order_id","project_id")
     def _compute_sale_order_complete(self):
         for task in self:
-            # Task counts as completed when either its own SO or the project SO is flagged complete.
-            task.sale_order_completed = bool(
-                task.sale_order_id.x_studio_completed
-                or task.project_sale_order_id.x_studio_completed
-            )
+            task.sale_order_completed = False
+            if task.sale_order_id and task.sale_order_id.x_studio_completed:
+                task.sale_order_completed = True
+            elif task.project_sale_order_id and task.project_sale_order_id.x_studio_completed:
+                task.sale_order_completed = True
 
     sale_line_id = fields.Many2one(
         'sale.order.line', 'Sales Order Item',
