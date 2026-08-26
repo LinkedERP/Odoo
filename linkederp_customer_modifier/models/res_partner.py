@@ -1,7 +1,7 @@
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
-from odoo.tools.mail import email_normalize, email_normalize_all
+from odoo.tools.mail import email_normalize
 
 
 class ResPartner(models.Model):
@@ -29,16 +29,3 @@ class ResPartner(models.Model):
                 raise ValidationError(
                     _("Invalid email address(es) in Follow-up Email Receivers: %s", ', '.join(invalid))
                 )
-
-    def _get_followup_email_receiver_partners(self):
-        """Return one res.partner per email in ``followup_email_receivers``.
-
-        Partners are found or created (like the mail template's
-        ``find_or_create_partners`` behaviour), so the follow-up engine can
-        notify them through the usual mail thread.
-        """
-        self.ensure_one()
-        partners = self.env['res.partner']
-        for email in email_normalize_all(self.followup_email_receivers):
-            partners |= self.env['res.partner'].find_or_create(email)
-        return partners

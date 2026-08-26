@@ -1,5 +1,7 @@
 from odoo import _, api, models
 
+from odoo.tools.mail import email_normalize_all
+
 
 class AccountFollowupReport(models.AbstractModel):
     _inherit = 'account.followup.report'
@@ -8,14 +10,12 @@ class AccountFollowupReport(models.AbstractModel):
     def _send_email(self, options):
         """When ``followup_email_receivers`` is set, send ONE email to all of them.
 
-        The stock implementation loops over ``_get_email_recipients`` and calls
-        ``message_post`` once per recipient, which results in one separate email
-        per address. Here all receivers are passed to a single ``message_post``
-        call instead, so they land in the same outgoing email (same notification
-        group + lang, batched into one ``mail.mail`` by the mail thread layer).
+        The receivers are plain email addresses, not res.partner records, so they
+        are passed via ``outgoing_email_to`` instead of ``partner_ids`` — this
+        keeps them out of the partner list entirely.
         """
         partner = self.env['res.partner'].browse(options.get('partner_id'))
-        receivers = partner._get_followup_email_receiver_partners()
+        receivers = email_normalize_all(partner.followup_email_receivers)
         if not receivers:
             return super()._send_email(options)
 
@@ -25,7 +25,7 @@ class AccountFollowupReport(models.AbstractModel):
         author_id = options.get('author_id', partner._get_followup_responsible().partner_id.id)
 
         partner.with_context(mail_post_autofollow=True, lang=partner.lang or self.env.user.lang).message_post(
-            partner_ids=receivers.ids,
+            outgoing_email_to=', '.join(receivers),
             author_id=author_id,
             email_from=self._get_email_from(options),
             body=body_html,
