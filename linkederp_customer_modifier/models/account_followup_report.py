@@ -13,11 +13,19 @@ class AccountFollowupReport(models.AbstractModel):
         The receivers are plain email addresses, not res.partner records, so they
         are passed via ``outgoing_email_to`` instead of ``partner_ids`` — this
         keeps them out of the partner list entirely.
+
+        Either way, the sent email is kept instead of being auto-deleted: this
+        path passes ``mail_auto_delete=False`` directly; the fallback path below
+        goes through enterprise code we don't own, so it's flagged via the
+        ``followup_keep_sent_email`` context key instead — see
+        ResPartner._notify_thread_by_email.
         """
         partner = self.env['res.partner'].browse(options.get('partner_id'))
         receivers = email_normalize_all(partner.followup_email_receivers)
         if not receivers:
-            return super()._send_email(options)
+            return super(
+                AccountFollowupReport, self.with_context(followup_keep_sent_email=True)
+            )._send_email(options)
 
         followup_line = options.get('followup_line', partner.followup_line_id)
         self = self.with_context(lang=partner.lang or self.env.user.lang)
@@ -26,6 +34,7 @@ class AccountFollowupReport(models.AbstractModel):
 
         partner.with_context(mail_post_autofollow=True, lang=partner.lang or self.env.user.lang).message_post(
             outgoing_email_to=', '.join(receivers),
+            mail_auto_delete=False,
             author_id=author_id,
             email_from=self._get_email_from(options),
             body=body_html,
