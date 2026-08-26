@@ -36,6 +36,7 @@ class ProjectTask(models.Model):
         'sale.order.line', 'Sales Order Item',
         copy=True, tracking=True, index='btree_not_null', recursive=True,
         compute='_compute_sale_line', store=True, readonly=False,
+        default=False,
         domain='available_sale_line_domain',
         context={'with_remaining_hours': True},
         help="Sales Order Item to which the time spent on this task will be added in order to be invoiced to your customer.\n"
