@@ -15,13 +15,11 @@ class ProjectTask(models.Model):
                 ("project_id", "=", task.project_id.id)
             ])
             sale_lines = sale.mapped("order_line")
-
             if task.project_sale_order_id:
                 sale_lines |= task.project_sale_order_id.order_line
-
             task.available_sale_line_domain = json.dumps([
                 ("id", "in", sale_lines.ids),
-            ]) if sale_lines else json.dumps([])
+            ])
 
     sale_order_completed = fields.Boolean(compute='_compute_sale_order_complete', store=False)
 
