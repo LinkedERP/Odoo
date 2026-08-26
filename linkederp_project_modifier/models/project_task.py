@@ -11,16 +11,17 @@ class ProjectTask(models.Model):
     @api.depends("project_sale_order_id", "project_id")
     def _compute_available_sale_line_domain(self):
         for task in self:
-            sale = self.env['sale.order'].search([
-                ('project_id', '=', task.project_id.id)
+            sale = self.env["sale.order"].search([
+                ("project_id", "=", task.project_id.id)
             ])
-            sale_lines = sale.mapped('order_line')
-            if sale_lines:
-                task.available_sale_line_domain = json.dumps([
-                    ("id", "in", sale_lines.ids),
-                ])
-            else:
-                task.available_sale_line_domain = json.dumps([])
+            sale_lines = sale.mapped("order_line")
+
+            if task.project_sale_order_id:
+                sale_lines |= task.project_sale_order_id.order_line
+
+            task.available_sale_line_domain = json.dumps([
+                ("id", "in", sale_lines.ids),
+            ]) if sale_lines else json.dumps([])
 
     sale_order_completed = fields.Boolean(compute='_compute_sale_order_complete', store=False)
 
