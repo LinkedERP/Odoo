@@ -68,6 +68,7 @@ class TestFollowupEmailReceivers(common.TransactionCase):
         ).create({'partner_id': self.partner.id})
 
         self.assertEqual(wizard.followup_email_receivers, 'custom1@test.com')
+        self.assertFalse(wizard.email_recipient_ids)
 
     def test_empty_field_falls_back_to_partner(self):
         template = self.env.ref('account_followup.email_template_followup_1')
