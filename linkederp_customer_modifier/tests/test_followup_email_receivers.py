@@ -46,7 +46,8 @@ class TestFollowupEmailReceivers(common.TransactionCase):
             count_before,
         )
 
-    def test_send_email_also_notifies_the_partner_itself(self):
+    def test_send_email_does_not_notify_the_partner_itself(self):
+        """Receivers replace the billing contact, they do not extend it."""
         self.partner.followup_email_receivers = 'custom1@test.com'
         template = self.env.ref('account_followup.email_template_followup_1')
 
@@ -57,8 +58,7 @@ class TestFollowupEmailReceivers(common.TransactionCase):
 
         mails = self.env['mail.mail'].search([('email_to', 'ilike', 'custom1@test.com')])
         self.assertEqual(len(mails), 1)
-        self.assertIn(self.partner, self.env['mail.mail'].search(
-            [('recipient_ids', 'in', self.partner.id)]).recipient_ids)
+        self.assertFalse(self.env['mail.mail'].search([('recipient_ids', 'in', self.partner.id)]))
 
     def test_manual_reminder_wizard_shows_receivers(self):
         self.partner.followup_email_receivers = 'custom1@test.com'

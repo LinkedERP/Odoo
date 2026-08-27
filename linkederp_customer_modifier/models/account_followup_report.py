@@ -8,12 +8,12 @@ class AccountFollowupReport(models.AbstractModel):
 
     @api.model
     def _send_email(self, options):
-        """When ``followup_email_receivers`` is set, send ONE email to all of them.
+        """When ``followup_email_receivers`` is set, send ONE email to those only.
 
-        The receivers are plain email addresses, not res.partner records, so they
-        are passed via ``outgoing_email_to``. The regular contacts (the wizard's
-        'Email Recipients', or the billing contact) still go in ``partner_ids`` —
-        the receivers are extra addresses, not a replacement.
+        The receivers replace the regular contacts (the billing contact / the
+        wizard's 'Email Recipients'), not extend them. They are plain email
+        addresses, not res.partner records, so they go via ``outgoing_email_to``
+        and ``partner_ids`` stays empty.
 
         Either way, the sent email is kept instead of being auto-deleted: this
         path passes ``mail_auto_delete=False`` directly; the fallback path below
@@ -28,17 +28,13 @@ class AccountFollowupReport(models.AbstractModel):
                 AccountFollowupReport, self.with_context(followup_keep_sent_email=True)
             )._send_email(options)
 
-        # ponytail: not _get_email_recipients() — that renders the mail template with
-        # find_or_create_partners=True, which creates partners for template email_to.
-        contacts = options.get('email_recipient_ids') or partner._get_all_followup_contacts() or partner
-
         followup_line = options.get('followup_line', partner.followup_line_id)
         self = self.with_context(lang=partner.lang or self.env.user.lang)
         body_html = self.with_context(mail=True).get_followup_report_html(options)
         author_id = options.get('author_id', partner._get_followup_responsible().partner_id.id)
 
         partner.with_context(mail_post_autofollow=True, lang=partner.lang or self.env.user.lang).message_post(
-            partner_ids=contacts.filtered('email').ids,
+            partner_ids=[],
             outgoing_email_to=', '.join(receivers),
             mail_auto_delete=False,
             author_id=author_id,
