@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="manual_reminder_view_form_followup_receivers" model="ir.ui.view">
+        <field name="name">account.followup.manual_reminder.form.followup.receivers</field>
+        <field name="model">account_followup.manual_reminder</field>
+        <field name="inherit_id" ref="account_followup.manual_reminder_view_form"/>
+        <field name="arch" type="xml">
+            <field name="email_recipient_ids" position="after">
+                <field name="followup_email_receivers" string="Follow-up Email Receivers"
+                       readonly="1" invisible="not followup_email_receivers"/>
+            </field>
+        </field>
+    </record>
+</odoo>
