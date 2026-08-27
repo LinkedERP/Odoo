@@ -1,6 +1,6 @@
 {
     'name': 'LinkedERP Customer Modifier',
-    'version': '1.0.0',
+    'version': '1.1.0',
     'summary': 'Add multiple email receivers for invoice payment follow-up reminders',
     'category': 'Accounting',
     'author': 'LinkedERP',
@@ -11,6 +11,7 @@
     ],
     'data': [
         'views/res_partner_views.xml',
+        'views/followup_manual_reminder_views.xml',
     ],
     'installable': True,
     'application': False,

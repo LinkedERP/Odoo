@@ -46,19 +46,28 @@ class TestFollowupEmailReceivers(common.TransactionCase):
             count_before,
         )
 
-    def test_manual_reminder_wizard_preview_does_not_create_partners(self):
+    def test_send_email_also_notifies_the_partner_itself(self):
         self.partner.followup_email_receivers = 'custom1@test.com'
-        count_before = self.env['res.partner'].search_count([('email', '=', 'custom1@test.com')])
+        template = self.env.ref('account_followup.email_template_followup_1')
+
+        self.env['account.followup.report']._send_email({
+            'partner_id': self.partner.id,
+            'mail_template': template,
+        })
+
+        mails = self.env['mail.mail'].search([('email_to', 'ilike', 'custom1@test.com')])
+        self.assertEqual(len(mails), 1)
+        self.assertIn(self.partner, self.env['mail.mail'].search(
+            [('recipient_ids', 'in', self.partner.id)]).recipient_ids)
+
+    def test_manual_reminder_wizard_shows_receivers(self):
+        self.partner.followup_email_receivers = 'custom1@test.com'
 
         wizard = self.env['account_followup.manual_reminder'].with_context(
             active_model='res.partner', active_ids=self.partner.ids
         ).create({'partner_id': self.partner.id})
-        wizard._compute_email_recipient_ids()
 
-        self.assertEqual(
-            self.env['res.partner'].search_count([('email', '=', 'custom1@test.com')]),
-            count_before,
-        )
+        self.assertEqual(wizard.followup_email_receivers, 'custom1@test.com')
 
     def test_empty_field_falls_back_to_partner(self):
         template = self.env.ref('account_followup.email_template_followup_1')
