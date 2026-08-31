@@ -7,6 +7,8 @@
         <field name="arch" type="xml">
             <field name="followup_responsible_id" position="after">
                 <field name="followup_email_receivers"
+                       widget="many2many_tags"
+                       context="{'followup_receiver': True}"
                        placeholder="e.g. billing@customer.com, ap@customer.com"/>
             </field>
         </field>

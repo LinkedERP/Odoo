@@ -1,7 +1,5 @@
 from odoo import _, api, models
 
-from odoo.tools.mail import email_normalize_all
-
 
 class AccountFollowupReport(models.AbstractModel):
     _inherit = 'account.followup.report'
@@ -11,18 +9,17 @@ class AccountFollowupReport(models.AbstractModel):
         """When ``followup_email_receivers`` is set, send ONE email to those only.
 
         The receivers replace the regular contacts (the billing contact / the
-        wizard's 'Email Recipients'), not extend them. They are plain email
-        addresses, not res.partner records, so they go via ``outgoing_email_to``
-        and ``partner_ids`` stays empty.
+        wizard's 'Email Recipients'), not extend them. They are res.partner
+        records, so we reuse the native email-only path (``outgoing_email_to``)
+        to batch every receiver into a single mail — ``partner_ids`` stays empty
+        so the billing contact is not notified.
 
-        Either way, the sent email is kept instead of being auto-deleted: this
-        path passes ``mail_auto_delete=False`` directly; the fallback path below
-        goes through enterprise code we don't own, so it's flagged via the
-        ``followup_keep_sent_email`` context key instead — see
+        The fallback path goes through enterprise code we don't own, so it's
+        flagged via the ``followup_keep_sent_email`` context key — see
         ResPartner._notify_thread_by_email.
         """
         partner = self.env['res.partner'].browse(options.get('partner_id'))
-        receivers = email_normalize_all(partner.followup_email_receivers)
+        receivers = partner.followup_email_receivers.filtered('email_normalized')
         if not receivers:
             return super(
                 AccountFollowupReport, self.with_context(followup_keep_sent_email=True)
@@ -35,7 +32,7 @@ class AccountFollowupReport(models.AbstractModel):
 
         partner.with_context(mail_post_autofollow=True, lang=partner.lang or self.env.user.lang).message_post(
             partner_ids=[],
-            outgoing_email_to=', '.join(receivers),
+            outgoing_email_to=', '.join(receivers.mapped('email_normalized')),
             mail_auto_delete=False,
             author_id=author_id,
             email_from=self._get_email_from(options),

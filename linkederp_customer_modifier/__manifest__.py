@@ -11,7 +11,6 @@
     ],
     'data': [
         'views/res_partner_views.xml',
-        'views/followup_manual_reminder_views.xml',
     ],
     'installable': True,
     'application': False,

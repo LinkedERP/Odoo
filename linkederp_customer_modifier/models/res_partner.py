@@ -1,8 +1,6 @@
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
-from odoo.tools.mail import email_normalize
-
 
 class ResPartner(models.Model):
     _inherit = 'res.partner'
@@ -19,25 +17,31 @@ class ResPartner(models.Model):
         return super()._notify_thread_by_email(
             message, recipients_data, msg_vals=msg_vals, mail_auto_delete=mail_auto_delete, **kwargs)
 
-    followup_email_receivers = fields.Char(
+    followup_email_receivers = fields.Many2many(
+        'res.partner', 'followup_email_receiver_rel', 'partner_id', 'receiver_id',
         string='Follow-up Email Receivers',
         groups='account.group_account_invoice',
-        help='Comma-separated list of email addresses that will receive the payment follow-up '
-             'reminders, instead of the billing (invoice) contact. Leave empty to fall back to '
-             'the default invoice address.',
+        help='Contacts that will receive the payment follow-up reminders, instead of the '
+             'billing (invoice) contact. Leave empty to fall back to the default invoice '
+             'address.',
     )
+
+    @api.model
+    def name_create(self, name):
+        # Typing an email in the followup_email_receivers widget must reuse an
+        # existing partner with that email rather than create a duplicate.
+        # Gated by context so it only affects that one field's quick-create.
+        if self.env.context.get('followup_receiver'):
+            partner = self.find_or_create(name)
+            return partner.id, partner.display_name
+        return super().name_create(name)
 
     @api.constrains('followup_email_receivers')
     def _check_followup_email_receivers(self):
         for partner in self:
-            if not partner.followup_email_receivers:
-                continue
-            invalid = [
-                token.strip()
-                for token in partner.followup_email_receivers.split(',')
-                if token.strip() and not email_normalize(token.strip(), strict=True)
-            ]
+            invalid = partner.followup_email_receivers.filtered(lambda p: not p.email_normalized)
             if invalid:
                 raise ValidationError(
-                    _("Invalid email address(es) in Follow-up Email Receivers: %s", ', '.join(invalid))
+                    _("Follow-up Email Receivers must have a valid email address: %s",
+                      ', '.join(invalid.mapped('display_name')))
                 )

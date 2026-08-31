@@ -1,16 +1,14 @@
-from odoo import api, fields, models
+from odoo import api, models
+
 
 class AccountFollowupManualReminder(models.TransientModel):
     _inherit = 'account_followup.manual_reminder'
 
-    # 'Extra Recipients' is a many2many to res.partner, so plain addresses can never
-    # appear there as chips. Show them as readonly text next to it instead.
-    # ponytail: no partner is created just to render a chip.
-    followup_email_receivers = fields.Char(related='partner_id.followup_email_receivers')
-
-    @api.depends('template_id')
+    @api.depends('template_id', 'partner_id.followup_email_receivers')
     def _compute_email_recipient_ids(self):
         super()._compute_email_recipient_ids()
-        # Receivers replace the partner contacts, they don't extend them — keep the
-        # wizard honest so it shows what _send_email will actually do.
-        self.filtered('followup_email_receivers').email_recipient_ids = False
+        # Receivers replace the partner contacts — keep the wizard honest so it
+        # shows what _send_email will actually do. Still editable by the user.
+        for wizard in self:
+            if wizard.partner_id.followup_email_receivers:
+                wizard.email_recipient_ids = wizard.partner_id.followup_email_receivers
