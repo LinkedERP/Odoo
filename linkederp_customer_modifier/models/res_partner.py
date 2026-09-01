@@ -1,3 +1,5 @@
+import json
+
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
@@ -17,14 +19,44 @@ class ResPartner(models.Model):
         return super()._notify_thread_by_email(
             message, recipients_data, msg_vals=msg_vals, mail_auto_delete=mail_auto_delete, **kwargs)
 
+    # Odoo reads a plain many2many back ordered by the comodel's own _order
+    # (res.partner: 'id'), not by insertion order — so typed order gets lost
+    # on reload. followup_email_receiver_ids/_order below are the real
+    # storage; this field reorders them to match how they were typed.
     followup_email_receivers = fields.Many2many(
-        'res.partner', 'followup_email_receiver_rel', 'partner_id', 'receiver_id',
+        'res.partner',
         string='Follow-up Email Receivers',
+        compute='_compute_followup_email_receivers',
+        inverse='_inverse_followup_email_receivers',
         groups='account.group_account_invoice',
         help='Contacts that will receive the payment follow-up reminders, instead of the '
              'billing (invoice) contact. Leave empty to fall back to the default invoice '
              'address.',
     )
+    followup_email_receiver_ids = fields.Many2many(
+        'res.partner', 'followup_email_receiver_rel', 'partner_id', 'receiver_id',
+        groups='account.group_account_invoice',
+    )
+    followup_email_receivers_order = fields.Char(default='[]', groups='account.group_account_invoice')
+
+    @api.depends('followup_email_receiver_ids', 'followup_email_receivers_order')
+    def _compute_followup_email_receivers(self):
+        for partner in self:
+            raw_ids = partner.followup_email_receiver_ids.ids
+            try:
+                order = json.loads(partner.followup_email_receivers_order or '[]')
+            except ValueError:
+                order = []
+            # Keep the tracked order; append anything untracked (legacy data,
+            # or a write that bypassed the inverse) at the end.
+            ordered = [i for i in order if i in raw_ids] + [i for i in raw_ids if i not in order]
+            partner.followup_email_receivers = [(6, 0, ordered)]
+
+    def _inverse_followup_email_receivers(self):
+        for partner in self:
+            ids = partner.followup_email_receivers.ids
+            partner.followup_email_receiver_ids = [(6, 0, ids)]
+            partner.followup_email_receivers_order = json.dumps(ids)
 
     @api.model
     def name_create(self, name):

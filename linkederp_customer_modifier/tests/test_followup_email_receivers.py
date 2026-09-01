@@ -81,6 +81,16 @@ class TestFollowupEmailReceivers(common.TransactionCase):
 
         self.assertEqual(wizard.email_recipient_ids, custom1)
 
+    def test_receivers_keep_input_order(self):
+        """Order must match what was typed, not the partners' own id order."""
+        custom1 = self.env['res.partner'].create({'name': 'Custom 1', 'email': 'custom1@test.com'})
+        custom2 = self.env['res.partner'].create({'name': 'Custom 2', 'email': 'custom2@test.com'})
+
+        # custom1.id < custom2.id, but typed in the reverse order.
+        self.partner.followup_email_receivers = [(6, 0, [custom2.id, custom1.id])]
+
+        self.assertEqual(self.partner.followup_email_receivers.ids, [custom2.id, custom1.id])
+
     def test_empty_field_falls_back_to_partner(self):
         self._send_email()
 
