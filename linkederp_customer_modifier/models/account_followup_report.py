@@ -6,13 +6,15 @@ class AccountFollowupReport(models.AbstractModel):
 
     @api.model
     def _send_email(self, options):
-        """When ``followup_email_receivers`` is set, send ONE email to those only.
+        """When ``followup_email_receivers`` is set, send to those only.
 
         The receivers replace the regular contacts (the billing contact / the
         wizard's 'Email Recipients'), not extend them. They are res.partner
-        records, so we reuse the native email-only path (``outgoing_email_to``)
-        to batch every receiver into a single mail — ``partner_ids`` stays empty
-        so the billing contact is not notified.
+        records, so they go through ``partner_ids`` like native Odoo does —
+        ONE chatter message, but one mail.mail per receiver (see the
+        ``followup_one_mail_per_receiver`` key handled in
+        ResPartner._notify_thread_by_email). The billing contact is not in
+        ``partner_ids``, so it is not notified.
 
         The fallback path goes through enterprise code we don't own, so it's
         flagged via the ``followup_keep_sent_email`` context key — see
@@ -30,9 +32,12 @@ class AccountFollowupReport(models.AbstractModel):
         body_html = self.with_context(mail=True).get_followup_report_html(options)
         author_id = options.get('author_id', partner._get_followup_responsible().partner_id.id)
 
-        partner.with_context(mail_post_autofollow=True, lang=partner.lang or self.env.user.lang).message_post(
-            partner_ids=[],
-            outgoing_email_to=', '.join(receivers.mapped('email_normalized')),
+        partner.with_context(
+            mail_post_autofollow=True,
+            followup_one_mail_per_receiver=True,
+            lang=partner.lang or self.env.user.lang,
+        ).message_post(
+            partner_ids=receivers.ids,
             mail_auto_delete=False,
             author_id=author_id,
             email_from=self._get_email_from(options),

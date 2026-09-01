@@ -7,7 +7,8 @@ class TestFollowupEmailReceivers(common.TransactionCase):
     Typing an address in the many2many_tags widget goes through
     ``res.partner.name_create`` with the ``followup_receiver`` context key:
     existing partners are reused (no duplicates), and new addresses create a
-    standalone partner. The email is then sent as ONE mail to all receivers.
+    standalone partner. The reminder is posted as ONE chatter message, but
+    one mail.mail per receiver, each addressed through ``recipient_ids``.
     """
 
     def setUp(self):
@@ -48,17 +49,26 @@ class TestFollowupEmailReceivers(common.TransactionCase):
             self.env['res.partner'].search_count([('email', '=', 'custom1@test.com')]), 1,
         )
 
-    def test_send_email_sends_one_mail_to_all_receivers(self):
+    def test_send_email_sends_one_mail_per_receiver(self):
+        """One chatter message, but a separate mail.mail per receiver."""
         custom1 = self.env['res.partner'].create({'name': 'Custom 1', 'email': 'custom1@test.com'})
         custom2 = self.env['res.partner'].create({'name': 'Custom 2', 'email': 'custom2@test.com'})
         self.partner.followup_email_receivers = [(6, 0, [custom1.id, custom2.id])]
 
+        messages_before = self.partner.message_ids
         self._send_email()
 
-        mails = self.env['mail.mail'].search([('email_to', 'ilike', 'custom1@test.com')])
-        self.assertEqual(len(mails), 1)
-        self.assertIn('custom2@test.com', mails.email_to)
-        self.assertIn('custom1@test.com', mails.email_to)
+        message = self.partner.message_ids - messages_before
+        self.assertEqual(len(message), 1)
+        self.assertEqual(message.partner_ids, custom1 | custom2)
+
+        mails = self.env['mail.mail'].search([('mail_message_id', '=', message.id)])
+        self.assertEqual(len(mails), 2)
+        # Addressed as partners (recipient_ids), not as a batched email_to.
+        self.assertFalse(mails.filtered('email_to'))
+        self.assertEqual(
+            [m.recipient_ids for m in mails.sorted('id')], [custom1, custom2],
+        )
 
     def test_send_email_does_not_notify_the_partner_itself(self):
         """Receivers replace the billing contact, they do not extend it."""
@@ -67,9 +77,10 @@ class TestFollowupEmailReceivers(common.TransactionCase):
 
         self._send_email()
 
-        mails = self.env['mail.mail'].search([('email_to', 'ilike', 'custom1@test.com')])
+        mails = self.env['mail.mail'].search([('recipient_ids', 'in', custom1.id)])
         self.assertEqual(len(mails), 1)
-        self.assertNotIn('billing@customer.com', mails.email_to)
+        self.assertEqual(mails.recipient_ids, custom1)
+        self.assertNotIn(self.partner, mails.recipient_ids)
 
     def test_manual_reminder_wizard_shows_receivers(self):
         custom1 = self.env['res.partner'].create({'name': 'Custom 1', 'email': 'custom1@test.com'})

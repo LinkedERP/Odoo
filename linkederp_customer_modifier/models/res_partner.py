@@ -16,6 +16,17 @@ class ResPartner(models.Model):
         # passes mail_auto_delete=False directly and is unaffected here.
         if self.env.context.get('followup_keep_sent_email'):
             mail_auto_delete = False
+        if self.env.context.get('followup_one_mail_per_receiver'):
+            # Native batches every recipient into ONE mail.mail (a single row in
+            # Settings > Emails, all receivers listed in "To (Partners)"). The
+            # follow-up receivers must each get their own mail.mail, while the
+            # chatter keeps the single message posted by
+            # AccountFollowupReport._send_email.
+            for recipient in recipients_data:
+                super()._notify_thread_by_email(
+                    message, [recipient], msg_vals=msg_vals,
+                    mail_auto_delete=mail_auto_delete, **kwargs)
+            return True
         return super()._notify_thread_by_email(
             message, recipients_data, msg_vals=msg_vals, mail_auto_delete=mail_auto_delete, **kwargs)
 
