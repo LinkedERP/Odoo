@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 {
     "name": "LinkedERP JD Helper (VectorMind)",
-    "version": "19.0.1.1.0",
+    "version": "19.0.1.2.0",
     "category": "Human Resources/Recruitment",
     "summary": "Drafts a job description in LinkedERP's format from a short description or a sample JD, using VectorMind.",
     "description": """
 LinkedERP JD Helper
 ===================
 HR Office, Recruitment room. The "Draft JD with AI" button on a hiring request (x_hiring_request) calls
-``linkederp.jd.helper.request_draft``. A scheduled job is triggered at once, asks VectorMind (BusinessGPT,
+``linkederp.jd.helper.request_draft``, which drafts while the user waits (the form reloads with the JD) or, if VectorMind is slow, hands it to a scheduled job that sends a pop-up when done. It asks VectorMind (BusinessGPT,
 LinkedERP's approved AI) for the JD as JSON, renders it in the JD library layout and writes it into
 "About the role".
 

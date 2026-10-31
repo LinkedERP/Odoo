@@ -18,6 +18,7 @@ from html import escape
 import requests
 
 from odoo import api, models
+from odoo.exceptions import UserError
 
 try:  # name differs across versions
     from odoo.tools.pdf import PdfFileReader
@@ -29,6 +30,7 @@ _logger = logging.getLogger(__name__)
 VM = "https://linkederp.vectormind.chat"
 DEFAULT_BOT = "0b21c99f-e7f0-491f-8565-d2998683da79"  # gpt-5.5 bot on the LinkedERP tenant
 P = "linkederp_jd_helper."
+SYNC_WAIT = 80  # seconds the user waits on screen; Odoo.sh stops web requests at about 120 s
 
 ABOUT = ("LinkedERP is a NetSuite and Odoo implementation partner serving clients across South Africa, India and Indonesia. "
          "We take growing and enterprise businesses through the full ERP journey: consulting, solution design, implementation "
@@ -135,10 +137,20 @@ class LinkederpJdHelper(models.AbstractModel):
     # ---------- called by the "Draft JD with AI" button ----------
     @api.model
     def request_draft(self, record_ids):
+        """Draft while the user waits (Odoo shows its loading screen) and reload the form, so the JD simply appears.
+        If VectorMind is slow (over SYNC_WAIT seconds), the scheduled job finishes it and a pop-up tells the user."""
         recs = self.env["x_hiring_request"].browse(record_ids)
-        recs.write({"x_ai_status": "requested", "x_ai_note": False})
-        self.env.ref("linkederp_jd_helper.ir_cron_draft_jd")._trigger()
-        return True
+        for rec in recs:
+            if not (rec.x_new_role_brief or rec.x_jd_file):
+                raise UserError("Describe the new role in a few lines, or attach a sample JD, then click Draft JD with AI.")
+        for rec in recs:
+            try:
+                self._draft(rec, wait=SYNC_WAIT)
+            except Exception:
+                _logger.info("JD helper: hiring request %s handed to the background job", rec.id, exc_info=True)
+                rec.write({"x_ai_status": "requested", "x_ai_note": False})
+                self.env.ref("linkederp_jd_helper.ir_cron_draft_jd")._trigger()
+        return {"type": "ir.actions.client", "tag": "soft_reload"}
 
     # ---------- scheduled job ----------
     @api.model
@@ -146,12 +158,22 @@ class LinkederpJdHelper(models.AbstractModel):
         for rec in self.env["x_hiring_request"].search([("x_ai_status", "=", "requested")], limit=10):
             try:
                 self._draft(rec)
+                self._notify(rec, "The JD for %s is ready. Open the hiring request to check it." % (rec.x_name or "the new role"), "success")
             except Exception as e:  # one bad request must not stop the rest
                 _logger.exception("JD helper failed on hiring request %s", rec.id)
                 rec.write({"x_ai_status": "failed", "x_ai_note": ("Could not draft: %s" % e)[:180]})
+                self._notify(rec, "The AI helper could not draft the JD. Please try again.", "danger")
             self.env.cr.commit()
 
-    def _draft(self, rec):
+    def _notify(self, rec, message, kind):
+        """Pop-up for whoever clicked the button (the last person to change the request)."""
+        try:
+            rec.write_uid.partner_id._bus_send("simple_notification", {
+                "title": "AI helper", "message": message, "type": kind, "sticky": True})
+        except Exception:  # a missed pop-up must never undo the JD
+            _logger.info("JD helper: could not send the pop-up", exc_info=True)
+
+    def _draft(self, rec, wait=None):
         sample = self._file_text(rec)
         parts = [rec.x_name and "Job title asked: %s" % rec.x_name,
                  rec.x_new_role_brief and "Description from the hiring manager: %s" % rec.x_new_role_brief,
@@ -160,7 +182,7 @@ class LinkederpJdHelper(models.AbstractModel):
         if not role.strip():
             raise ValueError("nothing to work from, add a description or attach a sample JD")
         guide = self.env["ir.config_parameter"].sudo().get_param(P + "style_guide") or STYLE_GUIDE
-        jd = parse_json(self._ask(PROMPT.format(about=ABOUT, guide=guide, example=self._examples(role), role=role)))
+        jd = parse_json(self._ask(PROMPT.format(about=ABOUT, guide=guide, example=self._examples(role), role=role), wait=wait))
         exp = dict((k, v) for k, v in jd.get("meta", [])).get("Experience Required", "")
         vals = {"x_about_role": jd_html(jd), "x_ai_status": "done", "x_ai_note": False}
         if not rec.x_name:
@@ -204,7 +226,8 @@ class LinkederpJdHelper(models.AbstractModel):
         return raw.decode("utf-8", "ignore")
 
     # ---------- VectorMind ----------
-    def _ask(self, content):
+    def _ask(self, content, wait=None):
+        """wait=N: give up after N seconds (the user is watching); None: up to 5 minutes (background job)."""
         icp = self.env["ir.config_parameter"].sudo()
         cid, secret = icp.get_param(P + "vm_client_id"), icp.get_param(P + "vm_client_secret")
         if not (cid and secret):
@@ -220,12 +243,14 @@ class LinkederpJdHelper(models.AbstractModel):
         thread.raise_for_status()
         tid = thread.json()["id"]
         try:
-            r = requests.post(api_ + "/external-messages", headers=h, timeout=150, json={
+            r = requests.post(api_ + "/external-messages", headers=h, timeout=wait or 150, json={
                 "threadId": tid, "content": content, "contentType": "PlainText", "messageType": "User", "botId": bot,
                 "searchWeb": False, "externalUserId": "hr-office", "stream": True})
             r.raise_for_status()
             return r.json().get("content", "")
         except (requests.Timeout, requests.HTTPError):
+            if wait:
+                raise
             for _ in range(20):  # up to 5 minutes on the thread
                 time.sleep(15)
                 lst = requests.get(api_ + "/external-messages/thread/%s" % tid, headers=h, timeout=30)
