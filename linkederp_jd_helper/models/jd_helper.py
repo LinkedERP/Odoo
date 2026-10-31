@@ -34,19 +34,64 @@ ABOUT = ("LinkedERP is a NetSuite and Odoo implementation partner serving client
          "We take growing and enterprise businesses through the full ERP journey: consulting, solution design, implementation "
          "and post-go-live support, with deep expertise in manufacturing, supply chain and cloud-first transformation.")
 
+# The house guide: the same rules the 23 library JDs were written with (Akshay's decisions, 31 Oct 2026).
+# HR can replace it without code via System Parameter linkederp_jd_helper.style_guide.
+STYLE_GUIDE = """LINKEDERP JD HOUSE GUIDE
+Voice: plain, simple English (British spelling). Short, direct sentences. Role names only, never people's names. No em dashes. No buzzwords.
+
+TITLE: the role, with the level after a dash when the role has levels, e.g. "Odoo Functional Consultant - Proficient".
+SUBTITLE: "Area  ·  Track", e.g. "Delivery  ·  NetSuite", "Delivery  ·  Odoo", "Delivery  ·  DSI / Cloud Inventory", "Sales  ·  India",
+"Marketing  ·  India, South Africa & Indonesia", "AI Platform  ·  Engineering", "Leadership  ·  India, South Africa & Indonesia".
+
+LEVELS AND EXPERIENCE:
+- NetSuite, Odoo, DSI and AI roles have three levels: Junior (0 to 2 Years), Proficient (3 to 6 Years), Senior (8+ Years; technical seniors 6+ Years).
+- Sales has three levels: Business Development Representative (0 to 3 Years), Sales Assistant Manager (4 to 7 Years), Country Sales Manager (10+ Years).
+- Leadership roles (Chief of Staff, AI Lead): 10+ Years. Project Manager: 8+ Years. Digital Marketing Specialist: 5 to 8 Years.
+
+META (exactly these four lines, in this order):
+- Location: "Bengaluru, India (Work from Office)"; AI roles "Bengaluru, India (Hybrid)".
+- Employment Type: "Full-time, Permanent"; DSI roles "Full-time, Permanent (hybrid shifts or rotation, including US hours when needed)". Never "night shift".
+- Experience Required: from the bands above unless the input says otherwise.
+- Reports To: all NetSuite, Odoo and DSI delivery roles (functional and technical, every level) report to "Project Manager".
+  AI engineers report to "AI Lead"; AI Lead reports to "Managing Director". BDR and Sales Assistant Manager report to "Country Sales Manager".
+  Country Sales Manager, Digital Marketing Specialist and Project Manager report to "Chief of Staff". Chief of Staff reports to "Managing Director".
+
+ROLE OVERVIEW: 2 to 4 sentences. First say what this role family does for our clients, then what changes at this level
+("At Junior level you learn ...", "At Proficient level you own whole modules ...", "At Senior level you are the solution owner ...").
+
+KEY RESPONSIBILITIES: 7 to 11 items. Each item = [short area name, 2 to 3 full sentences]. Be concrete to how LinkedERP works:
+- We implement with our SILC method: Activate, Design, Build, CRP (conference room pilot), UAT, Go-live, Hypercare; each phase closes with a signed agreement.
+- Requirements live in the functional and technical requirement lists (FRL and TRL); the plan lives in Smartsheet; time is booked in Odoo every day against the right deliverable.
+- Indian clients need GST, TDS, e-invoicing (and e-way bills) set up correctly; we also serve South Africa, Indonesia and US (DSI) clients.
+- Junior: learn the method and product, configure as directed, data loads, testing, documentation, first-level support.
+- Proficient: run workshops, own modules, solution design (standard first), configuration, data migration, CRP and UAT, training, go-live and hypercare, mentor Juniors.
+- Senior: solution ownership, design sign-off and quality, complex areas, escalations, pre-sales and estimates, mentoring and standards.
+- Every delivery role ends with ["Plan and timesheets", "Keep your tasks current in the project plan, report progress and risks to the Project Manager, and book time in Odoo every day against the right deliverable."].
+- Sales roles: targets, discovery, demos with consultants, proposals, CRM discipline, handover to delivery, weekly reporting.
+
+REQUIRED SKILLS & EXPERIENCE: 4 to 6 items. Start with years and the core experience. Include one ["Tools", ...] item that mentions AI tools;
+seniors may add ["Communication", ...].
+PREFERRED QUALIFICATIONS: 2 to 3 items (certifications, industry background, degree).
+PERSONAL QUALITIES: 3 to 4 items, for example "Owns outcomes end to end and closes loops without being chased.",
+"Clear and honest communicator with clients and colleagues.", "Learns fast and is comfortable with changing priorities in a small team."
+WHAT WE OFFER: 2 to 3 items. Always start with "A role with a fast-growing global NetSuite & Odoo partner spanning South Africa, India, and Indonesia."
+For levelled roles add "A clear growth path through Junior, Proficient and Senior levels."
+
+If the input is a sample JD from elsewhere: keep its substance (scope, tools, must-haves) but rewrite it fully into this guide's format, levels and voice.
+If the input gives a different location, experience or reporting line, use the input."""
+
 PROMPT = """You write job descriptions for LinkedERP. {about}
 
-Write a complete JD for the role below, in the same depth and style as the EXAMPLE.
-Rules: plain, simple English; role names only, never people's names; no em dashes; Indian context (Bengaluru office) unless the input says otherwise;
-levels are Junior / Proficient / Senior for NetSuite, Odoo, DSI and AI roles, and BDR / Assistant Manager / Country Sales Manager for sales;
-7 to 10 key responsibilities, each with a short area name and 2 to 3 sentences; 4 to 6 required skills; 2 to 4 preferred; 3 to 4 qualities; 2 to 3 offer lines.
-If the input is a sample JD from elsewhere, keep its substance but rewrite it fully into our format and voice.
+Follow this house guide exactly:
+{guide}
+
+Write the JD for the ROLE INPUT below in exactly the same structure, depth and voice as the EXAMPLES (they are real JDs from our library).
 
 Return ONLY a JSON object with exactly these keys:
-{{"title": str, "subtitle": "Area  ·  Function", "meta": [["Location", str], ["Employment Type", str], ["Experience Required", str], ["Reports To", str]],
+{{"title": str, "subtitle": str, "meta": [["Location", str], ["Employment Type", str], ["Experience Required", str], ["Reports To", str]],
  "overview": str, "responsibilities": [[area, text], ...], "skills": [str or [lead, text]], "preferred": [str], "qualities": [str], "offer": [str]}}
 
-EXAMPLE (one of our library JDs):
+EXAMPLES:
 {example}
 
 ROLE INPUT:
@@ -114,7 +159,8 @@ class LinkederpJdHelper(models.AbstractModel):
         role = "\n".join(p for p in parts if p)
         if not role.strip():
             raise ValueError("nothing to work from, add a description or attach a sample JD")
-        jd = parse_json(self._ask(PROMPT.format(about=ABOUT, example=self._example(), role=role)))
+        guide = self.env["ir.config_parameter"].sudo().get_param(P + "style_guide") or STYLE_GUIDE
+        jd = parse_json(self._ask(PROMPT.format(about=ABOUT, guide=guide, example=self._examples(role), role=role)))
         exp = dict((k, v) for k, v in jd.get("meta", [])).get("Experience Required", "")
         vals = {"x_about_role": jd_html(jd), "x_ai_status": "done", "x_ai_note": False}
         if not rec.x_name:
@@ -124,9 +170,24 @@ class LinkederpJdHelper(models.AbstractModel):
         rec.write(vals)
         rec.message_post(body="JD drafted by the AI helper (VectorMind). Please check it before submitting.")
 
-    def _example(self):
-        job = self.env["hr.job"].search([("x_jd_library", "=", True), ("name", "=", "Project Manager")], limit=1)
-        return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", str(job.description or "")))[:6000]
+    def _examples(self, role_text):
+        """The two library JDs closest to the input (shared words in the job title, level words count double)."""
+        words = set(re.findall(r"[a-z]+", role_text.lower()))
+        level = {"junior", "proficient", "senior"}
+        jobs = self.env["hr.job"].search([("x_jd_library", "=", True)])
+
+        def score(job):
+            name = set(re.findall(r"[a-z]+", job.name.lower())) - {"consultant", "manager", "and", "the"}
+            return sum(2 if w in level else 1 for w in name & words)
+
+        best = sorted(jobs, key=lambda j: (-score(j), j.name != "Project Manager"))[:2]
+        out = []
+        for job in best:
+            text = re.sub(r"<li>", "\n- ", str(job.description or ""))
+            text = re.sub(r"<h3>", "\n\n## ", text)
+            text = re.sub(r"\s*\n\s*", "\n", re.sub(r"<[^>]+>", " ", text)).strip()
+            out.append("TITLE: %s\n%s" % (job.name, text[:5000]))
+        return "\n\n=====\n\n".join(out)
 
     def _file_text(self, rec):
         if not rec.x_jd_file:
