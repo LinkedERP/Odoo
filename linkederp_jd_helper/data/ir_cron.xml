@@ -10,4 +10,24 @@
         <field name="interval_type">hours</field>
         <field name="active" eval="True"/>
     </record>
+    <!-- Triggered when a CV is uploaded; the hourly run is a safety net. -->
+    <record id="ir_cron_score_cv" model="ir.cron">
+        <field name="name">HR Office: read and score CVs with AI</field>
+        <field name="model_id" ref="model_linkederp_jd_helper"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_score_cvs()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="active" eval="True"/>
+    </record>
+    <!-- New Fathom recordings are matched to interview rounds every 30 minutes. -->
+    <record id="ir_cron_fathom" model="ir.cron">
+        <field name="name">HR Office: attach Fathom interview recordings</field>
+        <field name="model_id" ref="model_linkederp_jd_helper"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_fathom()</field>
+        <field name="interval_number">30</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
 </odoo>

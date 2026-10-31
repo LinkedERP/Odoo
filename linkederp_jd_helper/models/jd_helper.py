@@ -212,10 +212,13 @@ class LinkederpJdHelper(models.AbstractModel):
         return "\n\n=====\n\n".join(out)
 
     def _file_text(self, rec):
-        if not rec.x_jd_file:
+        return self._binary_text(rec.x_jd_file, rec.x_jd_filename)
+
+    def _binary_text(self, data, filename):
+        if not data:
             return ""
-        raw = base64.b64decode(rec.x_jd_file)
-        name = (rec.x_jd_filename or "").lower()
+        raw = base64.b64decode(data)
+        name = (filename or "").lower()
         if name.endswith(".pdf"):
             reader = PdfFileReader(io.BytesIO(raw), strict=False)
             return "\n".join((p.extract_text() or "") for p in reader.pages)

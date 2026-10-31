@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 {
     "name": "LinkedERP JD Helper (VectorMind)",
-    "version": "19.0.1.2.0",
+    "version": "19.0.1.3.0",
     "category": "Human Resources/Recruitment",
-    "summary": "Drafts a job description in LinkedERP's format from a short description or a sample JD, using VectorMind.",
+    "summary": "HR Office recruitment helpers with VectorMind: drafts JDs, reads and scores CVs, attaches Fathom interview notes.",
     "description": """
 LinkedERP JD Helper
 ===================
