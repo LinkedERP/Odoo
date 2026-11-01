@@ -1,0 +1,70 @@
+// HR Office home screen. LinkedERP palette: navy, blue, red.
+.o_hr_office {
+    display: flex;
+    gap: 20px;
+    padding: 16px 20px;
+    height: 100%;
+    overflow: auto;
+    align-items: flex-start;
+
+    .o_hr_office_main { flex: 1 1 auto; min-width: 0; }
+    .o_hr_office_head {
+        display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;
+        h1 { margin: 0; font-weight: 900; }
+    }
+    .o_hr_office_map {
+        position: relative;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 3px solid #0B1B3F;
+        img, canvas { display: block; width: 100%; height: auto; }
+        canvas { position: absolute; inset: 0; height: 100%; pointer-events: none; }
+    }
+    .o_hr_room {
+        position: absolute;
+        background: transparent;
+        border: 3px solid transparent;
+        border-radius: 8px;
+        padding: 0;
+        cursor: pointer;
+        transition: border-color .15s, background .15s;
+        &:hover, &:focus-visible { border-color: #2061F7; background: rgba(32, 97, 247, .08); outline: none; }
+        &.o_hr_room_soon:hover { border-color: #9aa3b5; background: rgba(0, 0, 0, .05); }
+    }
+    .o_hr_badge {
+        position: absolute; top: 6px; right: 6px;
+        min-width: 26px; height: 26px; padding: 0 7px; border-radius: 13px;
+        background: #EE2E24; color: #fff; font-weight: 800; font-size: 14px; line-height: 26px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, .35);
+    }
+    .o_hr_soon {
+        position: absolute; top: 6px; right: 6px;
+        background: rgba(11, 27, 63, .75); color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px;
+    }
+    .o_hr_card {
+        position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        width: min(300px, 92%); text-align: left;
+        background: #fff; color: #14213d; border-radius: 10px; padding: 12px 14px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, .35); pointer-events: none; z-index: 2;
+        .text-muted { color: #5b6478 !important; }
+    }
+    .o_hr_office_side {
+        flex: 0 0 300px;
+        h2 { font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; margin: 4px 0 10px; }
+    }
+    .o_hr_todo {
+        display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+        border: 1px solid var(--border-color, #d9deea); border-radius: 8px; background: transparent;
+        padding: 10px 12px; margin-bottom: 8px; cursor: pointer;
+        &:hover { border-color: #2061F7; }
+    }
+    .o_hr_todo_n { font-size: 22px; font-weight: 900; color: #EE2E24; min-width: 28px; text-align: center; }
+    .o_hr_todo_l { flex: 1; }
+    .o_hr_team li { padding: 3px 0; }
+}
+@media (max-width: 1100px) {
+    .o_hr_office { flex-direction: column; .o_hr_office_side { flex-basis: auto; width: 100%; } }
+}
+@media (prefers-reduced-motion: reduce) {
+    .o_hr_office .o_hr_room { transition: none; }
+}
