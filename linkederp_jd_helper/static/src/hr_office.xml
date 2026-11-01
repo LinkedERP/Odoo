@@ -3,66 +3,18 @@
     <t t-name="linkederp_jd_helper.HrOffice">
         <div class="o_hr_office">
             <div class="o_hr_office_head">
-                <div>
-                    <h1>HR Office</h1>
-                    <span class="text-muted">Click an area to open it. A red number means something is waiting.</span>
-                </div>
-                <div class="btn-group" role="group" aria-label="View">
-                    <button type="button" class="btn" t-att-class="state.view === 'desk' ? 'btn-primary' : 'btn-secondary'" t-on-click="() => this.state.view = 'desk'"><i class="fa fa-th-large me-1"/>Desk view</button>
-                    <button type="button" class="btn" t-att-class="state.view === 'office' ? 'btn-primary' : 'btn-secondary'" t-on-click="() => this.state.view = 'office'"><i class="fa fa-building-o me-1"/>Office view</button>
-                </div>
+                <h1>HR Office</h1>
+                <span class="text-muted">Click an area to open it. A red number means something is waiting.</span>
             </div>
-            <div class="o_hr_tiles" t-if="state.view === 'desk'">
-                <button type="button" class="o_hr_tile card" t-foreach="state.data.tiles" t-as="room" t-key="room.key"
-                        t-att-class="{ 'o_hr_tile_soon': !room.built }" t-on-click="() => this.openRoom(room)" t-att-title="room.does">
-                    <span class="o_hr_badge" t-if="room.badge" t-esc="room.badge"/>
-                    <span class="o_hr_tile_icon"><i t-attf-class="fa {{ room.icon }}"/></span>
-                    <span class="o_hr_tile_name" t-esc="room.name"/>
-                    <span class="o_hr_tile_who text-muted" t-esc="room.manager"/>
-                    <span class="o_hr_tile_status" t-att-class="room.hot ? 'text-danger' : (room.built ? 'text-success' : 'text-muted')" t-esc="room.status"/>
+            <div class="o_hr_tiles">
+                <button type="button" class="o_hr_tile card" t-foreach="state.tiles" t-as="tile" t-key="tile.key"
+                        t-att-class="{ 'o_hr_tile_soon': !tile.built }" t-on-click="() => this.open(tile)" t-att-title="tile.does">
+                    <span class="o_hr_badge" t-if="tile.badge" t-esc="tile.badge"/>
+                    <span class="o_hr_tile_icon"><i t-attf-class="fa {{ tile.icon }}"/></span>
+                    <span class="o_hr_tile_name" t-esc="tile.name"/>
+                    <span class="o_hr_tile_who text-muted" t-esc="tile.manager"/>
+                    <span class="o_hr_tile_status" t-att-class="tile.hot ? 'text-danger' : (tile.built ? 'text-success' : 'text-muted')" t-esc="tile.status"/>
                 </button>
-            </div>
-            <div class="o_hr_office_body" t-else="">
-            <div class="o_hr_office_main">
-                <div class="o_hr_office_map">
-                    <img src="/linkederp_jd_helper/static/img/hr_office.png" alt="LinkedERP HR Office: Recruitment, Onboarding and Payroll on top; Admin, Grievance and Surveys and Profiles in the middle; Reception along the bottom."/>
-                    <canvas t-ref="walkers" width="1344" height="752" aria-hidden="true"/>
-                    <t t-foreach="state.data.rooms" t-as="room" t-key="room.key">
-                        <button type="button" class="o_hr_room" t-att-style="pos(room.box)" t-att-aria-label="room.name"
-                                t-att-class="{ 'o_hr_room_soon': !room.built }"
-                                t-on-click="() => this.openRoom(room)"
-                                t-on-mouseenter="() => this.state.hover = room.key" t-on-mouseleave="() => this.state.hover = null">
-                            <span class="o_hr_badge" t-if="room.badge" t-esc="room.badge"/>
-                            <span class="o_hr_soon" t-if="!room.built">Coming soon</span>
-                            <div class="o_hr_card" t-if="state.hover === room.key">
-                                <div class="fw-bold fs-5" t-esc="room.name"/>
-                                <div class="small text-muted"><t t-esc="room.manager"/> · <t t-esc="room.role"/></div>
-                                <div class="small mt-1" t-esc="room.does"/>
-                                <ul class="list-unstyled small mt-2 mb-0" t-if="room.lines.length">
-                                    <li t-foreach="room.lines" t-as="line" t-key="line.label"><b t-esc="line.count"/> <t t-esc="line.label"/></li>
-                                </ul>
-                                <div class="small mt-2 fw-bold" t-if="room.built">Click to open</div>
-                            </div>
-                        </button>
-                    </t>
-                </div>
-            </div>
-            <aside class="o_hr_office_side">
-                <h2>Needs you today</h2>
-                <div t-if="!state.data.todo.length" class="text-muted">Nothing waiting. All rooms are up to date.</div>
-                <button type="button" class="o_hr_todo" t-foreach="state.data.todo" t-as="item" t-key="item.label" t-on-click="() => this.open(item)">
-                    <span class="o_hr_todo_n" t-esc="item.count"/>
-                    <span class="o_hr_todo_l"><t t-esc="item.label"/><br/><small class="text-muted" t-esc="item.room"/></span>
-                    <i class="fa fa-chevron-right text-muted" title="Open"/>
-                </button>
-                <h2 class="mt-4">The team</h2>
-                <ul class="list-unstyled o_hr_team">
-                    <li t-foreach="state.data.rooms" t-as="room" t-key="room.key">
-                        <b t-esc="room.manager"/> <span class="text-muted">· <t t-esc="room.name"/></span>
-                        <span class="badge text-bg-secondary ms-1" t-if="!room.built">soon</span>
-                    </li>
-                </ul>
-            </aside>
             </div>
         </div>
     </t>
