@@ -186,7 +186,11 @@ class LinkederpRecruitmentHelper(models.AbstractModel):
             cursor = data.get("next_cursor")
             if not cursor:
                 break
+        used = set(self.env["x_interview"].search([("x_fathom_recording", "!=", False)]).mapped("x_fathom_recording"))
         for m in meetings:
+            if str(m.get("recording_id") or "") in used:  # a recording belongs to one round only
+                continue
+            used.add(str(m.get("recording_id") or ""))
             links = {m.get("share_url"), m.get("url")}
             for rd in pasted:
                 if rd.x_fathom_url in links and not rd.x_ai_notes:
