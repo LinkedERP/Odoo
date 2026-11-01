@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-name="linkederp_jd_helper.HrOffice">
-        <div class="o_hr_office">
-            <div class="o_hr_office_head">
+        <div class="o_hr_office" t-att-class="{ 'o_hr_centered': area }">
+            <div class="o_hr_office_head" t-if="area === 'referrals'">
+                <h1>Referrals</h1>
+                <span class="text-muted">Know someone good? Pick a role, read the JD and refer them.</span>
+            </div>
+            <div class="o_hr_office_head" t-else="">
                 <h1>HR Office</h1>
                 <span class="text-muted">Click an area to open it. A red number means something is waiting.</span>
             </div>
@@ -12,7 +16,7 @@
                     <span class="o_hr_badge" t-if="tile.badge" t-esc="tile.badge"/>
                     <span class="o_hr_tile_icon"><i t-attf-class="fa {{ tile.icon }}"/></span>
                     <span class="o_hr_tile_name" t-esc="tile.name"/>
-                    <span class="o_hr_tile_who text-muted" t-esc="tile.manager"/>
+                    <span class="o_hr_tile_who text-muted" t-if="tile.manager" t-esc="tile.manager"/>
                     <span class="o_hr_tile_status" t-att-class="tile.hot ? 'text-danger' : (tile.built ? 'text-success' : 'text-muted')" t-esc="tile.status"/>
                 </button>
             </div>

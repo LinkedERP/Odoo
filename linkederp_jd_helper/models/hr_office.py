@@ -75,6 +75,8 @@ class LinkederpHrOffice(models.AbstractModel):
         tiles = []
         for key, name, manager, does, icon, target in TILES:
             action_id = self._action_id(*target) if target else False
+            if key == "referrals":  # opens the Referrals page (open roles + my referrals)
+                action_id = self.env.ref("linkederp_jd_helper.action_hr_referrals").id
             lines = [(label, n, urgent) for label, model, domain, urgent in stats.get(key, [])
                      for n in [self._count(model, domain)] if n is not None]
             badge = sum(n for _label, n, urgent in lines if urgent)
@@ -84,4 +86,21 @@ class LinkederpHrOffice(models.AbstractModel):
             tiles.append({"key": key, "name": name, "manager": manager, "does": does, "icon": icon,
                           "action_id": action_id, "built": bool(action_id), "badge": badge,
                           "status": status, "hot": bool(badge)})
+        return {"tiles": tiles}
+
+    @api.model
+    def get_referrals(self):
+        """Referrals landing page: two tiles, open roles and the user's own referrals."""
+        tiles = []
+        for key, name, does, icon, target, model, domain, label in [
+            ("roles", "Open roles", "See the roles we are hiring for, read the JD and refer someone.", "fa-briefcase",
+             ("Open roles", "x_hiring_request"), "x_hiring_request", [("x_status", "=", "in_progress")], "open roles"),
+            ("mine", "My referrals", "People you referred, their status and their AI score.", "fa-heart",
+             ("My referrals", "x_referral"), "x_referral", [("create_uid", "=", self.env.uid)], "people referred"),
+        ]:
+            n = self._count(model, domain)
+            action_id = self._action_id(*target)
+            tiles.append({"key": key, "name": name, "manager": "", "does": does, "icon": icon,
+                          "action_id": action_id, "built": bool(action_id), "badge": 0,
+                          "status": _say(n, label) if n else "None yet", "hot": False})
         return {"tiles": tiles}
