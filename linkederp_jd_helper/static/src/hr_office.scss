@@ -43,7 +43,7 @@
     }
     .o_hr_card {
         position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-        width: min(300px, 92%); text-align: left;
+        width: 300px; max-width: 92%; text-align: left;
         background: #fff; color: #14213d; border-radius: 10px; padding: 12px 14px;
         box-shadow: 0 8px 24px rgba(0, 0, 0, .35); pointer-events: none; z-index: 2;
         .text-muted { color: #5b6478 !important; }
