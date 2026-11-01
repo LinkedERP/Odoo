@@ -8,6 +8,7 @@ Models are Studio-style (hr.applicant x_ fields, x_interview), so they are used 
 import logging
 import re
 import time
+from datetime import datetime
 from html import escape
 
 import requests
@@ -54,6 +55,23 @@ JD:
 TRANSCRIPT:
 {transcript}
 """
+
+
+NEAR = 3 * 3600  # a recording within 3 hours of the booked interview time counts as that interview
+
+
+def _when(iso):
+    """Fathom ISO time (UTC) -> naive UTC datetime, like Odoo stores datetimes."""
+    try:
+        return datetime.strptime((iso or "")[:19], "%Y-%m-%dT%H:%M:%S")
+    except ValueError:
+        return None
+
+
+def _named(name, text):
+    """True when the candidate's first or last name (3+ letters) appears in the meeting title or invitee names."""
+    parts = [p for p in re.findall(r"[a-z]+", (name or "").lower()) if len(p) >= 3]
+    return bool(parts) and any(p in text for p in (parts[0], parts[-1]))
 
 
 def _strip(html):
@@ -152,7 +170,8 @@ class LinkederpRecruitmentHelper(models.AbstractModel):
             em = (rd.x_applicant_id.email_from or "").strip().lower()
             if em:
                 by_email.setdefault(em, []).append(rd)  # earliest round first
-        if not by_email and not pasted:
+        dated = [rd for rd in rounds - pasted if rd.x_interview_date]
+        if not by_email and not pasted and not dated:
             return
         since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - days * 86400))
         meetings, cursor = [], None
@@ -172,15 +191,35 @@ class LinkederpRecruitmentHelper(models.AbstractModel):
             for rd in pasted:
                 if rd.x_fathom_url in links and not rd.x_ai_notes:
                     self._attach_recording(rd, m)
-            emails = {(i.get("email") or "").lower() for i in m.get("calendar_invitees") or []}
+            invitees = m.get("calendar_invitees") or []
+            emails = {(i.get("email") or "").lower() for i in invitees}
             hits = [em for em in emails if by_email.get(em)]
+            start = _when(m.get("scheduled_start_time") or m.get("recording_start_time"))
             if len(hits) == 1:
-                self._attach_recording(by_email[hits[0]].pop(0), m)
+                # the candidate's round booked closest to this recording, else their earliest open round
+                todo = by_email[hits[0]]
+                near = [rd for rd in todo if start and rd.x_interview_date and abs((rd.x_interview_date - start).total_seconds()) <= NEAR]
+                rd = near[0] if near else todo[0]
+                todo.remove(rd)
+                if rd in dated:
+                    dated.remove(rd)
+                self._attach_recording(rd, m)
             elif len(hits) > 1:  # never guess between candidates
                 for em in hits:
                     by_email[em][0].x_applicant_id.message_post(body=(
                         "A Fathom recording (%s) has more than one candidate invited, so it was not attached automatically. "
                         "Paste its link on the right round and click Check Fathom now." % (m.get("share_url") or m.get("url"))))
+            elif start:
+                # invite went to another email: match on the round's interview date + the candidate's name in the meeting
+                text = " ".join([m.get("title") or "", m.get("meeting_title") or ""] + [i.get("name") or "" for i in invitees]).lower()
+                near = [rd for rd in dated if not rd.x_ai_notes and abs((rd.x_interview_date - start).total_seconds()) <= NEAR
+                        and _named(rd.x_applicant_id.partner_name, text)]
+                if len(near) == 1:
+                    dated.remove(near[0])
+                    em = (near[0].x_applicant_id.email_from or "").strip().lower()
+                    if near[0] in by_email.get(em, []):
+                        by_email[em].remove(near[0])
+                    self._attach_recording(near[0], m)
 
     def _attach_recording(self, rd, m):
         lines = []
