@@ -20,7 +20,8 @@ TILES = [
     ("referrals", "Referrals", "Refer a friend", "Refer someone you know for an open role.",
      "fa-heart", ("Open roles", "x_hiring_request")),
     ("onboarding", "Onboarding", "Nisha",
-     "Making a new joiner's first days smooth: documents, laptop, email and the first-week plan.", "fa-check-square-o", None),
+     "Making a new joiner's first days smooth: hiring approval, offer, documents, email and the first-week plan.",
+     "fa-check-square-o", ("New joiners", "hr.applicant")),
     ("payroll", "Payroll", "Kabir", "Paying everyone correctly and on time, with PF, TDS and claims done right.", "fa-money", None),
     ("misc", "Surveys & Profiles", "Tara", "Employee profiles, pulse surveys and HR letters.", "fa-bar-chart", None),
 ]
@@ -71,6 +72,12 @@ class LinkederpHrOffice(models.AbstractModel):
             ],
             "grievance": [("open concerns", "x_grievance", [("x_stage", "!=", "closed")], True)],
             "referrals": [("open roles to refer for", "x_hiring_request", [("x_status", "=", "in_progress")], False)],
+            "onboarding": [
+                ("hiring approvals waiting for you", "hr.applicant", [("x_offer_status", "=", "pending"), ("x_offer_approver_id", "=", uid)], True),
+                ("hiring approvals sent back", "hr.applicant", [("x_hiring_status", "=", "selected"), ("x_offer_status", "=", "returned")], True),
+                ("selected candidates to request approval for", "hr.applicant", [("x_hiring_status", "=", "selected"), ("x_offer_status", "in", ("draft", False))], False),
+                ("approved, offer to send", "hr.applicant", [("x_hiring_status", "=", "selected"), ("x_offer_status", "=", "approved")], False),
+            ],
         }
         tiles = []
         for key, name, manager, does, icon, target in TILES:
