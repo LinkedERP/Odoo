@@ -112,7 +112,10 @@ class LinkederpRecruitmentHelper(models.AbstractModel):
         vals = {"x_ai_score": int(j.get("score") or 0), "x_ai_status": "done", "x_ai_note": False,
                 "x_ai_reasons": "<p><b>Why this score</b></p>%s%s" % (
                     _ul(j.get("reasons")), ("<p><b>Gaps against the JD</b></p>" + _ul(j.get("gaps"))) if j.get("gaps") else "")}
-        fill = {"partner_name": j.get("name"), "email_from": j.get("email"), "partner_phone": j.get("phone"),
+        name = (j.get("name") or "").strip()
+        if name.isupper():  # contacts may not be saved in ALL CAPS (LinkedERP rule)
+            name = name.title()
+        fill = {"partner_name": name, "partner_phone": j.get("phone"),
                 "linkedin_profile": j.get("linkedin"), "x_current_company": j.get("current_company"),
                 "x_designation": j.get("designation"), "x_total_exp": j.get("total_experience_years"),
                 "x_relevant_exp": j.get("relevant_experience_years"), "x_location": j.get("location"),
@@ -121,6 +124,13 @@ class LinkederpRecruitmentHelper(models.AbstractModel):
             if value and not app[field]:
                 vals[field] = value
         app.write(vals)
+        email = (j.get("email") or "").strip()
+        if email and not app.email_from:  # a repeat candidate's email may already belong to a contact
+            try:
+                with self.env.cr.savepoint():
+                    app.write({"email_from": email})
+            except Exception:
+                app.message_post(body="Email %s is already on another contact in Odoo, so it was not copied here." % email)
         app.message_post(body="AI read the CV: score %s/100. Profile fields filled where they were empty; please check them." % vals["x_ai_score"])
 
     # ---------- Fathom: match recordings to interview rounds ----------
