@@ -96,7 +96,7 @@ class LinkederpHrOffice(models.AbstractModel):
             ("roles", "Open roles", "See the roles we are hiring for, read the JD and refer someone.", "fa-briefcase",
              ("Open roles", "x_hiring_request"), "x_hiring_request", [("x_status", "=", "in_progress")], "open roles"),
             ("mine", "My referrals", "People you referred, their status and their AI score.", "fa-heart",
-             ("My referrals", "x_referral"), "x_referral", [("create_uid", "=", self.env.uid)], "people referred"),
+             ("My referrals", "x_referral"), "x_referral", [("create_uid", "=", self.env.uid)], "referrals sent"),
         ]:
             n = self._count(model, domain)
             action_id = self._action_id(*target)
