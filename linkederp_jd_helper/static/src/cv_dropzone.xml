@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="linkederp_jd_helper.CvDropzone">
+        <div class="rounded-3 p-4 text-center"
+             t-attf-style="border: 2px dashed #2061F7; background: {{ state.over ? '#e8eefe' : 'transparent' }};"
+             t-on-dragover="onDragOver" t-on-dragleave="onDragLeave" t-on-drop="onDrop">
+            <i class="fa fa-cloud-upload fa-3x" style="color: #2061F7;" title="Drop CVs"/>
+            <div class="fw-bold fs-5 mt-2" t-if="!state.busy">Drag and drop CVs here</div>
+            <div class="fw-bold fs-5 mt-2" t-else=""><i class="fa fa-spinner fa-spin me-1" title="Adding"/>Adding the CVs...</div>
+            <div class="text-muted small mt-1">
+                PDF or Word, as many as you like. Or
+                <label class="text-primary mb-0" style="cursor: pointer;">choose files
+                    <input type="file" multiple="multiple" accept=".pdf,.docx,.txt" class="d-none" t-on-change="onPick"/>
+                </label>
+            </div>
+        </div>
+    </t>
+</templates>
