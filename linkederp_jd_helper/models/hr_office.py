@@ -30,7 +30,24 @@ ROOMS = [
      ("Concerns", "x_grievance")),
     ("misc", "Surveys & Profiles", "Tara", "Room manager", [890, 275, 1286, 498],
      "Employee profiles, pulse surveys and HR letters.", None),
+    ("referrals", "Referrals", "Refer a friend", "Everyone", None,
+     "Refer someone you know for an open role.", ("Open roles", "x_hiring_request")),
 ]
+# tile order on the desk view (reception is the desk itself, so it has no tile)
+TILES = ["recruitment", "admin", "grievance", "referrals", "onboarding", "payroll", "misc"]
+ICONS = {"recruitment": "fa-user-plus", "admin": "fa-briefcase", "grievance": "fa-shield", "referrals": "fa-heart",
+         "onboarding": "fa-check-square-o", "payroll": "fa-money", "misc": "fa-bar-chart"}
+
+
+def _say(n, label):
+    """'1' + 'roles being hired' -> '1 role being hired' (each label has one plural noun)."""
+    if n == 1:
+        words = label.split(" ")
+        i = next((i for i, w in enumerate(words) if w.endswith("s") and len(w) > 3), None)
+        if i is not None:
+            words[i] = words[i][:-1]
+        label = " ".join(words)
+    return "%s %s" % (n, label)
 
 
 class LinkederpHrOffice(models.AbstractModel):
@@ -70,6 +87,7 @@ class LinkederpHrOffice(models.AbstractModel):
                 ("bought, to hand over", "x_admin_request", [("x_stage", "=", "bought")], "kanban"),
             ],
             "grievance": [("open concerns", "x_grievance", [("x_stage", "!=", "closed")], "kanban")],
+            "referrals": [("open roles to refer for", "x_hiring_request", [("x_status", "=", "in_progress")], "list")],
         }
         # what counts as 'needs you' (shown on the badge and in the side list)
         urgent = {"hiring requests to approve", "interviews waiting for your decision", "new candidates to review",
@@ -88,6 +106,12 @@ class LinkederpHrOffice(models.AbstractModel):
                     badge += n
                     if not any(t["label"] == label for t in todo):
                         todo.append(dict(item, room=name))
+            # one-line status for the tile: the first thing that needs someone, else the first non-zero count
+            first = next((l for l in lines if l["label"] in urgent and l["count"]), None)                 or next((l for l in lines if l["count"]), None)
+            status = _say(first["count"], first["label"]) if first else ("All clear" if lines else "Coming soon")
             rooms.append({"key": key, "name": name, "manager": manager, "role": role, "box": box, "does": does,
-                          "action_id": action_id, "built": bool(action_id), "lines": lines, "badge": badge})
-        return {"rooms": rooms, "todo": todo, "user": self.env.user.name}
+                          "action_id": action_id, "built": bool(action_id), "lines": lines, "badge": badge,
+                          "status": status, "hot": bool(badge), "icon": ICONS.get(key, "fa-circle")})
+        order = {k: i for i, k in enumerate(TILES)}
+        tiles = sorted([r for r in rooms if r["key"] in order], key=lambda r: order[r["key"]])
+        return {"rooms": [r for r in rooms if r["box"]], "tiles": tiles, "todo": todo, "user": self.env.user.name}

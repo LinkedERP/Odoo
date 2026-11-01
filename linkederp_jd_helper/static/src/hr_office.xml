@@ -2,11 +2,28 @@
 <templates xml:space="preserve">
     <t t-name="linkederp_jd_helper.HrOffice">
         <div class="o_hr_office">
-            <div class="o_hr_office_main">
-                <div class="o_hr_office_head">
-                    <h1><span class="text-danger">HR</span> Office</h1>
-                    <span class="text-muted">Click a room to open it. Red numbers need someone's attention.</span>
+            <div class="o_hr_office_head">
+                <div>
+                    <h1>HR Office</h1>
+                    <span class="text-muted">Click an area to open it. A red number means something is waiting.</span>
                 </div>
+                <div class="btn-group" role="group" aria-label="View">
+                    <button type="button" class="btn" t-att-class="state.view === 'desk' ? 'btn-primary' : 'btn-secondary'" t-on-click="() => this.state.view = 'desk'"><i class="fa fa-th-large me-1"/>Desk view</button>
+                    <button type="button" class="btn" t-att-class="state.view === 'office' ? 'btn-primary' : 'btn-secondary'" t-on-click="() => this.state.view = 'office'"><i class="fa fa-building-o me-1"/>Office view</button>
+                </div>
+            </div>
+            <div class="o_hr_tiles" t-if="state.view === 'desk'">
+                <button type="button" class="o_hr_tile card" t-foreach="state.data.tiles" t-as="room" t-key="room.key"
+                        t-att-class="{ 'o_hr_tile_soon': !room.built }" t-on-click="() => this.openRoom(room)" t-att-title="room.does">
+                    <span class="o_hr_badge" t-if="room.badge" t-esc="room.badge"/>
+                    <span class="o_hr_tile_icon"><i t-attf-class="fa {{ room.icon }}"/></span>
+                    <span class="o_hr_tile_name" t-esc="room.name"/>
+                    <span class="o_hr_tile_who text-muted" t-esc="room.manager"/>
+                    <span class="o_hr_tile_status" t-att-class="room.hot ? 'text-danger' : (room.built ? 'text-success' : 'text-muted')" t-esc="room.status"/>
+                </button>
+            </div>
+            <div class="o_hr_office_body" t-else="">
+            <div class="o_hr_office_main">
                 <div class="o_hr_office_map">
                     <img src="/linkederp_jd_helper/static/img/hr_office.png" alt="LinkedERP HR Office: Recruitment, Onboarding and Payroll on top; Admin, Grievance and Surveys and Profiles in the middle; Reception along the bottom."/>
                     <canvas t-ref="walkers" width="1344" height="752" aria-hidden="true"/>
@@ -46,6 +63,7 @@
                     </li>
                 </ul>
             </aside>
+            </div>
         </div>
     </t>
 </templates>

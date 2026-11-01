@@ -1,6 +1,6 @@
 /** @odoo-module **/
-// HR Office home screen: the pixel office with walking people, a live badge per room and a "Needs you" list.
-import { Component, onMounted, onWillStart, onWillUnmount, useRef, useState } from "@odoo/owl";
+// HR Office home screen: one tile per HR area (desk view), or the pixel office with walking people (office view).
+import { Component, onWillStart, onWillUnmount, useEffect, useRef, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 
@@ -55,11 +55,17 @@ export class HrOffice extends Component {
         this.action = useService("action");
         this.notification = useService("notification");
         this.canvas = useRef("walkers");
-        this.state = useState({ data: { rooms: [], todo: [] }, hover: null });
+        this.state = useState({ data: { rooms: [], tiles: [], todo: [] }, hover: null, view: "desk" });
         onWillStart(async () => {
             this.state.data = await this.orm.call("linkederp.hr.office", "get_overview", []);
         });
-        onMounted(() => this.startWalkers());
+        // walkers run only while the office view is on screen
+        useEffect((view) => {
+            if (view === "office") {
+                this.startWalkers();
+            }
+            return () => cancelAnimationFrame(this.frame);
+        }, () => [this.state.view]);
         onWillUnmount(() => cancelAnimationFrame(this.frame));
     }
 
