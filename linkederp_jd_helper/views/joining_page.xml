@@ -34,6 +34,10 @@
                 .errors ul { margin: 6px 0 0; padding-left: 20px; }
                 button { background: var(--brand); color: #fff; border: 0; border-radius: 8px; padding: 14px 28px; font: 600 16px/1 inherit; cursor: pointer; width: 100%; }
                 button:focus-visible { outline: 3px solid #222; outline-offset: 2px; }
+                .picks input + input { margin-top: 8px; }
+                button.more { background: none; color: var(--brand); width: auto; padding: 8px 0 0; font-size: 14px; }
+                label.choice { font-weight: 400; display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+                label.choice input { width: auto; }
                 .done { text-align: center; padding: 40px 24px; }
                 .done .tick { font-size: 44px; color: #1f8a5b; }
                 @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } .card { padding: 18px; } }
@@ -87,13 +91,45 @@
                     <div class="card">
                         <h2>Documents</h2>
                         <p class="note">PDF, JPG or PNG, up to 10 MB each. Please do not send documents by email.</p>
-                        <div t-foreach="uploads" t-as="u" class="file">
+                        <fieldset class="file" style="border:0; margin:0;">
+                            <legend style="font-weight:600; font-size:14px; padding:0; margin-bottom:6px;">Have you worked before?</legend>
+                            <label class="choice"><input type="radio" name="worked_before" value="yes" required="required" t-att-checked="values.get('worked_before') == 'yes'"/> Yes, I have work experience</label>
+                            <label class="choice"><input type="radio" name="worked_before" value="no" t-att-checked="values.get('worked_before') == 'no'"/> No, this is my first job</label>
+                        </fieldset>
+                        <div t-foreach="uploads" t-as="u" t-att-class="'file exp' if u[2] == 'exp' else 'file'">
                             <label t-att-for="u[0]"><t t-out="u[1]"/><span t-if="not u[2]" class="opt"> (optional)</span></label>
-                            <input type="file" t-att-id="u[0]" t-att-name="u[0]" accept=".pdf,.jpg,.jpeg,.png" t-att-required="u[2]" t-att-multiple="u[3]"/>
+                            <div class="picks">
+                                <input type="file" t-att-id="u[0]" t-att-name="u[0]" accept=".pdf,.jpg,.jpeg,.png" t-att-required="u[2] is True"/>
+                            </div>
+                            <button t-if="u[3]" type="button" class="more" t-att-data-key="u[0]">+ Add another file</button>
                         </div>
                     </div>
                     <button type="submit">Submit my joining form</button>
                 </form>
+                <script>
+                    // Letters and payslips: shown and needed only for experienced joiners; "+ Add another file" adds a picker.
+                    (function () {
+                        var exp = document.querySelectorAll('.exp');
+                        function sync() {
+                            var yes = document.querySelector('input[name=worked_before][value=yes]').checked;
+                            exp.forEach(function (row) {
+                                row.hidden = !yes;
+                                var first = row.querySelector('input[type=file]');
+                                first.required = yes;
+                            });
+                        }
+                        document.querySelectorAll('input[name=worked_before]').forEach(function (r) { r.addEventListener('change', sync); });
+                        sync();
+                        document.querySelectorAll('button.more').forEach(function (b) {
+                            b.addEventListener('click', function () {
+                                var input = document.createElement('input');
+                                input.type = 'file'; input.name = b.dataset.key; input.accept = '.pdf,.jpg,.jpeg,.png';
+                                b.previousElementSibling.appendChild(input);
+                                input.click();
+                            });
+                        });
+                    })();
+                </script>
             </t>
         </div>
         </body>

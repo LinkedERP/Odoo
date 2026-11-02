@@ -20,14 +20,14 @@ from odoo.exceptions import UserError
 MAX_FILE = 10 * 1024 * 1024
 FILE_TYPES = (".pdf", ".jpg", ".jpeg", ".png")
 
-# (key, label, required, several files)
+# (key, label, required: True / False / "exp" = needed if they worked before, several files)
 UPLOADS = [
     ("pan_copy", "PAN card", True, False),
     ("aadhaar_copy", "Aadhaar card (copy only, we do not record the number)", True, False),
     ("passport", "Passport (if you have one)", False, False),
     ("degree", "Highest degree certificate", True, False),
-    ("relieving", "Relieving or experience letters (if you worked before)", False, True),
-    ("payslips", "Last 3 payslips (if you worked before)", False, True),
+    ("relieving", "Relieving or experience letters", "exp", True),
+    ("payslips", "Last 3 payslips", "exp", True),
     ("cheque", "Cancelled cheque or bank passbook", True, False),
     ("photo", "Passport-size photo", True, False),
 ]
@@ -142,17 +142,21 @@ class LinkederpOnboarding(models.AbstractModel):
 
     # ---------- save (called by the /joining controller, as superuser, after the token check) ----------
     @api.model
-    def save_joining_form(self, form, vals, files):
-        """vals: typed values; files: {key: [FileStorage]}. Returns a list of problems (empty = saved)."""
+    def save_joining_form(self, form, vals, files, worked):
+        """vals: typed values; files: {key: [FileStorage]}; worked: True/False/None (not answered).
+        Returns a list of problems (empty = saved)."""
         errors = check_values(vals)
+        if worked is None:
+            errors.append("Please say whether you have worked before.")
         for key, label, required, _many in UPLOADS:
             for f in files.get(key, []):
                 if not f.filename.lower().endswith(FILE_TYPES):
                     errors.append("%s: please upload a PDF, JPG or PNG." % label)
-            if required and not files.get(key):
+            if (required is True or (required == "exp" and worked)) and not files.get(key):
                 errors.append("%s is needed." % label)
         if errors:
             return errors
+        vals = dict(vals, x_worked_before=worked)
         app = form.x_applicant_id
         docs = self.env["documents.document"]
         for key, label, _required, _many in UPLOADS:

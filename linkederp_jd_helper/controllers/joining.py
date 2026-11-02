@@ -37,5 +37,6 @@ class JoiningForm(http.Controller):
             v = (post.get(name) or "").strip()
             vals[name] = v.upper().replace(" ", "") if name in UPPER else v
         files = {key: [f for f in request.httprequest.files.getlist(key) if f and f.filename] for key, *_ in UPLOADS}
-        errors = request.env["linkederp.jd.helper"].sudo().save_joining_form(form, vals, files)
-        return self._render(form, vals, errors)
+        worked = {"yes": True, "no": False}.get(post.get("worked_before"))
+        errors = request.env["linkederp.jd.helper"].sudo().save_joining_form(form, vals, files, worked)
+        return self._render(form, dict(vals, worked_before=post.get("worked_before")), errors)
