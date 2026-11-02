@@ -27,9 +27,9 @@ CV_PROMPT = """You screen CVs for LinkedERP. {about}
 Read the CV below against the JD and this hire's needs. Return ONLY a JSON object:
 {{"name": str, "email": str, "phone": str, "linkedin": str, "current_company": str, "designation": str,
  "total_experience_years": number, "relevant_experience_years": number, "location": str, "education": str,
- "skills": [str], "score": integer 0-100, "reasons": [3 short reasons for the score], "gaps": [what is missing against the JD]}}
+ "skills": [str], "score": integer 0-100, "reasons": [3 short reasons for the score], "gaps": [missing must-haves: required experience, skills and duties], "nice_to_have_gaps": [missing items from the JD's Preferred qualifications]}}
 Rules: take facts only from the CV; if something is not in the CV use "" or 0, never guess.
-Score = fit for THIS role: 80+ strong, 60-79 possible, below 60 weak. Be strict on the required experience and must-have skills.
+Score = fit for THIS role: 80+ strong, 60-79 possible, below 60 weak. Be strict on the required experience and must-have skills. A missing Preferred qualification costs only a few points; never list it under gaps.
 Plain, simple English.
 
 JD:
@@ -129,7 +129,9 @@ class LinkederpRecruitmentHelper(models.AbstractModel):
         j = parse_json(self._ask(CV_PROMPT.format(about=ABOUT, jd=jd[:8000], exp=exp, cv=cv[:15000]), wait=wait))
         vals = {"x_ai_score": int(j.get("score") or 0), "x_ai_status": "done", "x_ai_note": False,
                 "x_ai_reasons": "<p><b>Why this score</b></p>%s%s" % (
-                    _ul(j.get("reasons")), ("<p><b>Gaps against the JD</b></p>" + _ul(j.get("gaps"))) if j.get("gaps") else "")}
+                    _ul(j.get("reasons")), ("<p><b>Must-have gaps</b></p>" + _ul(j.get("gaps"))) if j.get("gaps") else "") + (
+                    ("<p><b>Nice-to-have gaps</b> (small effect on the score)</p>" + _ul(j.get("nice_to_have_gaps")))
+                    if j.get("nice_to_have_gaps") else "")}
         name = (j.get("name") or "").strip()
         if name.isupper():  # contacts may not be saved in ALL CAPS (LinkedERP rule)
             name = name.title()
