@@ -9,6 +9,11 @@
         <field name="tag">linkederp_hr_office</field>
         <field name="params" eval="{'area': 'referrals'}"/>
     </record>
+    <record id="action_hr_recruitment" model="ir.actions.client">
+        <field name="name">Recruitment</field>
+        <field name="tag">linkederp_hr_office</field>
+        <field name="params" eval="{'area': 'recruitment'}"/>
+    </record>
     <menuitem id="menu_hr_office_root" name="HR Office" action="action_hr_office" sequence="1"
               web_icon="linkederp_jd_helper,static/description/icon.png"/>
 </odoo>

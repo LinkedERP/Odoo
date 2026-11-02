@@ -12,12 +12,14 @@ export class HrOffice extends Component {
         this.orm = useService("orm");
         this.action = useService("action");
         this.notification = useService("notification");
-        // the same tiles screen serves the HR Office home and the Referrals page (params.area)
+        // the same tiles screen serves the HR Office home and its sub-pages (params.area)
         this.area = this.props.action?.params?.area;
-        this.state = useState({ tiles: [] });
+        this.state = useState({ tiles: [], title: "HR Office", subtitle: "Click an area to open it. A red number means something is waiting." });
         onWillStart(async () => {
-            const method = this.area === "referrals" ? "get_referrals" : "get_overview";
-            this.state.tiles = (await this.orm.call("linkederp.hr.office", method, [])).tiles;
+            const res = this.area
+                ? await this.orm.call("linkederp.hr.office", "get_area", [this.area])
+                : await this.orm.call("linkederp.hr.office", "get_overview", []);
+            Object.assign(this.state, res);
         });
     }
 

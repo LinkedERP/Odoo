@@ -32,7 +32,7 @@ $danger: #d44c59 !default;
     // Referrals page: a few big tiles in the middle of the screen
     &.o_hr_centered {
         display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
-        .o_hr_tiles { grid-template-columns: repeat(2, 260px); justify-content: center; }
+        .o_hr_tiles { grid-template-columns: repeat(auto-fit, 240px); justify-content: center; width: 100%; }
         .o_hr_tile { padding: 34px 20px 26px; }
     }
     .o_hr_tile_icon {

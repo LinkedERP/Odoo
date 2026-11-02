@@ -2,13 +2,9 @@
 <templates xml:space="preserve">
     <t t-name="linkederp_jd_helper.HrOffice">
         <div class="o_hr_office" t-att-class="{ 'o_hr_centered': area }">
-            <div class="o_hr_office_head" t-if="area === 'referrals'">
-                <h1>Referrals</h1>
-                <span class="text-muted">Know someone good? Pick a role, read the JD and refer them.</span>
-            </div>
-            <div class="o_hr_office_head" t-else="">
-                <h1>HR Office</h1>
-                <span class="text-muted">Click an area to open it. A red number means something is waiting.</span>
+            <div class="o_hr_office_head">
+                <h1 t-esc="state.title"/>
+                <span class="text-muted" t-esc="state.subtitle"/>
             </div>
             <div class="o_hr_tiles">
                 <button type="button" class="o_hr_tile card" t-foreach="state.tiles" t-as="tile" t-key="tile.key"

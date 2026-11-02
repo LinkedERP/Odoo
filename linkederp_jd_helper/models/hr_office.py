@@ -82,8 +82,8 @@ class LinkederpHrOffice(models.AbstractModel):
         tiles = []
         for key, name, manager, does, icon, target in TILES:
             action_id = self._action_id(*target) if target else False
-            if key == "referrals":  # opens the Referrals page (open roles + my referrals)
-                action_id = self.env.ref("linkederp_jd_helper.action_hr_referrals").id
+            if key in self.AREAS:  # opens its own tiles page
+                action_id = self.env.ref("linkederp_jd_helper.action_hr_%s" % key).id
             lines = [(label, n, urgent) for label, model, domain, urgent in stats.get(key, [])
                      for n in [self._count(model, domain)] if n is not None]
             badge = sum(n for _label, n, urgent in lines if urgent)
@@ -95,19 +95,48 @@ class LinkederpHrOffice(models.AbstractModel):
                           "status": status, "hot": bool(badge)})
         return {"tiles": tiles}
 
-    @api.model
-    def get_referrals(self):
-        """Referrals landing page: two tiles, open roles and the user's own referrals."""
-        tiles = []
-        for key, name, does, icon, target, model, domain, label in [
+    # Sub-pages of the HR Office: title, line under it, then tiles as
+    # (key, name, what it does, icon, screen to open (action name, model), [(label, model, domain, needs someone?)])
+    AREAS = {
+        "recruitment": ("Recruitment", "Hiring requests, interviews, the HR box of new CVs and every profile we have.", [
+            ("requests", "New requests", "Raise a hiring request or approve one.", "fa-file-text-o",
+             ("Hiring Requests", "x_hiring_request"),
+             [("hiring requests to approve", "x_hiring_request", [("x_status", "=", "submitted")], True),
+              ("roles being hired", "x_hiring_request", [("x_status", "=", "in_progress")], False)]),
+            ("interviews", "My interviews", "Interviews you are on the panel for, and your decisions.", "fa-comments-o",
+             ("My interviews", "x_interview"),
+             [("interviews waiting for your decision", "x_interview", [("x_up_next", "=", True), ("x_interviewer_ids", "in", "UID")], True)]),
+            ("hrbox", "HR box", "New CVs for open roles: read by the AI, for HR to review.", "fa-inbox",
+             ("Candidates (HR Office)", "hr.applicant"),
+             [("new candidates to review", "hr.applicant", [("x_hiring_request_id", "!=", False), ("x_hiring_status", "=", "new")], True)]),
+            ("profiles", "Profile database", "Every candidate profile we have, including past ones.", "fa-database",
+             ("Profile database", "hr.applicant"),
+             [("profiles", "hr.applicant", ["|", ("active", "=", True), ("active", "=", False)], False)]),
+        ]),
+        "referrals": ("Referrals", "Know someone good? Pick a role, read the JD and refer them.", [
             ("roles", "Open roles", "See the roles we are hiring for, read the JD and refer someone.", "fa-briefcase",
-             ("Open roles", "x_hiring_request"), "x_hiring_request", [("x_status", "=", "in_progress")], "open roles"),
+             ("Open roles", "x_hiring_request"), [("open roles", "x_hiring_request", [("x_status", "=", "in_progress")], False)]),
             ("mine", "My referrals", "People you referred, their status and their AI score.", "fa-heart",
-             ("My referrals", "x_referral"), "x_referral", [("create_uid", "=", self.env.uid)], "referrals sent"),
-        ]:
-            n = self._count(model, domain)
+             ("My referrals", "x_referral"), [("referrals sent", "x_referral", [("create_uid", "=", "UID")], False)]),
+        ]),
+    }
+
+    @api.model
+    def get_area(self, area):
+        """Tiles for one HR Office sub-page, with the same live status lines as the home screen."""
+        title, subtitle, rows = self.AREAS[area]
+        tiles = []
+        for key, name, does, icon, target, stats in rows:
+            lines = []
+            for label, model, domain, urgent in stats:
+                domain = [(d[0], d[1], self.env.uid if d[2] == "UID" else d[2]) if isinstance(d, tuple) else d for d in domain]
+                n = self._count(model, domain)
+                if n is not None:
+                    lines.append((label, n, urgent))
+            badge = sum(n for _label, n, urgent in lines if urgent)
+            first = next((l for l in lines if l[2] and l[1]), None) or next((l for l in lines if l[1]), None)
             action_id = self._action_id(*target)
             tiles.append({"key": key, "name": name, "manager": "", "does": does, "icon": icon,
-                          "action_id": action_id, "built": bool(action_id), "badge": 0,
-                          "status": _say(n, label) if n else "None yet", "hot": False})
-        return {"tiles": tiles}
+                          "action_id": action_id, "built": bool(action_id), "badge": badge,
+                          "status": _say(first[1], first[0]) if first else "All clear", "hot": bool(badge)})
+        return {"title": title, "subtitle": subtitle, "tiles": tiles}
