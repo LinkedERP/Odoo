@@ -165,7 +165,7 @@ class LinkederpOnboarding(models.AbstractModel):
                 if len(data) > MAX_FILE:
                     return ["%s is bigger than 10 MB. Please upload a smaller file." % label]
                 ext = f.filename.rsplit(".", 1)[-1].lower()
-                name = "%s - %s%s.%s" % (label, app.partner_name, " (%s)" % i if i > 1 else "", ext)
+                name = "%s - %s%s.%s" % (label.split(" (")[0], app.partner_name, " (%s)" % i if i > 1 else "", ext)
                 att = self.env["ir.attachment"].create({"name": name, "datas": base64.b64encode(data),
                                                         "res_model": "hr.applicant", "res_id": app.id})
                 docs |= self.env["documents.document"].create({"attachment_id": att.id, "folder_id": form.x_folder_id.id,
