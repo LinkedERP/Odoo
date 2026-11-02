@@ -29,7 +29,9 @@ Read the CV below against the JD and this hire's needs. Return ONLY a JSON objec
  "total_experience_years": number, "relevant_experience_years": number, "location": str, "education": str,
  "skills": [str], "score": integer 0-100, "reasons": [3 short reasons for the score], "gaps": [missing must-haves: required experience, skills and duties], "nice_to_have_gaps": [missing items from the JD's Preferred qualifications]}}
 Rules: take facts only from the CV; if something is not in the CV use "" or 0, never guess.
-Score = fit for THIS role: 80+ strong, 60-79 possible, below 60 weak. Be strict on the required experience and must-have skills. A missing Preferred qualification costs only a few points; never list it under gaps.
+Score = fit for THIS role: 80+ strong, 60-79 possible, below 60 weak. Score from the must-haves first: each missing must-have
+(required experience, core skills, key duties) clearly lowers the score, and missing the role's main technical or functional skill
+lowers it most. A CV that misses several must-haves is weak (below 60), however good the rest looks. Strengths never make up for missing must-haves. A missing Preferred qualification costs only a few points; never list it under gaps.
 Plain, simple English.
 
 JD:
