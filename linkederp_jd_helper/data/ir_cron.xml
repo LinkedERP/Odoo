@@ -30,4 +30,14 @@
         <field name="interval_type">minutes</field>
         <field name="active" eval="True"/>
     </record>
+    <!-- Joining forms: sends the link 7 days before joining and reminds every 2 days until it is filled. -->
+    <record id="ir_cron_joining_forms" model="ir.cron">
+        <field name="name">HR Office: joining forms (send and remind)</field>
+        <field name="model_id" ref="model_linkederp_jd_helper"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_joining_forms()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
 </odoo>

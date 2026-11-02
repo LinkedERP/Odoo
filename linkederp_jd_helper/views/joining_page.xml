@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The candidate's joining form (no Odoo login). One page, phone friendly. -->
+    <template id="joining_page" name="Joining form">
+        <t t-set="first" t-value="(app.partner_name or '').split(' ')[0]"/>
+        &lt;!DOCTYPE html&gt;
+        <html lang="en">
+        <head>
+            <meta charset="utf-8"/>
+            <meta name="viewport" content="width=device-width, initial-scale=1"/>
+            <meta name="robots" content="noindex"/>
+            <title>Joining form - LinkedERP</title>
+            <style>
+                :root { --brand: #E8312F; --ink: #222; --muted: #6b6b6b; --line: #e3e3e3; --bg: #f6f6f6; }
+                * { box-sizing: border-box; }
+                body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 "Segoe UI", Arial, sans-serif; }
+                .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+                .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+                h1 { font-size: 24px; margin: 0 0 4px; }
+                h2 { font-size: 17px; color: var(--brand); margin: 0 0 14px; text-transform: uppercase; letter-spacing: .03em; }
+                p.lead { color: var(--muted); margin: 0; }
+                .logo { height: 40px; margin-bottom: 16px; }
+                .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+                .full { grid-column: 1 / -1; }
+                label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+                label .opt { font-weight: 400; color: var(--muted); }
+                input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #cfcfcf; border-radius: 8px; font: inherit; background: #fff; }
+                textarea { min-height: 72px; }
+                input:focus, select:focus, textarea:focus { outline: 2px solid var(--brand); outline-offset: 0; border-color: var(--brand); }
+                .file { padding: 10px 0; border-bottom: 1px solid var(--line); }
+                .file:last-child { border-bottom: 0; }
+                .note { font-size: 14px; color: var(--muted); }
+                .errors { background: #fdecec; border: 1px solid #f3b9b8; color: #8a1c1b; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; }
+                .errors ul { margin: 6px 0 0; padding-left: 20px; }
+                button { background: var(--brand); color: #fff; border: 0; border-radius: 8px; padding: 14px 28px; font: 600 16px/1 inherit; cursor: pointer; width: 100%; }
+                button:focus-visible { outline: 3px solid #222; outline-offset: 2px; }
+                .done { text-align: center; padding: 40px 24px; }
+                .done .tick { font-size: 44px; color: #1f8a5b; }
+                @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } .card { padding: 18px; } }
+            </style>
+        </head>
+        <body>
+        <div class="wrap">
+            <img class="logo" t-att-src="'/logo.png?company=%s' % app.company_id.id" alt="LinkedERP"/>
+            <t t-if="done">
+                <div class="card done">
+                    <div class="tick">&#10003;</div>
+                    <h1>Thank you, <t t-out="first"/>!</h1>
+                    <p class="lead">Your joining form and documents have reached HR. See you on
+                        <t t-out="app.x_offer_doj and app.x_offer_doj.strftime('%d %B %Y')"/>.</p>
+                </div>
+            </t>
+            <t t-else="">
+                <div class="card">
+                    <h1>Welcome, <t t-out="first"/></h1>
+                    <p class="lead">Please fill in your details and upload your documents before you join on
+                        <b t-out="app.x_offer_doj and app.x_offer_doj.strftime('%d %B %Y')"/>. It takes about 10 minutes.
+                        Everything stays private with HR.</p>
+                </div>
+                <div t-if="errors" class="errors" role="alert"><b>Please fix these and submit again:</b>
+                    <ul><li t-foreach="errors" t-as="e" t-out="e"/></ul>
+                    <div class="note">If you had picked files, please pick them again.</div>
+                </div>
+                <form method="post" enctype="multipart/form-data">
+                    <t t-foreach="[('About you', fields[:8]), ('Emergency contact', fields[8:11]), ('ID and PF', fields[11:13]), ('Bank account for salary', fields[13:])]" t-as="sec">
+                        <div class="card">
+                            <h2 t-out="sec[0]"/>
+                            <p t-if="sec[0] == 'Bank account for salary'" class="note">Only HR and accounts can see this. It is never sent by email.</p>
+                            <div class="grid">
+                                <div t-foreach="sec[1]" t-as="f" t-att-class="'full' if f[3] == 'area' else ''">
+                                    <label t-att-for="f[0]"><t t-out="f[1]"/><span t-if="not f[2]" class="opt"> (optional)</span></label>
+                                    <t t-set="val" t-value="values.get(f[0]) or ''"/>
+                                    <textarea t-if="f[3] == 'area'" t-att-id="f[0]" t-att-name="f[0]" t-att-required="f[2]" t-out="val"/>
+                                    <select t-elif="f[3] == 'gender'" t-att-id="f[0]" t-att-name="f[0]" t-att-required="f[2]">
+                                        <option value="">Choose</option>
+                                        <option value="female" t-att-selected="val == 'female'">Female</option>
+                                        <option value="male" t-att-selected="val == 'male'">Male</option>
+                                        <option value="other" t-att-selected="val == 'other'">Other</option>
+                                    </select>
+                                    <input t-else="" t-att-type="f[3]" t-att-id="f[0]" t-att-name="f[0]" t-att-value="val" t-att-required="f[2]"
+                                           t-att-autocomplete="'off' if f[0].startswith('x_bank') or f[0] == 'x_pan_number' else None"
+                                           t-att-placeholder="{'x_pan_number': 'ABCDE1234F', 'x_bank_ifsc': 'HDFC0001234', 'x_uan': '12 digits'}.get(f[0])"/>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                    <div class="card">
+                        <h2>Documents</h2>
+                        <p class="note">PDF, JPG or PNG, up to 10 MB each. Please do not send documents by email.</p>
+                        <div t-foreach="uploads" t-as="u" class="file">
+                            <label t-att-for="u[0]"><t t-out="u[1]"/><span t-if="not u[2]" class="opt"> (optional)</span></label>
+                            <input type="file" t-att-id="u[0]" t-att-name="u[0]" accept=".pdf,.jpg,.jpeg,.png" t-att-required="u[2]" t-att-multiple="u[3]"/>
+                        </div>
+                    </div>
+                    <button type="submit">Submit my joining form</button>
+                </form>
+            </t>
+        </div>
+        </body>
+        </html>
+    </template>
+</odoo>
