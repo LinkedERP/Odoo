@@ -46,6 +46,7 @@ class LinkederpDayOne(models.AbstractModel):
         login = form.x_email or app.email_from  # personal email until the Microsoft 365 ID is created
         user = self.env["res.users"].sudo().with_context(no_reset_password=True).create({
             "name": app.partner_name, "login": login, "email": login,
+            "partner_id": app.partner_id.id or False,  # reuse the candidate's contact (one contact per email)
             "company_id": company.id, "company_ids": [(6, 0, company.ids)]})
         emp = user.employee_ids.filtered(lambda e: e.company_id == company)[:1] or self.env["hr.employee"].sudo().create(
             {"name": app.partner_name, "user_id": user.id, "company_id": company.id})
