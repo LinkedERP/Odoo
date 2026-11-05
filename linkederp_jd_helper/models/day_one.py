@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Onboarding day 1: HR clicks "Confirm joined" on the candidate.
 
-Creates the employee and Odoo user, the salary bank account (Linda gets a link and a to-do, never the numbers),
+Creates the employee, then the Microsoft 365 account and the Odoo login with that work email, the salary bank account (Linda gets a link and a to-do, never the numbers),
 posts the team welcome in #general, and sends India joiners PF Form 11 (+ the UAN guide when they have no UAN)
 with a to-do for HR to collect it back.
 """
@@ -36,20 +36,43 @@ class LinkederpDayOne(models.AbstractModel):
             self._announce(emp)
             self._send_pf_pack(app, form)
             app.sudo().write({"employee_id": emp.id, "date_closed": fields.Datetime.now()})
-            app.message_post(body=Markup("Joined on %s. Employee and Odoo user created; Linda asked to add the bank "
+            app.message_post(body=Markup("Joined on %s. Employee created; Linda asked to add the bank "
                                          "account; team welcome posted; PF Form 11%s sent.")
                              % (today.strftime("%d %b %Y"), "" if form.x_uan else " and UAN guide"))
+            try:
+                with self.env.cr.savepoint():
+                    self.create_work_account(app.ids)
+            except UserError as e:  # joining stays done; IT finishes the account by hand
+                app.activity_schedule("mail.mail_activity_data_todo", user_id=(app.user_id or self.env.user).id,
+                                      summary="Create %s's Microsoft account" % app.partner_name,
+                                      note=Markup("<p>Odoo could not create it: %s</p><p>Make it in Microsoft, then click "
+                                                  "<b>Create work account</b> again.</p>") % str(e))
+        return True
+
+    @api.model
+    def create_work_account(self, applicant_ids):
+        """Microsoft 365 account first, then the Odoo login with that work email."""
+        for app in self.env["hr.applicant"].browse(applicant_ids):
+            emp = app.employee_id
+            if not emp:
+                raise UserError("Confirm joined first.")
+            if emp.user_id:
+                raise UserError("%s already has an Odoo login." % emp.name)
+            email, pwd = self.ms_create_user(app.partner_name, app.company_id.country_id.code or "IN")
+            user = self.env["res.users"].sudo().with_context(no_reset_password=True).create({
+                "name": emp.name, "login": email, "email": email,
+                "partner_id": emp.work_contact_id.id,  # keeps the salary bank account on the same contact
+                "create_employee_id": emp.id,  # link, do not make a second employee
+                "company_id": emp.company_id.id, "company_ids": [(6, 0, emp.company_id.ids)]})
+            emp.sudo().write({"work_email": email, "user_id": user.id})
+            app.sudo().write({"x_work_email": email, "x_ms_temp_pwd": pwd})
+            app.message_post(body=Markup("Microsoft account and Odoo login created: <b>%s</b>. "
+                                         "Hand over the temporary password in person.") % email)
         return True
 
     def _create_employee(self, app, form):
         company = app.company_id
-        login = form.x_email or app.email_from  # personal email until the Microsoft 365 ID is created
-        user = self.env["res.users"].sudo().with_context(no_reset_password=True).create({
-            "name": app.partner_name, "login": login, "email": login,
-            "partner_id": app.partner_id.id or False,  # reuse the candidate's contact (one contact per email)
-            "company_id": company.id, "company_ids": [(6, 0, company.ids)]})
-        emp = user.employee_ids.filtered(lambda e: e.company_id == company)[:1] or self.env["hr.employee"].sudo().create(
-            {"name": app.partner_name, "user_id": user.id, "company_id": company.id})
+        emp = self.env["hr.employee"].sudo().create({"name": app.partner_name, "company_id": company.id})
         req = app.x_hiring_request_id
         manager = req.x_hiring_manager_id.employee_ids.filtered(lambda e: e.company_id == company)[:1] if req else False
         emp.write({
