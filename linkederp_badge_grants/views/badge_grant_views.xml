@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_badge_grant_list" model="ir.ui.view">
+        <field name="name">linkederp.badge.grant.list</field>
+        <field name="model">gamification.badge.user</field>
+        <field name="arch" type="xml">
+            <list string="Badge Grants" editable="bottom" create="0" delete="0">
+                <field name="create_date" string="Date Granted" readonly="1"/>
+                <field name="badge_id" readonly="1"/>
+                <field name="user_id" readonly="1"/>
+                <field name="employee_id"
+                       domain="[('user_id', '=', user_id)]"
+                       options="{'no_create': True, 'no_open': True}"/>
+                <field name="sender_id" string="Granted By" readonly="1"/>
+                <field name="comment" readonly="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_badge_grant_search" model="ir.ui.view">
+        <field name="name">linkederp.badge.grant.search</field>
+        <field name="model">gamification.badge.user</field>
+        <field name="arch" type="xml">
+            <search string="Badge Grants">
+                <field name="badge_id"/>
+                <field name="user_id"/>
+                <field name="employee_id"/>
+                <field name="sender_id" string="Granted By"/>
+                <filter name="no_employee" string="User Without Employee Record"
+                        domain="[('employee_id', '=', False)]"/>
+                <filter name="has_employee" string="With Employee Record"
+                        domain="[('employee_id', '!=', False)]"/>
+                <group>
+                    <filter name="group_badge" string="Badge" context="{'group_by': 'badge_id'}"/>
+                    <filter name="group_user" string="User" context="{'group_by': 'user_id'}"/>
+                    <filter name="group_sender" string="Granted By" context="{'group_by': 'sender_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_badge_grant" model="ir.actions.act_window">
+        <field name="name">Badge Grants</field>
+        <field name="res_model">gamification.badge.user</field>
+        <field name="view_mode">list</field>
+        <field name="search_view_id" ref="view_badge_grant_search"/>
+        <field name="context">{'search_default_no_employee': 1}</field>
+    </record>
+
+    <menuitem id="menu_badge_grant"
+              name="Badge Grants"
+              parent="hr.hr_menu_hr_reports"
+              action="action_badge_grant"
+              groups="hr.group_hr_user"
+              sequence="60"/>
+</odoo>
