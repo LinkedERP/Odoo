@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="hero_profile_form" model="ir.ui.view">
+        <field name="name">linkederp.hero.profile.form</field>
+        <field name="model">linkederp.hero.profile</field>
+        <field name="arch" type="xml">
+            <form string="Hero profile">
+                <header>
+                    <button name="action_submit" type="object" string="Send for review" class="btn-primary"
+                            invisible="state not in ('draft', 'changes')"/>
+                    <button name="action_approve" type="object" string="Approve" class="btn-primary"
+                            invisible="state != 'review'"/>
+                    <button name="action_send_back" type="object" string="Send back"
+                            invisible="state != 'review'"/>
+                    <button name="action_print_wizard" type="object" string="Print for a customer" icon="fa-print"
+                            invisible="not snapshot_id"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,review,approved"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-warning mb-3" role="status" invisible="state != 'changes'">
+                        You changed this profile after it was approved. Customers still get the approved version until you send it for review again.
+                    </div>
+                    <div class="alert alert-info mb-3" role="status" invisible="state != 'draft' or not review_note">
+                        <b>Your reviewer asks:</b> <field name="review_note" readonly="1" nolabel="1" class="d-inline"/>
+                    </div>
+                    <field name="image" widget="image" class="oe_avatar" readonly="1"/>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                        <field name="job_title" placeholder="Title on the profile, e.g. Senior Odoo Functional Consultant"/>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="employee_id" readonly="id"/>
+                            <field name="platform_ids" widget="many2many_tags" options="{'color_field': 'color'}"
+                                   placeholder="Odoo, NetSuite, DSI..."/>
+                            <field name="total_experience" string="Total experience" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="location" placeholder="Bengaluru, India"/>
+                            <field name="time_zone" placeholder="IST, overlaps EU mornings"/>
+                            <field name="reviewer_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="About you" name="about">
+                            <group>
+                                <field name="headline" placeholder="One line a customer remembers, e.g. Turns warehouse needs into ERP systems that work"/>
+                                <field name="summary" placeholder="3 or 4 sentences: what you do, for whom, and what customers like about working with you."/>
+                            </group>
+                            <label for="strength_ids" string="Strongest at (3 or 4)"/>
+                            <field name="strength_ids" context="{'default_kind': 'strength'}">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="kind" column_invisible="1"/>
+                                    <field name="name" string="Strength"/>
+                                    <field name="detail" string="One line about it"/>
+                                </list>
+                            </field>
+                            <label for="proud_ids" string="Proud of (2 or 3)"/>
+                            <field name="proud_ids" context="{'default_kind': 'proud'}">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="kind" column_invisible="1"/>
+                                    <field name="name" string="What you are proud of"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Work history" name="work">
+                            <div class="text-muted mb-2">Every job, including before LinkedERP. Total experience is added up from these.</div>
+                            <field name="job_ids">
+                                <list editable="bottom">
+                                    <field name="title"/>
+                                    <field name="company"/>
+                                    <field name="date_from"/>
+                                    <field name="date_to" placeholder="Current"/>
+                                    <field name="detail"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Selected work" name="projects">
+                            <div class="text-muted mb-2">2 to 4 projects. Describe the customer by industry (e.g. "Auto parts manufacturer, India") unless they agreed to be named.</div>
+                            <field name="project_ids" context="{'default_kind': 'project'}">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="kind" column_invisible="1"/>
+                                    <field name="name" string="Customer (by industry)"/>
+                                    <field name="platform_id" string="Platform"/>
+                                    <field name="year"/>
+                                    <field name="part"/>
+                                    <field name="detail" string="Result"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Skills" name="skills">
+                            <div class="text-muted mb-2">Customers only see skills at Proficient or Expert. Lower levels stay internal.</div>
+                            <field name="skill_ids" context="{'default_kind': 'skill'}">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="kind" column_invisible="1"/>
+                                    <field name="name" string="Skill"/>
+                                    <field name="level" required="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Certificates and education" name="certs">
+                            <field name="certification_ids" context="{'default_kind': 'certification'}">
+                                <list editable="bottom">
+                                    <field name="kind" column_invisible="1"/>
+                                    <field name="name" string="Certification"/>
+                                    <field name="year"/>
+                                    <field name="file" filename="file_name"/>
+                                    <field name="file_name" column_invisible="1"/>
+                                </list>
+                            </field>
+                            <field name="education_ids" context="{'default_kind': 'education'}">
+                                <list editable="bottom">
+                                    <field name="kind" column_invisible="1"/>
+                                    <field name="name" string="Degree"/>
+                                    <field name="detail" string="Where"/>
+                                    <field name="year"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Languages" name="languages">
+                            <field name="language_ids" context="{'default_kind': 'language'}">
+                                <list editable="bottom">
+                                    <field name="kind" column_invisible="1"/>
+                                    <field name="name" string="Language"/>
+                                    <field name="lang_level" string="Level" required="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Review" name="review">
+                            <group>
+                                <field name="review_note" placeholder="Reviewer: what should be changed?" readonly="state != 'review'"/>
+                                <field name="submitted_on"/>
+                                <field name="approved_on"/>
+                                <field name="approved_by"/>
+                                <field name="snapshot_id" invisible="1"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="hero_profile_list" model="ir.ui.view">
+        <field name="name">linkederp.hero.profile.list</field>
+        <field name="model">linkederp.hero.profile</field>
+        <field name="arch" type="xml">
+            <list string="Hero profiles">
+                <field name="name"/>
+                <field name="job_title"/>
+                <field name="platform_ids" widget="many2many_tags" options="{'color_field': 'color'}"/>
+                <field name="total_experience" string="Experience"/>
+                <field name="reviewer_id"/>
+                <field name="state" widget="badge" decoration-success="state == 'approved'"
+                       decoration-warning="state in ('review', 'changes')"/>
+                <field name="approved_on"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hero_profile_search" model="ir.ui.view">
+        <field name="name">linkederp.hero.profile.search</field>
+        <field name="model">linkederp.hero.profile</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="platform_ids"/>
+                <field name="headline"/>
+                <filter name="to_review" string="Waiting for my review"
+                        domain="[('state', '=', 'review'), ('reviewer_id', '=', uid)]"/>
+                <filter name="approved" string="Approved" domain="[('snapshot_id', '!=', False)]"/>
+                <filter name="refresh" string="Older than 6 months" domain="[('needs_refresh', '=', True)]"/>
+                <separator/>
+                <filter name="g_state" string="Status" context="{'group_by': 'state'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="hero_print_form" model="ir.ui.view">
+        <field name="name">linkederp.hero.print.form</field>
+        <field name="model">linkederp.hero.print</field>
+        <field name="arch" type="xml">
+            <form string="Print for a customer">
+                <group>
+                    <field name="customer" placeholder="Customer name"/>
+                    <field name="profile_ids" widget="many2many_tags"/>
+                    <field name="note" placeholder="Optional, e.g. This team has taken 3 manufacturers live on Odoo."/>
+                </group>
+                <div class="text-muted">One page per consultant, from their last approved profile.</div>
+                <footer>
+                    <button name="action_print" type="object" string="Print PDF" class="btn-primary"/>
+                    <button special="cancel" string="Cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_hero_profiles" model="ir.actions.act_window">
+        <field name="name">Hero Profiles</field>
+        <field name="res_model">linkederp.hero.profile</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('is_snapshot', '=', False)]</field>
+        <field name="help" type="html"><p class="o_view_nocontent_smiling_face">No hero profiles yet</p>
+            <p>Each consultant fills in their own from "My Hero Profile". Their manager approves it before customers see it.</p></field>
+    </record>
+
+    <record id="action_hero_to_review" model="ir.actions.act_window">
+        <field name="name">Profiles to review</field>
+        <field name="res_model">linkederp.hero.profile</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('is_snapshot', '=', False)]</field>
+        <field name="context">{'search_default_to_review': 1}</field>
+    </record>
+
+    <record id="action_my_hero_profile" model="ir.actions.server">
+        <field name="name">My Hero Profile</field>
+        <field name="model_id" ref="model_linkederp_hero_profile"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_open_my_profile()</field>
+    </record>
+
+    <menuitem id="menu_hero_root" name="Hero Profiles" parent="hr.menu_hr_root" sequence="90"/>
+    <menuitem id="menu_hero_mine" name="My Hero Profile" parent="menu_hero_root" action="action_my_hero_profile" sequence="1"/>
+    <menuitem id="menu_hero_review" name="Profiles to review" parent="menu_hero_root" action="action_hero_to_review" sequence="2"/>
+    <menuitem id="menu_hero_all" name="All Hero Profiles" parent="menu_hero_root" action="action_hero_profiles" sequence="3"
+              groups="hr.group_hr_user"/>
+</odoo>

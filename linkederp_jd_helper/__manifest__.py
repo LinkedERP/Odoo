@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "LinkedERP JD Helper (VectorMind)",
-    "version": "19.0.1.9.2",
+    "version": "19.0.1.10.0",
     "category": "Human Resources/Recruitment",
     "summary": "HR Office recruitment helpers with VectorMind: drafts JDs, reads and scores CVs, attaches Fathom interview notes.",
     "description": """
@@ -19,8 +19,9 @@ Settings (System Parameters):
 """,
     "author": "LinkedERP",
     "license": "LGPL-3",
-    "depends": ["base", "mail", "web"],
-    "data": ["data/ir_cron.xml", "data/hr_office.xml", "views/joining_page.xml"],
+    "depends": ["base", "mail", "web", "hr"],
+    "data": ["security/ir.model.access.csv", "security/hero_profile_rules.xml", "data/ir_cron.xml", "data/hr_office.xml",
+             "views/joining_page.xml", "views/hero_profile_views.xml", "views/hero_profile_report.xml"],
     "assets": {
         "web.assets_backend": [
             "linkederp_jd_helper/static/src/cv_dropzone.js",

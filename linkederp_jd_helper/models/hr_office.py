@@ -23,7 +23,7 @@ TILES = [
      "Making a new joiner's first days smooth: hiring approval, offer, documents, email and the first-week plan.",
      "fa-check-square-o", ("New joiners", "hr.applicant")),
     ("payroll", "Payroll", "Kabir", "Paying everyone correctly and on time, with PF, TDS and claims done right.", "fa-money", None),
-    ("misc", "Surveys & Profiles", "Tara", "Employee profiles, pulse surveys and HR letters.", "fa-bar-chart", None),
+    ("misc", "Surveys & Profiles", "Tara", "Employee profiles, pulse surveys and HR letters.", "fa-bar-chart", ("Hero Profiles", "linkederp.hero.profile")),
 ]
 
 
@@ -77,6 +77,10 @@ class LinkederpHrOffice(models.AbstractModel):
                 ("hiring approvals sent back", "hr.applicant", [("x_hiring_status", "=", "selected"), ("x_offer_status", "=", "returned")], True),
                 ("selected candidates to request approval for", "hr.applicant", [("x_hiring_status", "=", "selected"), ("x_offer_status", "in", ("draft", False))], False),
                 ("approved, offer to send", "hr.applicant", [("x_hiring_status", "=", "selected"), ("x_offer_status", "=", "approved")], False),
+            ],
+            "misc": [
+                ("hero profiles to review", "linkederp.hero.profile", [("state", "=", "review"), ("reviewer_id", "=", uid)], True),
+                ("hero profiles approved", "linkederp.hero.profile", [("snapshot_id", "!=", False)], False),
             ],
         }
         tiles = []

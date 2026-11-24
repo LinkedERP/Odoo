@@ -6,3 +6,4 @@ from . import onboarding
 from . import day_one
 from . import microsoft
 from . import dev_guard
+from . import hero_profile

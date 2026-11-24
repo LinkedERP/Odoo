@@ -40,4 +40,14 @@
         <field name="interval_type">days</field>
         <field name="active" eval="True"/>
     </record>
+    <!-- Hero profiles: a to-do to refresh the profile 6 months after its last approval. -->
+    <record id="ir_cron_hero_refresh" model="ir.cron">
+        <field name="name">HR Office: hero profile refresh reminders</field>
+        <field name="model_id" ref="model_linkederp_hero_profile"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_refresh_reminders()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
 </odoo>

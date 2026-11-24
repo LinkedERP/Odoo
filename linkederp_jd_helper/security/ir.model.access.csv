@@ -1,0 +1,8 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_hero_profile_user,hero profile user,model_linkederp_hero_profile,base.group_user,1,1,1,0
+access_hero_profile_hr,hero profile hr,model_linkederp_hero_profile,hr.group_hr_user,1,1,1,1
+access_hero_job_user,hero job user,model_linkederp_hero_job,base.group_user,1,1,1,1
+access_hero_line_user,hero line user,model_linkederp_hero_line,base.group_user,1,1,1,1
+access_hero_platform_user,hero platform user,model_linkederp_hero_platform,base.group_user,1,0,1,0
+access_hero_platform_hr,hero platform hr,model_linkederp_hero_platform,hr.group_hr_user,1,1,1,1
+access_hero_print_user,hero print user,model_linkederp_hero_print,base.group_user,1,1,1,1
