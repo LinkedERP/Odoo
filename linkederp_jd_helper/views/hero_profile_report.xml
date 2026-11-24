@@ -26,16 +26,17 @@
     <!-- One A4 page per consultant. Tables, not flex/grid: the PDF engine (wkhtmltopdf) is old. -->
     <template id="hero_profile_page">
         <t t-call="web.html_container">
-            <t t-set="customer" t-value="(data or {}).get('customer') or ''"/>
-            <t t-set="note" t-value="(data or {}).get('note') or ''"/>
+            <!-- the print wizard's data arrives as top-level values -->
+            <t t-set="customer" t-value="customer or ''"/>
+            <t t-set="note" t-value="note or ''"/>
             <t t-foreach="docs" t-as="doc">
                 <t t-set="senior" t-value="doc.total_months &gt;= 36"/>
                 <t t-set="skills" t-value="doc._page_skills()"/>
-                <div class="page" style="position: relative; height: 1118px; overflow: hidden; page-break-after: always; font-family: Helvetica, Arial, 'DejaVu Sans', sans-serif; font-size: 12.5px; line-height: 1.5; color: #1b2233; background: #ffffff;">
+                <div class="page" t-attf-style="zoom: 1.18; position: relative; height: 1180px; overflow: hidden; #{'' if doc_last else 'page-break-after: always;'} font-family: Helvetica, Arial, 'DejaVu Sans', sans-serif; font-size: 12.5px; line-height: 1.5; color: #1b2233; background: #ffffff;">
 
                     <div style="background: #14254a; color: #ffffff; padding: 26px 38px 26px;">
                         <table style="width: 100%;"><tr>
-                            <td style="font-weight: bold; font-size: 17px;">Linked<span style="color: #E8312F;">ERP</span></td>
+                            <td style="font-weight: bold; font-size: 17px; color: #ffffff;">Linked<span style="color: #E8312F;">ERP</span></td>
                             <td style="text-align: right; font-size: 10px; letter-spacing: 2px; color: #aab6d3; font-weight: bold;">HERO PROFILE</td>
                         </tr></table>
                         <table style="width: 100%; margin-top: 16px;"><tr>
@@ -43,7 +44,7 @@
                                 <img t-if="doc.image" t-att-src="image_data_uri(doc.image)" style="width: 122px; height: 122px; border-radius: 61px; border: 3px solid #E8312F;" alt="Photo"/>
                             </td>
                             <td style="vertical-align: middle;">
-                                <div style="font-size: 36px; font-weight: bold; line-height: 1.1;" t-out="doc.name"/>
+                                <div style="font-size: 36px; font-weight: bold; line-height: 1.1; color: #ffffff;" t-out="doc.name"/>
                                 <div style="font-size: 16px; color: #d7deef; margin-top: 4px;" t-out="doc.job_title or ''"/>
                                 <div style="margin-top: 10px;">
                                     <t t-foreach="doc.platform_ids" t-as="pl">
@@ -56,7 +57,7 @@
 
                     <table style="width: 100%; background: #f3f5fa; border-bottom: 1px solid #e4e8f0;"><tr>
                         <t t-foreach="doc._page_facts()" t-as="fact">
-                            <td style="width: 25%; padding: 14px 0 14px 38px; vertical-align: top;">
+                            <td style="width: 25%; padding: 14px 12px 14px 38px; vertical-align: top;">
                                 <div style="font-size: 9.5px; letter-spacing: 1.5px; color: #8a93a6; font-weight: bold;" t-out="fact[0].upper()"/>
                                 <div t-attf-style="font-size: #{'22px' if fact_first else '15px'}; font-weight: bold; color: #{'#E8312F' if fact_first else '#14254a'}; line-height: 1.25;" t-out="fact[1]"/>
                                 <div t-if="fact[2]" style="color: #5a6478; font-size: 11px;" t-out="fact[2]"/>
@@ -78,7 +79,7 @@
                                 <t t-foreach="doc.project_ids" t-as="pr">
                                     <div style="border: 1px solid #e4e8f0; border-radius: 9px; padding: 11px 14px; margin-top: 9px;">
                                         <table style="width: 100%;"><tr>
-                                            <td style="font-weight: bold; font-size: 13px;"><t t-out="pr.name"/><t t-if="pr.year"> · <t t-out="pr.year"/></t></td>
+                                            <td style="font-weight: bold; font-size: 13px;"><t t-out="pr.name"/><t t-if="pr.year">, <t t-out="pr.year"/></t></td>
                                             <td t-if="pr.platform_id" style="text-align: right;"><span style="font-size: 10px; color: #ffffff; background: #14254a; padding: 1px 8px; border-radius: 8px;" t-out="pr.platform_id.name"/></td>
                                         </tr></table>
                                         <div t-if="pr.part" style="color: #5a6478;">Their part: <t t-out="pr.part"/></div>
@@ -90,7 +91,7 @@
                             <t t-if="doc.proud_ids">
                                 <div style="margin-top: 20px; font-size: 10.5px; letter-spacing: 2px; color: #E8312F; font-weight: bold;">PROUD OF</div>
                                 <t t-foreach="doc.proud_ids" t-as="pd">
-                                    <div style="margin-top: 6px;"><span style="color: #E8312F; font-weight: bold;">&#10003;</span>&#160; <t t-out="pd.name"/></div>
+                                    <div style="margin-top: 6px;"><span style="display: inline-block; width: 7px; height: 7px; background: #E8312F; margin: 0 8px 1px 2px;"></span><t t-out="pd.name"/></div>
                                 </t>
                             </t>
 
@@ -136,7 +137,7 @@
                             <t t-if="doc.certification_ids">
                                 <div style="margin-top: 20px; font-size: 10.5px; letter-spacing: 2px; color: #E8312F; font-weight: bold;">CERTIFIED IN</div>
                                 <t t-foreach="doc.certification_ids" t-as="ce">
-                                    <div style="margin-top: 6px;"><b t-out="ce.name"/><t t-if="ce.year"> · <t t-out="ce.year"/></t></div>
+                                    <div style="margin-top: 6px;"><b t-out="ce.name"/><t t-if="ce.year">, <t t-out="ce.year"/></t></div>
                                 </t>
                             </t>
 
@@ -159,7 +160,7 @@
                     </div>
 
                     <table style="position: absolute; bottom: 0; left: 0; width: 100%; border-top: 1px solid #e4e8f0; font-size: 10px; color: #6b7487;"><tr>
-                        <td style="padding: 10px 38px 16px;">Shared in confidence<t t-if="customer"> with <t t-out="customer"/></t> · approved <t t-out="doc.approved_on and doc.approved_on.strftime('%b %Y') or ''"/></td>
+                        <td style="padding: 10px 38px 16px;">Shared in confidence<t t-if="customer"> with <t t-out="customer"/></t>, approved <t t-out="doc.approved_on and doc.approved_on.strftime('%b %Y') or ''"/></td>
                         <td style="padding: 10px 38px 16px; text-align: right; font-weight: bold; color: #14254a;">www.linkederp.com</td>
                     </tr></table>
                 </div>
