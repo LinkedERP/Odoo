@@ -26,10 +26,9 @@
     <!-- One A4 page per consultant. Tables, not flex/grid: the PDF engine (wkhtmltopdf) is old. -->
     <template id="hero_profile_page">
         <t t-call="web.html_container">
-            <!-- the print wizard's data arrives as top-level values -->
-            <t t-set="customer" t-value="customer or ''"/>
-            <t t-set="note" t-value="note or ''"/>
             <t t-foreach="docs" t-as="doc">
+                <t t-set="customer" t-value="doc.print_customer or ''"/>
+                <t t-set="note" t-value="doc.print_note or ''"/>
                 <t t-set="senior" t-value="doc.total_months &gt;= 36"/>
                 <t t-set="skills" t-value="doc._page_skills()"/>
                 <div class="page" t-attf-style="zoom: 1.18; position: relative; height: 1180px; overflow: hidden; #{'' if doc_last else 'page-break-after: always;'} font-family: Helvetica, Arial, 'DejaVu Sans', sans-serif; font-size: 12.5px; line-height: 1.5; color: #1b2233; background: #ffffff;">

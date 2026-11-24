@@ -103,6 +103,8 @@ class HeroProfile(models.Model):
     submitted_on = fields.Date(readonly=True, copy=False)
     approved_on = fields.Date(readonly=True, copy=False)
     approved_by = fields.Many2one("res.users", readonly=True, copy=False)
+    print_customer = fields.Char(copy=False)  # set on the approved copy by the print wizard
+    print_note = fields.Text(copy=False)
     needs_refresh = fields.Boolean(compute="_compute_needs_refresh", search="_search_needs_refresh")
 
     # ---------- computes ----------
@@ -143,7 +145,7 @@ class HeroProfile(models.Model):
 
     # ---------- edits after approval ----------
     QUIET = {"state", "review_note", "snapshot_id", "submitted_on", "approved_on", "approved_by", "reviewer_id",
-             "active", "is_snapshot"}
+             "active", "is_snapshot", "print_customer", "print_note"}
 
     def write(self, vals):
         res = super().write(vals)
@@ -260,9 +262,10 @@ class HeroPrint(models.TransientModel):
         if not_ready:
             raise UserError("Not approved yet: %s. Only approved profiles can go to customers."
                             % ", ".join(not_ready.mapped("name")))
-        snaps = self.profile_ids.mapped("snapshot_id")
-        return self.env.ref("linkederp_jd_helper.report_hero_profile").report_action(
-            snaps.ids, data={"customer": self.customer, "note": self.note or ""})
+        snaps = self.profile_ids.mapped("snapshot_id").sudo()
+        # not passed as report data: the web client then drops the record ids and prints a blank page
+        snaps.write({"print_customer": self.customer, "print_note": self.note or False})
+        return self.env.ref("linkederp_jd_helper.report_hero_profile").report_action(snaps.ids)
 
 
 assert experience_text(0) == "" and experience_text(8) == "8 months" and experience_text(12) == "1 year"
